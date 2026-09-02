@@ -175,8 +175,8 @@ module.exports = function(io) {
 
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((currentOrder) => currentOrder.id === id);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      if (cashLedgerResult.posted || cashLedgerResult.removed) io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('orders:sync', allOrders);
+      if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
       return res.json(updatedOrder);
     } catch (error) {
       if (client) {
@@ -227,8 +227,8 @@ module.exports = function(io) {
 
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((currentOrder) => currentOrder.id === id);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      if (cashLedgerResult.posted || cashLedgerResult.removed) io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('orders:sync', allOrders);
+      if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
       return res.json(updatedOrder);
     } catch (error) {
       if (client) {
@@ -313,9 +313,9 @@ module.exports = function(io) {
       const allOrders = await fetchAllOrders(req.user);
       const allTables = await fetchAllTables(req.user);
       const updatedOrder = allOrders.find((currentOrder) => currentOrder.id === id);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
+      io.emit('caja:updated');
       return res.json(updatedOrder);
     } catch (error) {
       if (client) {
@@ -390,8 +390,8 @@ module.exports = function(io) {
 
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('orders:sync', allOrders);
+      io.emit('caja:updated');
       res.json(updatedOrder);
     } catch (err) {
       console.error('Error al eliminar movimiento de pago:', err);
@@ -510,9 +510,9 @@ module.exports = function(io) {
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('order:paid', updatedOrder);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('order:paid', updatedOrder);
+      io.emit('orders:sync', allOrders);
+      io.emit('caja:updated');
 
       res.json(updatedOrder);
     } catch (err) {

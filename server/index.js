@@ -73,14 +73,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const clientIp = (socket.handshake.address || '').replace('::ffff:', '');
   console.log(`⚡ Cliente conectado a WebSocket LAN: ${socket.id} (IP: ${clientIp || '127.0.0.1'})`);
-  socket.join(`shift:${socket.user.shift}`);
 
   Promise.all([
-    fetchAllOrders(socket.user),
-    fetchAllProducts(socket.user),
-    fetchAllIngredients(socket.user),
-    fetchAllTables(socket.user),
-    getRatesForShift({ query }, socket.user.shift),
+    fetchAllOrders(),
+    fetchAllProducts(),
+    fetchAllIngredients(),
+    fetchAllTables(),
+    getRatesForShift({ query }, 'ambos'),
   ]).then(([orders, products, ingredients, tables, rates]) => {
     socket.emit('orders:sync', orders);
     socket.emit('products:sync', products);

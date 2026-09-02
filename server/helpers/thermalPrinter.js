@@ -193,38 +193,14 @@ function isKitchenItem(item) {
 }
 
 function itemDetails(item, order = {}) {
-  const isMorningOrder = order.shift === 'manana' || order.shiftType === 'manana' || item.shift === 'manana';
-  const isPizza = (item.category || '').toLowerCase() === 'pizzas' || (item.productName || '').toLowerCase().includes('pizza');
   const details = [];
 
-  // En la comanda de cocina de la mañana NO debe salir el tamaño. Solo sale para pizzas en el turno de noche.
-  if (item.size && !isMorningOrder && isPizza) {
-    details.push(`Tamano: ${item.size}`);
-  }
   if (item.isTakeaway || item.is_takeaway) details.push('*** PARA LLEVAR ***');
-  if (item.sugarPreference) details.push(`Azucar: ${item.sugarPreference}`);
-
-  if (item.isHalfHalf && item.halfDetails) {
-    const { half1Name, half2Name, half1Removed, half2Removed, half1Extras, half2Extras } = item.halfDetails;
-    details.push(`1RA MITAD: ${half1Name || ''}`);
-    if (half1Removed?.length) details.push(`  1RA SIN: ${half1Removed.join(', ')}`);
-    if (half1Extras?.length) details.push(`  1RA EXTRA: ${half1Extras.map((extra) => extra.name).join(', ')}`);
-    details.push(`2DA MITAD: ${half2Name || ''}`);
-    if (half2Removed?.length) details.push(`  2DA SIN: ${half2Removed.join(', ')}`);
-    if (half2Extras?.length) details.push(`  2DA EXTRA: ${half2Extras.map((extra) => extra.name).join(', ')}`);
-  } else {
-    if (item.removedIngredients?.length) details.push(`SIN: ${item.removedIngredients.join(', ')}`);
-    if (item.extras?.length) {
-      if (item.category && item.category !== 'Pizzas') {
-        for (const extra of item.extras) {
-          details.push(`CONTORNO: ${extra.name || extra}`);
-        }
-      } else {
-        details.push(`EXTRA: ${item.extras.map((extra) => extra.name || extra).join(', ')}`);
-      }
-    }
+  if (item.removedIngredients?.length) details.push(`SIN: ${item.removedIngredients.join(', ')}`);
+  if (item.extras?.length) {
+    details.push(`EXTRA: ${item.extras.map((extra) => extra.name || extra).join(', ')}`);
   }
-
+  if (item.sugarPreference) details.push(`Azucar: ${item.sugarPreference}`);
   if (item.notes) details.push(`NOTA: ${item.notes}`);
   return details;
 }
@@ -313,7 +289,7 @@ function addReportHeader(lines, title, data, width = LINE_WIDTH, formatSetup = P
     formatSetup,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('BASILICO PIZZERIA', width),
+    centered('CRISPY BURGER', width),
     centered(title, width),
     '\x1BE\x00',
     `EMITIDO: ${reportTimestamp(new Date().toISOString())}`,
@@ -328,7 +304,7 @@ function addReportHeader(lines, title, data, width = LINE_WIDTH, formatSetup = P
 function buildReportTicket(reportType, data) {
   const titles = {
     contable: 'REPORTE CONTABLE',
-    pizzas: 'PIZZAS VENDIDAS',
+    pizzas: 'HAMBURGUESAS VENDIDAS',
     ingresos: 'INGRESOS Y COBROS',
     egresos: 'VUELTOS Y EGRESOS',
     cocina: 'REPORTE DE COCINA',
@@ -658,7 +634,7 @@ function buildReportTicket(reportType, data) {
     }
   }
 
-  lines.push('', divider('=', reportWidth), centered('FIN DEL REPORTE', reportWidth), centered('BASILICO PIZZERIA', reportWidth), PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
+  lines.push('', divider('=', reportWidth), centered('FIN DEL REPORTE', reportWidth), centered('CRISPY BURGER', reportWidth), PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
   return Buffer.from(lines.join('\n'), 'ascii');
 }
 
@@ -688,7 +664,7 @@ function buildKitchenTicket(order) {
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
     '\x1Ba\x01',
-    kitchenCentered('BASILICO PIZZERIA'),
+    kitchenCentered('CRISPY BURGER'),
     kitchenCentered('COMANDA COCINA'),
     '\x1Ba\x00',
     kitchenDivider('='),
@@ -749,7 +725,7 @@ function buildKitchenAdditionTicket(order, addedItems) {
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
     '\x1Ba\x01',
-    kitchenCentered('BASILICO PIZZERIA'),
+    kitchenCentered('CRISPY BURGER'),
     kitchenCentered('ADICION COCINA'),
     '\x1Ba\x00',
     kitchenDivider('='),
@@ -866,7 +842,7 @@ function buildTestTicket(printerName, config) {
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('BASILICO PIZZERIA'),
+    centered('CRISPY BURGER'),
     centered('--- PRUEBA DE CONEXION ---'),
     '\x1BE\x00',
     '\x1Ba\x00',
@@ -930,7 +906,7 @@ function buildReceiptTicket(order, rates = {}) {
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('BASILICO PIZZERIA'),
+    centered('CRISPY BURGER'),
     centered('PRE-CUENTA / TICKET DE CONSUMO'),
     '\x1BE\x00',
     '\x1Ba\x00',
@@ -986,7 +962,7 @@ function buildReceiptTicket(order, rates = {}) {
   lines.push('');
   lines.push('\x1Ba\x01');
   lines.push('¡GRACIAS POR SU PREFERENCIA!');
-  lines.push('BASILICO PIZZERIA');
+  lines.push('CRISPY BURGER');
   lines.push('\x1Ba\x00');
   lines.push(PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
 
@@ -1005,7 +981,7 @@ function buildCierreShiftTicket(data) {
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('BASILICO PIZZERIA'),
+    centered('CRISPY BURGER'),
     centered(`ARQUEO Y CIERRE DE TURNO (${shiftName})`),
     '\x1BE\x00',
     '\x1Ba\x00',
@@ -1076,7 +1052,7 @@ function buildCierreShiftTicket(data) {
   lines.push('');
   lines.push('\x1Ba\x01');
   lines.push('TURNO CERRADO EXITOSAMENTE');
-  lines.push('BASILICO PIZZERIA');
+  lines.push('CRISPY BURGER');
   lines.push('\x1Ba\x00');
   lines.push(PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
 

@@ -3,20 +3,9 @@ const router = express.Router();
 const { query } = require('../db');
 const { createSession } = require('../helpers/sessionAuth');
 
-const SHIFT_ACCOUNTS = {
-  'mesero.manana': { username: 'Mesero Mañana', role: 'mesero', shift: 'manana' },
-  'caja.manana': { username: 'Caja Mañana', role: 'caja', shift: 'manana' },
-  'cocina.manana': { username: 'Cocina Mañana', role: 'cocina', shift: 'manana' },
-  'admin.manana': { username: 'Admin Mañana', role: 'admin', shift: 'manana' },
-  'mesero.noche': { username: 'Mesero Noche', role: 'mesero', shift: 'noche' },
-  'caja.noche': { username: 'Caja Noche', role: 'caja', shift: 'noche' },
-  'cocina.noche': { username: 'Cocina Noche', role: 'cocina', shift: 'noche' },
-  'admin.noche': { username: 'Admin Noche', role: 'admin', shift: 'noche' },
-};
-
 function loginResponse(res, user) {
-  const sessionToken = createSession(user);
-  return res.json({ success: true, user: { ...user, sessionToken } });
+  const sessionToken = createSession({ ...user, shift: 'ambos' });
+  return res.json({ success: true, user: { ...user, shift: 'ambos', sessionToken } });
 }
 
 module.exports = function(io) {
@@ -26,15 +15,26 @@ module.exports = function(io) {
       const userClean = (username || '').trim().toLowerCase();
       const passClean = (password || '').trim().toLowerCase();
 
-      if (userClean === 'basilico' || userClean === 'admin') {
-        if (SHIFT_ACCOUNTS[passClean]) return loginResponse(res, SHIFT_ACCOUNTS[passClean]);
-        if (passClean === 'basilico1.') return loginResponse(res, { username: 'Dueño', role: 'admin', shift: 'ambos' });
+      // Atajos de acceso directo para Crispy
+      const DEFAULT_ACCOUNTS = {
+        'admin': { username: 'Administrador General', role: 'admin' },
+        'caja': { username: 'Cajero Principal', role: 'caja' },
+        'mesero': { username: 'Mesero Principal', role: 'mesero' },
+        'cocina': { username: 'Jefe de Cocina', role: 'cocina' },
+      };
+
+      if (DEFAULT_ACCOUNTS[userClean] && (passClean === userClean || passClean === 'crispy1.' || passClean === 'admin')) {
+        return loginResponse(res, DEFAULT_ACCOUNTS[userClean]);
+      }
+
+      if (userClean === 'crispy' && (passClean === 'crispy1.' || passClean === 'admin')) {
+        return loginResponse(res, { username: 'Administrador Crispy', role: 'admin' });
       }
 
       const { rows } = await query(`SELECT * FROM users WHERE LOWER(username) = $1 AND LOWER(password) = $2`, [userClean, passClean]);
       if (rows.length > 0) {
         const u = rows[0];
-        return loginResponse(res, { username: u.name, role: u.role, shift: u.shift || 'ambos' });
+        return loginResponse(res, { username: u.name, role: u.role, shift: 'ambos' });
       }
 
       return res.status(401).json({ success: false, error: 'Credenciales inválidas' });

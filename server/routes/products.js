@@ -16,30 +16,25 @@ module.exports = function(io) {
 
   router.post('/', requireRole('admin'), async (req, res) => {
     try {
-      const { id: inputId, name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients, shift } = req.body;
+      const { id: inputId, name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients } = req.body;
       const id = inputId || `prod-${Date.now()}`;
-      const targetShift = shift || req.user.shift || 'manana';
 
       if (inputId) {
         await query(
-          `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = $10 WHERE id = $11`,
-          [name, category, drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], targetShift, inputId]
+          `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = 'ambos' WHERE id = $10`,
+          [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], inputId]
         );
       } else {
         await query(
           `INSERT INTO products (id, name, category, drink_type, price, price_small, description, image, badge, base_ingredients, shift)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [id, name, category, drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], targetShift]
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ambos')`,
+          [id, name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || []]
         );
       }
 
-      const shiftProducts = await fetchAllProducts(req.user);
-      io.to(`shift:${targetShift}`).emit('products:sync', shiftProducts);
-      if (targetShift !== 'ambos') {
-        const ambosProducts = await fetchAllProducts({ shift: 'ambos' });
-        io.to('shift:ambos').emit('products:sync', ambosProducts);
-      }
-      res.status(201).json(shiftProducts.find((p) => p.id === id) || { id, name });
+      const allProducts = await fetchAllProducts();
+      io.emit('products:sync', allProducts);
+      res.status(201).json(allProducts.find((p) => p.id === id) || { id, name });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al crear o actualizar producto' });
@@ -49,21 +44,16 @@ module.exports = function(io) {
   router.put('/:id', requireRole('admin'), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients, shift } = req.body;
-      const targetShift = shift || req.user.shift || 'manana';
+      const { name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients } = req.body;
 
       await query(
-        `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = $10 WHERE id = $11`,
-        [name, category, drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], targetShift, id]
+        `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = 'ambos' WHERE id = $10`,
+        [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], id]
       );
 
-      const shiftProducts = await fetchAllProducts(req.user);
-      io.to(`shift:${targetShift}`).emit('products:sync', shiftProducts);
-      if (targetShift !== 'ambos') {
-        const ambosProducts = await fetchAllProducts({ shift: 'ambos' });
-        io.to('shift:ambos').emit('products:sync', ambosProducts);
-      }
-      res.json(shiftProducts.find((p) => p.id === id) || { success: true });
+      const allProducts = await fetchAllProducts();
+      io.emit('products:sync', allProducts);
+      res.json(allProducts.find((p) => p.id === id) || { success: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al actualizar producto' });
@@ -74,12 +64,8 @@ module.exports = function(io) {
     try {
       const { id } = req.params;
       await query(`DELETE FROM products WHERE id = $1`, [id]);
-      const shiftProducts = await fetchAllProducts(req.user);
-      io.to(`shift:${req.user.shift}`).emit('products:sync', shiftProducts);
-      if (req.user.shift !== 'ambos') {
-        const ambosProducts = await fetchAllProducts({ shift: 'ambos' });
-        io.to('shift:ambos').emit('products:sync', ambosProducts);
-      }
+      const allProducts = await fetchAllProducts();
+      io.emit('products:sync', allProducts);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: 'Error al eliminar producto' });

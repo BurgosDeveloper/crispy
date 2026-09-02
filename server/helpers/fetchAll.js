@@ -32,10 +32,8 @@ function normalizeImageUrl(url) {
   return url;
 }
 
-async function fetchAllOrders(user) {
-  const parameters = user?.shift && user.shift !== 'ambos' ? [user.shift] : [];
-  const whereClause = parameters.length ? 'WHERE shift = $1 AND archived_at IS NULL' : 'WHERE archived_at IS NULL';
-  const { rows: orders } = await query(`SELECT * FROM orders ${whereClause} ORDER BY created_at DESC`, parameters);
+async function fetchAllOrders() {
+  const { rows: orders } = await query(`SELECT * FROM orders WHERE archived_at IS NULL ORDER BY created_at DESC`);
   const orderIds = orders.map((order) => order.id);
   if (orderIds.length === 0) return [];
 
@@ -61,7 +59,7 @@ async function fetchAllOrders(user) {
     isEdited: !!ord.is_edited,
     mergedFromOrders: ord.merged_from_orders || [],
     deliveryFeeUSD: parseFloat(ord.delivery_fee_usd) || 0,
-    shift: ord.shift || 'ambos',
+    shift: 'ambos',
     createdAt: ord.created_at,
     paymentHistory: payments
       .filter((pm) => pm.order_id === ord.id)
@@ -90,7 +88,7 @@ async function fetchAllOrders(user) {
         productName: it.product_name,
         price: parseFloat(it.price) || 0,
         quantity: it.quantity,
-        size: it.size || 'Grande',
+        size: it.size || 'Estándar',
         isHalfHalf: !!it.is_half_half,
         halfDetails: safeJsonParseObj(it.half_details),
         removedIngredients: it.removed_ingredients || [],
@@ -107,65 +105,54 @@ async function fetchAllOrders(user) {
   }));
 }
 
-async function fetchAllProducts(user) {
-  const parameters = user?.shift && user.shift !== 'ambos' ? [user.shift] : [];
-  const whereClause = parameters.length ? "WHERE shift = $1" : '';
-  const { rows } = await query(`SELECT * FROM products ${whereClause} ORDER BY name ASC`, parameters);
+async function fetchAllProducts() {
+  const { rows } = await query(`SELECT * FROM products ORDER BY name ASC`);
   return rows.map((p) => ({
     id: p.id,
     name: p.name,
-    category: p.category,
+    category: p.category || 'Hamburguesas',
     drinkType: p.drink_type || undefined,
-    price: parseFloat(p.price),
-    priceSmall: parseFloat(p.price_small || p.price_small_usd) || (parseFloat(p.price) > 4 ? parseFloat(p.price) - 4 : parseFloat(p.price)),
+    price: parseFloat(p.price) || 0,
+    priceSmall: p.price_small ? parseFloat(p.price_small) : undefined,
     description: p.description || '',
     image: normalizeImageUrl(p.image),
     badge: p.badge || undefined,
     baseIngredients: p.base_ingredients || [],
     recipe: [],
-    shift: p.shift || 'manana',
+    shift: 'ambos',
   }));
 }
 
-async function fetchAllIngredients(user) {
-  const parameters = user?.shift && user.shift !== 'ambos' ? [user.shift] : [];
-  const whereClause = parameters.length ? "WHERE shift = $1" : '';
-  const { rows } = await query(`SELECT * FROM ingredients ${whereClause} ORDER BY name ASC`, parameters);
+async function fetchAllIngredients() {
+  const { rows } = await query(`SELECT * FROM ingredients ORDER BY name ASC`);
   return rows.map((i) => {
     const rawPriceUsd = parseFloat(i.price_usd) || 0;
-    const priceGrandeCompleta = i.price_grande_completa !== null && i.price_grande_completa !== undefined ? parseFloat(i.price_grande_completa) : rawPriceUsd;
-    const priceGrandeMitad = i.price_grande_mitad !== null && i.price_grande_mitad !== undefined ? parseFloat(i.price_grande_mitad) : (priceGrandeCompleta > 0 ? priceGrandeCompleta / 2 : 0);
-    const pricePequenaCompleta = i.price_pequena_completa !== null && i.price_pequena_completa !== undefined ? parseFloat(i.price_pequena_completa) : (priceGrandeCompleta > 0 ? priceGrandeCompleta / 2 : 0);
-    const pricePequenaMitad = i.price_pequena_mitad !== null && i.price_pequena_mitad !== undefined ? parseFloat(i.price_pequena_mitad) : (pricePequenaCompleta > 0 ? pricePequenaCompleta / 2 : 0);
-
     return {
       id: i.id,
       name: i.name,
-      priceUSD: priceGrandeCompleta,
-      priceGrandeCompleta,
-      priceGrandeMitad,
-      pricePequenaCompleta,
-      pricePequenaMitad,
-      isBaseForPizza: !!i.is_base_for_pizza,
-      isExtraForPizza: !!i.is_extra_for_pizza,
+      priceUSD: rawPriceUsd,
+      priceGrandeCompleta: rawPriceUsd,
+      priceGrandeMitad: rawPriceUsd > 0 ? rawPriceUsd / 2 : 0,
+      pricePequenaCompleta: rawPriceUsd,
+      pricePequenaMitad: rawPriceUsd > 0 ? rawPriceUsd / 2 : 0,
+      isBase: i.is_base !== false,
+      isExtra: i.is_extra !== false,
+      isBaseForPizza: i.is_base !== false || !!i.is_base_for_pizza,
+      isExtraForPizza: i.is_extra !== false || !!i.is_extra_for_pizza,
       category: i.category || 'Ingredientes',
       available: i.available !== false,
-      shift: i.shift || 'manana',
+      shift: 'ambos',
     };
   });
 }
 
-async function fetchAllTables(user) {
+async function fetchAllTables() {
   const { rows: tables } = await query(`SELECT * FROM tables_config ORDER BY number ASC`);
 
-  // Calcular ocupación dinámica por turno
   let activeOccupiedTables = new Set();
   try {
-    const parameters = user?.shift && user.shift !== 'ambos' ? [user.shift] : [];
-    const shiftFilter = parameters.length ? 'AND shift = $1' : '';
     const { rows: activeOrders } = await query(
-      `SELECT table_number FROM orders WHERE type = 'mesa' AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL ${shiftFilter}`,
-      parameters
+      `SELECT table_number FROM orders WHERE type = 'mesa' AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL`
     );
     activeOccupiedTables = new Set(activeOrders.map((o) => o.table_number).filter(Boolean));
   } catch (e) {}

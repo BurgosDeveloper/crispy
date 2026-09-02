@@ -20,49 +20,37 @@ module.exports = function(io) {
         name,
         priceUSD,
         priceGrandeCompleta,
-        priceGrandeMitad,
-        pricePequenaCompleta,
-        pricePequenaMitad,
+        isBase,
+        isExtra,
         isBaseForPizza,
         isExtraForPizza,
         category,
         available,
-        shift
       } = req.body;
       const id = `ing-${Date.now()}`;
-      const targetShift = shift || req.user.shift || 'manana';
-
-      const pGrandeComp = priceGrandeCompleta !== undefined ? (parseFloat(priceGrandeCompleta) || 0) : (parseFloat(priceUSD) || 0);
-      const pGrandeMit = priceGrandeMitad !== undefined ? (parseFloat(priceGrandeMitad) || 0) : (pGrandeComp > 0 ? pGrandeComp / 2 : 0);
-      const pPequenaComp = pricePequenaCompleta !== undefined ? (parseFloat(pricePequenaCompleta) || 0) : (pGrandeComp > 0 ? pGrandeComp / 2 : 0);
-      const pPequenaMit = pricePequenaMitad !== undefined ? (parseFloat(pricePequenaMitad) || 0) : (pPequenaComp > 0 ? pPequenaComp / 2 : 0);
+      const finalPrice = priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0);
+      const finalIsBase = isBase !== undefined ? !!isBase : (isBaseForPizza !== false);
+      const finalIsExtra = isExtra !== undefined ? !!isExtra : (isExtraForPizza !== false);
 
       await query(
-        `INSERT INTO ingredients (id, name, price_usd, price_grande_completa, price_grande_mitad, price_pequena_completa, price_pequena_mitad, is_base_for_pizza, is_extra_for_pizza, category, available, shift)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        `INSERT INTO ingredients (id, name, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ambos')`,
         [
           id,
           name,
-          pGrandeComp,
-          pGrandeComp,
-          pGrandeMit,
-          pPequenaComp,
-          pPequenaMit,
-          isBaseForPizza !== false,
-          isExtraForPizza !== false,
+          finalPrice,
+          finalIsBase,
+          finalIsExtra,
+          finalIsBase,
+          finalIsExtra,
           category || 'Ingredientes',
           available !== false,
-          targetShift
         ]
       );
 
-      const shiftIngredients = await fetchAllIngredients(req.user);
-      io.to(`shift:${targetShift}`).emit('ingredients:sync', shiftIngredients);
-      if (targetShift !== 'ambos') {
-        const ambosIngredients = await fetchAllIngredients({ shift: 'ambos' });
-        io.to('shift:ambos').emit('ingredients:sync', ambosIngredients);
-      }
-      res.status(201).json(shiftIngredients.find((i) => i.name === name) || { id, name });
+      const allIngredients = await fetchAllIngredients();
+      io.emit('ingredients:sync', allIngredients);
+      res.status(201).json(allIngredients.find((i) => i.name === name) || { id, name });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al guardar ingrediente' });
@@ -77,20 +65,16 @@ module.exports = function(io) {
         category,
         priceUSD,
         priceGrandeCompleta,
-        priceGrandeMitad,
-        pricePequenaCompleta,
-        pricePequenaMitad,
+        isBase,
+        isExtra,
         isBaseForPizza,
         isExtraForPizza,
         available,
-        shift
       } = req.body;
-      const targetShift = shift || req.user.shift || 'manana';
 
-      const pGrandeComp = priceGrandeCompleta !== undefined ? (parseFloat(priceGrandeCompleta) || 0) : (parseFloat(priceUSD) || 0);
-      const pGrandeMit = priceGrandeMitad !== undefined ? (parseFloat(priceGrandeMitad) || 0) : (pGrandeComp > 0 ? pGrandeComp / 2 : 0);
-      const pPequenaComp = pricePequenaCompleta !== undefined ? (parseFloat(pricePequenaCompleta) || 0) : (pGrandeComp > 0 ? pGrandeComp / 2 : 0);
-      const pPequenaMit = pricePequenaMitad !== undefined ? (parseFloat(pricePequenaMitad) || 0) : (pPequenaComp > 0 ? pPequenaComp / 2 : 0);
+      const finalPrice = priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0);
+      const finalIsBase = isBase !== undefined ? !!isBase : (isBaseForPizza !== false);
+      const finalIsExtra = isExtra !== undefined ? !!isExtra : (isExtraForPizza !== false);
 
       let oldName = null;
       const { rows } = await query(`SELECT name FROM ingredients WHERE id = $1`, [id]);
@@ -99,22 +83,17 @@ module.exports = function(io) {
       await query(
         `UPDATE ingredients 
          SET name = $1, category = $2, price_usd = $3, 
-             price_grande_completa = $4, price_grande_mitad = $5,
-             price_pequena_completa = $6, price_pequena_mitad = $7,
-             is_base_for_pizza = $8, is_extra_for_pizza = $9, available = $10, shift = $11
-         WHERE id = $12`,
+             is_base = $4, is_extra = $5, is_base_for_pizza = $6, is_extra_for_pizza = $7, available = $8, shift = 'ambos'
+         WHERE id = $9`,
         [
           name, 
           category || 'Ingredientes', 
-          pGrandeComp, 
-          pGrandeComp,
-          pGrandeMit,
-          pPequenaComp,
-          pPequenaMit,
-          isBaseForPizza !== false, 
-          isExtraForPizza !== false, 
+          finalPrice,
+          finalIsBase,
+          finalIsExtra,
+          finalIsBase,
+          finalIsExtra,
           available !== false, 
-          targetShift,
           id
         ]
       );
@@ -123,22 +102,18 @@ module.exports = function(io) {
         await query(
           `UPDATE products 
            SET base_ingredients = array_replace(base_ingredients, $1, $2) 
-           WHERE $1 = ANY(base_ingredients) AND shift = $3`,
-          [oldName, name, targetShift]
+           WHERE $1 = ANY(base_ingredients)`,
+          [oldName, name]
         );
       }
 
-      const shiftIngredients = await fetchAllIngredients(req.user);
-      const shiftProducts = await fetchAllProducts(req.user);
-      io.to(`shift:${targetShift}`).emit('ingredients:sync', shiftIngredients);
+      const allIngredients = await fetchAllIngredients();
+      const allProducts = await fetchAllProducts();
+      io.emit('ingredients:sync', allIngredients);
       if (oldName && oldName !== name) {
-        io.to(`shift:${targetShift}`).emit('products:sync', shiftProducts);
+        io.emit('products:sync', allProducts);
       }
-      if (targetShift !== 'ambos') {
-        const ambosIngredients = await fetchAllIngredients({ shift: 'ambos' });
-        io.to('shift:ambos').emit('ingredients:sync', ambosIngredients);
-      }
-      res.json(shiftIngredients.find((i) => i.id === id) || { success: true });
+      res.json(allIngredients.find((i) => i.id === id) || { success: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al actualizar ingrediente' });
@@ -150,12 +125,8 @@ module.exports = function(io) {
       const { id } = req.params;
       await query(`DELETE FROM ingredients WHERE id = $1`, [id]);
       
-      const shiftIngredients = await fetchAllIngredients(req.user);
-      io.to(`shift:${req.user.shift}`).emit('ingredients:sync', shiftIngredients);
-      if (req.user.shift !== 'ambos') {
-        const ambosIngredients = await fetchAllIngredients({ shift: 'ambos' });
-        io.to('shift:ambos').emit('ingredients:sync', ambosIngredients);
-      }
+      const allIngredients = await fetchAllIngredients();
+      io.emit('ingredients:sync', allIngredients);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: 'Error al eliminar ingrediente' });

@@ -367,31 +367,43 @@ Todos los botones de reportes de Caja envían de inmediato una versión ESC/POS 
 
 Si la térmica está apagada, fuera de red o deshabilitada, el POS muestra el error y no genera una impresión falsa. Verifica primero la conexión con `npm run print:test`.
 
-## Base de datos y migraciones
+## Base de datos y migraciones (Crispy POS)
 
-Las migraciones son automaticas: al iniciar el backend, `server/db.js` ejecuta los `CREATE TABLE` y `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` necesarios. No ejecutes el esquema manualmente para una actualizacion normal.
+Las migraciones son automáticas: al iniciar el backend, `server/db.js` ejecuta los `CREATE TABLE` y `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` necesarios. No ejecutes el esquema manualmente para una actualización normal.
 
-En esta PC se inicio el backend el 11 de agosto de 2026 y se conecto a PostgreSQL en la base local `sdmaia`; las migraciones se ejecutaron. Esto incluye las columnas de bolivares del libro de pagos: `cash_tendered_bs` y `change_given_bs` en `order_payments`.
+- **Base de datos local**: PostgreSQL `crispy` (usuario `postgres`, clave `sdmaia1.`, puerto `5432`).
+- **Repositorio remoto**: `https://github.com/BurgosDeveloper/crispy.git`.
+- **Esquema de datos**: `server/schema.sql` y `server/db.js` adaptados al catálogo de Hamburguesas, Bebidas y Acompañantes.
+- **Historial de pagos**: Soporte multi-divisa (USD, COP, Bs, Binance) con columnas `cash_tendered_bs`, `change_given_bs`, `cop_rate`, `bs_rate` auditables.
 
-El puerto `3001` estaba ocupado por una instancia previa. Para que esa instancia use el codigo nuevo, detenla y vuelve a iniciar el backend desde `server/` con `npm run start`.
+El backend se ejecuta en el puerto `3001` (LAN y local). Para iniciar el servidor:
+```powershell
+cd server
+npm start
+```
 
 ## Limpiar pedidos de prueba
 
-Atencion: elimina comandas y movimientos. No lo uses para una limpieza operativa sin respaldo.
+Atención: elimina comandas y movimientos. No lo uses para una limpieza operativa sin respaldo.
 
 ```powershell
 node scripts/clean-database.js
 ```
 
-## Separación e Independencia Total de Turnos (Mañana y Noche)
+## Arquitectura de Turno Único Unificado (Crispy POS)
 
-El sistema opera con dos entornos 100% aislados e independientes:
-1. **Turnos**: `manana` y `noche` (con usuario Dueño para visualización global `ambos`).
-2. **Comandas y Correlativos**: Cada turno cuenta con su propia numeración correlativa (`#1`, `#2`, `#3`...).
-3. **Catálogo de Menú**: Los productos, bebidas e ingredientes están aislados por turno en base de datos (`products.shift` e `ingredients.shift`).
-4. **Mesas**: El estado de ocupación (`ocupada` vs `libre`) se calcula dinámicamente según las comandas activas del turno en curso.
-5. **Caja Chica y Arqueos**: Las aperturas de caja, ingresos, egresos y cierres contables se gestionan de forma exclusiva para el turno logueado.
-6. **Realtime WebSockets**: Los eventos Socket.IO se canalizan mediante salas dedicadas (`shift:manana`, `shift:noche`, `shift:ambos`).
+Para optimizar y agilizar la operación en Crispy POS, el sistema se ha simplificado a un **Turno Único Unificado** (`ambos`):
+1. **Turno Unificado**: Operación continua centralizada (`ambos`), eliminando la duplicación de ítems por turno (`-noche`) y permitiendo una gestión fluida de caja y cocina.
+2. **Comandas y Correlativos**: Numeración correlativa continua (`#1`, `#2`, `#3`...) sin partición por turno.
+3. **Catálogo de Menú (Hamburguesas)**: Catálogo unificado de Hamburguesas, Bebidas y Acompañantes. La personalización se basa en ingredientes base (que pueden removerse como `SIN: ...`) e ingredientes adicionales (`EXTRA: ...`), eliminando complejidades de tamaños de pizza y mitades.
+4. **Mesas**: Ocupación en tiempo real calculada dinámicamente según las órdenes activas.
+5. **Caja Chica y Arqueos**: Flujo directo de apertura de caja, transacciones (ingresos/egresos) y cierre contable con impresión térmica automática del arqueo.
+6. **Realtime WebSockets**: Emisiones globales a todos los terminales conectados (`io.emit`), garantizando sincronización instantánea entre Caja, Mesero y Cocina.
+7. **Cuentas del Sistema**: Accesos directos unificados:
+   - `admin` (Administrador General)
+   - `caja` (Cajero Principal)
+   - `mesero` (Mesero Principal)
+   - `cocina` (Jefe de Cocina)
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 

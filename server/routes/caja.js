@@ -8,21 +8,18 @@ const { printCierreShiftTicket } = require('../helpers/thermalPrinter');
 module.exports = function(io) {
   router.get('/', requireRole('caja', 'admin'), async (req, res) => {
     try {
-      const params = req.user.shift === 'ambos' ? [] : [req.user.shift];
-      const scope = params.length ? ' WHERE shift = $1' : '';
-      const txScope = params.length ? ' WHERE tx.shift = $1 AND tx.cierre_id IS NULL' : ' WHERE tx.cierre_id IS NULL';
       const { rows: aperturaRows } = await query(
-        `SELECT * FROM caja_chica_apertura${scope} ORDER BY timestamp DESC LIMIT 1`, params
+        `SELECT * FROM caja_chica_apertura ORDER BY timestamp DESC LIMIT 1`
       );
       const { rows: txRows } = await query(
         `SELECT tx.*, o.order_number
          FROM caja_chica_transactions tx
          LEFT JOIN orders o ON o.id = tx.order_id
-         ${txScope}
-         ORDER BY tx.timestamp DESC`, params
+         WHERE tx.cierre_id IS NULL
+         ORDER BY tx.timestamp DESC`
       );
       const { rows: cierreRows } = await query(
-        `SELECT * FROM caja_chica_cierres${scope} ORDER BY closed_at DESC LIMIT 5`, params
+        `SELECT * FROM caja_chica_cierres ORDER BY closed_at DESC LIMIT 5`
       );
 
       return res.json({
@@ -30,7 +27,7 @@ module.exports = function(io) {
           usdCash: parseFloat(aperturaRows[0].usd_cash),
           copCash: parseFloat(aperturaRows[0].cop_cash),
           openedAt: aperturaRows[0].timestamp,
-          shift: aperturaRows[0].shift,
+          shift: 'ambos',
         } : { usdCash: 0, copCash: 0 },
         transacciones: txRows.map((t) => ({
           id: t.id,
@@ -44,7 +41,7 @@ module.exports = function(io) {
           orderId: t.order_id || undefined,
           orderReference: t.order_id ? `Comanda ${t.order_number || t.order_id}` : 'Movimiento manual',
           timestamp: t.timestamp,
-          shift: t.shift,
+          shift: 'ambos',
         })),
         ultimoCierre: cierreRows[0] ? {
           id: cierreRows[0].id,
@@ -60,7 +57,7 @@ module.exports = function(io) {
           closedAt: cierreRows[0].closed_at,
           closedBy: cierreRows[0].closed_by || 'Caja',
           notes: cierreRows[0].notes || '',
-          shift: cierreRows[0].shift,
+          shift: 'ambos',
         } : null,
       });
     } catch (err) {
@@ -75,11 +72,11 @@ module.exports = function(io) {
       const apId = `ap-${Date.now()}`;
 
       await query(
-        `INSERT INTO caja_chica_apertura (id, usd_cash, cop_cash, shift) VALUES ($1, $2, $3, $4)`,
-        [apId, usdCash || 0, copCash || 0, req.user.shift]
+        `INSERT INTO caja_chica_apertura (id, usd_cash, cop_cash, shift) VALUES ($1, $2, $3, 'ambos')`,
+        [apId, usdCash || 0, copCash || 0]
       );
 
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('caja:updated');
       res.status(201).json({ success: true, usdCash, copCash });
     } catch (err) {
       console.error(err);
@@ -106,11 +103,11 @@ module.exports = function(io) {
 
       await query(
         `INSERT INTO caja_chica_transactions (id, type, amount_usd, amount_cop, amount_bs, payment_method, description, shift)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [txId, type, normalizedUSD, normalizedCOP, normalizedBs, paymentMethod.trim(), description || 'Movimiento manual', req.user.shift]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'ambos')`,
+        [txId, type, normalizedUSD, normalizedCOP, normalizedBs, paymentMethod.trim(), description || 'Movimiento manual']
       );
 
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('caja:updated');
       res.status(201).json({ success: true });
     } catch (err) {
       console.error(err);
@@ -128,19 +125,19 @@ module.exports = function(io) {
       }
 
       const { rows: aperturaRows } = await query(
-        `SELECT * FROM caja_chica_apertura WHERE shift = $1 ORDER BY timestamp DESC LIMIT 1`, [req.user.shift]
+        `SELECT * FROM caja_chica_apertura ORDER BY timestamp DESC LIMIT 1`
       );
       if (!aperturaRows[0]) {
-        return res.status(409).json({ error: 'Debes registrar la apertura de caja del turno antes de hacer el arqueo.' });
+        return res.status(409).json({ error: 'Debes registrar la apertura de caja antes de hacer el arqueo.' });
       }
       const openedUSD = aperturaRows[0] ? parseFloat(aperturaRows[0].usd_cash) : 0;
       const openedCOP = aperturaRows[0] ? parseFloat(aperturaRows[0].cop_cash) : 0;
       const openedAt = aperturaRows[0] ? aperturaRows[0].timestamp : null;
 
-      let txQuery = `SELECT * FROM caja_chica_transactions WHERE shift = $1`;
-      let queryParams = [req.user.shift];
+      let txQuery = `SELECT * FROM caja_chica_transactions WHERE cierre_id IS NULL`;
+      let queryParams = [];
       if (openedAt) {
-        txQuery += ` AND timestamp >= $2`;
+        txQuery += ` AND timestamp >= $1`;
         queryParams.push(openedAt);
       }
       const { rows: txRows } = await query(txQuery, queryParams);
@@ -172,26 +169,23 @@ module.exports = function(io) {
                 COUNT(op.id) as count
          FROM order_payments op
          INNER JOIN orders o ON o.id = op.order_id
-         WHERE o.shift = $1 AND o.archived_at IS NULL
+         WHERE o.archived_at IS NULL
          GROUP BY op.payment_method
-         ORDER BY total_usd DESC`,
-        [req.user.shift]
+         ORDER BY total_usd DESC`
       );
 
       // 2. Obtener resumen de créditos y órdenes procesadas del turno activo
       const { rows: creditSummaryRows } = await query(
         `SELECT COUNT(id) as count, COALESCE(SUM(total_usd), 0) as total_usd
          FROM orders
-         WHERE shift = $1 AND payment_status = 'credito' AND archived_at IS NULL`,
-        [req.user.shift]
+         WHERE payment_status = 'credito' AND archived_at IS NULL`
       );
 
       const { rows: shiftOrdersRows } = await query(
         `SELECT id, order_number, type, customer_name, total_usd, payment_status, status, table_number, created_at
          FROM orders
-         WHERE shift = $1 AND archived_at IS NULL
-         ORDER BY created_at ASC`,
-        [req.user.shift]
+         WHERE archived_at IS NULL
+         ORDER BY created_at ASC`
       );
 
       const totalSalesUSD = shiftOrdersRows
@@ -203,7 +197,7 @@ module.exports = function(io) {
       // 3. Guardar registro en histórico de cierres
       await query(
         `INSERT INTO caja_chica_cierres (id, opened_usd, opened_cop, total_sales_usd, expected_usd, expected_cop, actual_usd, actual_cop, difference_usd, difference_cop, closed_by, notes, shift)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'ambos')`,
         [
           cierreId,
           openedUSD,
@@ -216,17 +210,16 @@ module.exports = function(io) {
           diffUSD,
           diffCOP,
           req.user.username || 'Caja',
-          notes || 'Cierre de turno realizado',
-          req.user.shift
+          notes || 'Cierre de caja realizado'
         ]
       );
 
       // 4. Impresión Térmica Automática del Cierre y Arqueo
       try {
         await printCierreShiftTicket({
-          shift: req.user.shift,
+          shift: 'ambos',
           closedBy: req.user.username || 'Caja',
-          notes: notes || 'Cierre de turno',
+          notes: notes || 'Cierre de caja',
           openedUSD,
           openedCOP,
           expectedUSD,
@@ -264,22 +257,22 @@ module.exports = function(io) {
       }
 
       // 7. Marcar movimientos de caja chica con el cierreId (preservados en BD) y reiniciar apertura
-      await query('UPDATE caja_chica_transactions SET cierre_id = $1 WHERE shift = $2 AND cierre_id IS NULL', [cierreId, req.user.shift]);
-      await query('DELETE FROM caja_chica_apertura WHERE shift = $1', [req.user.shift]);
+      await query('UPDATE caja_chica_transactions SET cierre_id = $1 WHERE cierre_id IS NULL', [cierreId]);
+      await query('DELETE FROM caja_chica_apertura');
 
       // 8. Liberar todas las mesas al cierre del turno (las comandas a crédito preservadas no bloquean mesas)
       await query("UPDATE tables_config SET status = 'libre'");
 
       // 9. Sincronización en tiempo real vía WebSocket
-      const remainingOrders = await fetchAllOrders(req.user);
-      const allTables = await fetchAllTables(req.user);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', remainingOrders);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      const remainingOrders = await fetchAllOrders();
+      const allTables = await fetchAllTables();
+      io.emit('orders:sync', remainingOrders);
+      io.emit('tables:sync', allTables);
+      io.emit('caja:updated');
 
       res.json({
         success: true,
-        message: 'Cierre de turno y archivado de datos completados exitosamente. Toda la información histórica queda preservada en la base de datos.',
+        message: 'Cierre de caja y archivado de datos completados exitosamente. Toda la información histórica queda preservada en la base de datos.',
         summary: {
           openedUSD,
           openedCOP,
@@ -340,9 +333,9 @@ module.exports = function(io) {
       const orders = await fetchAllOrders();
       const paidOrders = orders.filter((o) => o.paymentStatus === 'pagado');
 
-      let reply = 'Consulta procesada en Basilico.';
+      let reply = 'Consulta procesada en Crispy.';
 
-      if (lower.includes('pizza') || lower.includes('vendida') || lower.includes('top')) {
+      if (lower.includes('hamburguesa') || lower.includes('burger') || lower.includes('vendida') || lower.includes('top')) {
         const tally = {};
         paidOrders.forEach((o) => {
           o.items.forEach((it) => {
@@ -351,15 +344,15 @@ module.exports = function(io) {
         });
         const entries = Object.entries(tally).sort((a, b) => b[1] - a[1]);
         if (entries.length === 0) {
-          reply = '🍕 No hay registros de pizzas vendidas cobradas el día de hoy.';
+          reply = '🍔 No hay registros de hamburguesas vendidas cobradas el día de hoy.';
         } else {
-          reply = `🍕 Pizzas & Ítems Cobrados Hoy:\n` + entries.map(([name, qty]) => `• ${name}: ${qty} unidades`).join('\n');
+          reply = `🍔 Hamburguesas & Ítems Cobrados Hoy:\n` + entries.map(([name, qty]) => `• ${name}: ${qty} unidades`).join('\n');
         }
       } else if (lower.includes('bebida') || lower.includes('refresco') || lower.includes('tomar')) {
         let drinkQty = 0;
         paidOrders.forEach((o) => {
           o.items.forEach((it) => {
-            if (it.productName.toLowerCase().includes('coca') || it.productName.toLowerCase().includes('agua') || it.productName.toLowerCase().includes('cerveza') || it.productName.toLowerCase().includes('jugo')) {
+            if (it.productName.toLowerCase().includes('refresco') || it.productName.toLowerCase().includes('agua') || it.productName.toLowerCase().includes('bebida') || it.productName.toLowerCase().includes('jugo')) {
               drinkQty += it.quantity;
             }
           });

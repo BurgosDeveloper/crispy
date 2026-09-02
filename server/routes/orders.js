@@ -85,12 +85,11 @@ module.exports = function(io) {
       let nextNum = 1;
       try {
         const maxRes = await client.query(
-          `SELECT COALESCE(MAX(CAST(NULLIF(regexp_replace(order_number, '\\D', '', 'g'), '') AS INTEGER)), 0) AS max_num FROM orders WHERE shift = $1 AND archived_at IS NULL`,
-          [req.user.shift]
+          `SELECT COALESCE(MAX(CAST(NULLIF(regexp_replace(order_number, '\\D', '', 'g'), '') AS INTEGER)), 0) AS max_num FROM orders WHERE archived_at IS NULL`
         );
         nextNum = 1 + parseInt(maxRes.rows[0]?.max_num || '0', 10);
       } catch (e) {
-        const countRes = await client.query(`SELECT COUNT(*) FROM orders WHERE shift = $1 AND archived_at IS NULL`, [req.user.shift]);
+        const countRes = await client.query(`SELECT COUNT(*) FROM orders WHERE archived_at IS NULL`);
         nextNum = 1 + parseInt(countRes.rows[0]?.count || '0', 10);
       }
       const orderNumber = `#${nextNum}`;
@@ -102,8 +101,8 @@ module.exports = function(io) {
 
       await client.query(
         `INSERT INTO orders (id, order_number, type, table_number, customer_name, kitchen_notes, status, payment_status, total_usd, waiter_name, shift, delivery_fee_usd)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'no_pagado', $8, 'Mesero', $9, $10)`,
-        [orderId, orderNumber, type || 'mesa', tableNumber || null, customerName || null, kitchenNotes || null, initialStatus, totalUSD || 0, req.user.shift, deliveryFeeUSD || 0]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'no_pagado', $8, 'Mesero', 'ambos', $9)`,
+        [orderId, orderNumber, type || 'mesa', tableNumber || null, customerName || null, kitchenNotes || null, initialStatus, totalUSD || 0, deliveryFeeUSD || 0]
       );
 
       for (const item of items) {
@@ -158,9 +157,9 @@ module.exports = function(io) {
         items: items || []
       };
 
-      io.to(`shift:${req.user.shift}`).emit('order:created', createdOrder);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
+      io.emit('order:created', createdOrder);
+      io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
 
       console.log(`✅ [COMANDA REGISTRADA OK] ${createdOrder.orderNumber} enviada a WebSocket`);
       if (requiresKitchen) {
@@ -170,7 +169,7 @@ module.exports = function(io) {
           })
           .catch((printError) => {
             console.error(`⚠️ [IMPRESIÓN PENDIENTE] ${createdOrder.orderNumber}: ${printError.message}`);
-            io.to(`shift:${req.user.shift}`).emit('order:print_failed', {
+            io.emit('order:print_failed', {
               orderId: createdOrder.id,
               orderNumber: createdOrder.orderNumber,
               message: printError.message,
@@ -232,15 +231,15 @@ module.exports = function(io) {
       const allTables = await fetchAllTables(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('order:status_updated', updatedOrder);
+      io.emit('order:status_updated', updatedOrder);
       
       if (status === 'preparada') {
-        io.to(`shift:${req.user.shift}`).emit('order:prepared_sound', updatedOrder);
+        io.emit('order:prepared_sound', updatedOrder);
       }
 
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
-      if (cashLedgerResult.posted || cashLedgerResult.removed) io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
+      if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
 
       res.json(updatedOrder);
     } catch (err) {
@@ -300,10 +299,10 @@ module.exports = function(io) {
       const allOrders = await fetchAllOrders(req.user);
       const allTables = await fetchAllTables();
 
-      io.to(`shift:${req.user.shift}`).emit('order:deleted', { id, orderNumber: order.order_number });
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
-      io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('order:deleted', { id, orderNumber: order.order_number });
+      io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
+      io.emit('caja:updated');
 
       console.log(`🗑️ [COMANDA ANULADA/ELIMINADA] ${order.order_number} (${id}) eliminada completamente del sistema por ${req.user.username}`);
       res.json({ success: true, message: `Comanda ${order.order_number} eliminada del sistema.`, deletedId: id });
@@ -343,10 +342,10 @@ module.exports = function(io) {
       const allOrders = await fetchAllOrders(req.user);
       const cancelledOrder = allOrders.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('order:cancelled', cancelledOrder);
-      io.to(`shift:${req.user.shift}`).emit('order:cancelled_sound', cancelledOrder);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
-      if (cashLedgerResult.posted || cashLedgerResult.removed) io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      io.emit('order:cancelled', cancelledOrder);
+      io.emit('order:cancelled_sound', cancelledOrder);
+      io.emit('orders:sync', allOrders);
+      if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
 
       console.log(`🚫 [COMANDA CANCELADA] ${cancelledOrder?.orderNumber || id} - Alerta sonora enviada a Cocina`);
       res.json({ success: true, order: cancelledOrder });
@@ -454,8 +453,8 @@ module.exports = function(io) {
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('order:edited', updatedOrder);
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', allOrders);
+      io.emit('order:edited', updatedOrder);
+      io.emit('orders:sync', allOrders);
 
       console.log(`✏️ [COMANDA EDITADA] ${updatedOrder?.orderNumber} actualizada`);
       res.json(updatedOrder);
@@ -525,12 +524,12 @@ module.exports = function(io) {
       const updatedTablesList = await fetchAllTables(req.user);
       const updatedTarget = updatedOrdersList.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', updatedOrdersList);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', updatedTablesList);
+      io.emit('orders:sync', updatedOrdersList);
+      io.emit('tables:sync', updatedTablesList);
       if (updatedTarget) {
-        io.to(`shift:${req.user.shift}`).emit('order:status_updated', updatedTarget);
+        io.emit('order:status_updated', updatedTarget);
       }
-      if (cashLedgerResult.posted || cashLedgerResult.removed) io.to(`shift:${req.user.shift}`).emit('caja:updated');
+      if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
 
       console.log(`🔄 [REAPERTURA DE COMANDA] Comanda ${ord.order_number || id} reactivada exitosamente por ${req.user.username}`);
       res.json(updatedTarget || { success: true });
@@ -614,8 +613,8 @@ module.exports = function(io) {
       const updatedOrdersList = await fetchAllOrders(req.user);
       const updatedTarget = updatedOrdersList.find((o) => o.id === targetOrderId);
 
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', updatedOrdersList);
-      io.to(`shift:${req.user.shift}`).emit('order:status_updated', updatedTarget);
+      io.emit('orders:sync', updatedOrdersList);
+      io.emit('order:status_updated', updatedTarget);
 
       console.log(`🔗 [FUSIÓN DE COMANDAS] Comandas ${sourceNumbers} unificadas en Comanda ${mergedOrderNumber}`);
       res.json(updatedTarget);
@@ -699,8 +698,8 @@ module.exports = function(io) {
       // Verificar si la mesa anterior todavía tiene otras órdenes activas
       if (oldTableNumber) {
         const { rows: otherOrders } = await client.query(
-          "SELECT id FROM orders WHERE table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL AND shift = $3",
-          [oldTableNumber, id, order.shift]
+          "SELECT id FROM orders WHERE table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL",
+          [oldTableNumber, id]
         );
         if (otherOrders.length === 0) {
           await client.query("UPDATE tables_config SET status = 'libre' WHERE number = $1", [oldTableNumber]);
@@ -713,9 +712,9 @@ module.exports = function(io) {
       const allTables = await fetchAllTables(req.user);
       const updatedOrder = updatedOrdersList.find((o) => o.id === id);
 
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', updatedOrdersList);
-      io.to(`shift:${req.user.shift}`).emit('tables:sync', allTables);
-      io.to(`shift:${req.user.shift}`).emit('order:status_updated', updatedOrder);
+      io.emit('orders:sync', updatedOrdersList);
+      io.emit('tables:sync', allTables);
+      io.emit('order:status_updated', updatedOrder);
 
       console.log(`🔄 [CAMBIO DE MESA] Comanda #${order.order_number} reubicada: Mesa #${oldTableNumber} ➔ Mesa #${parsedTableNumber}`);
       res.json(updatedOrder);
@@ -865,8 +864,8 @@ module.exports = function(io) {
         }
       }
 
-      io.to(`shift:${req.user.shift}`).emit('orders:sync', updatedOrdersList);
-      io.to(`shift:${req.user.shift}`).emit('order:status_updated', updatedOrder);
+      io.emit('orders:sync', updatedOrdersList);
+      io.emit('order:status_updated', updatedOrder);
 
       console.log(`➕ [ADICIÓN A COMANDA] #${order.order_number} (${order.type.toUpperCase()}) | ${addedItems.length} ítems añadidos | Nuevo Total: $${newTotalUSD} USD`);
       res.json({ success: true, order: updatedOrder, newTotalUSD });
