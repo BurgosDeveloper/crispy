@@ -7,10 +7,10 @@ export interface RecipeIngredient {
 export interface Product {
   id: string;
   name: string;
-  category: 'Pizzas' | 'Bebidas' | 'Platos' | 'Pastas' | 'Especialidades' | 'Entradas' | string;
+  category: 'Hamburguesas' | 'Bebidas' | 'Acompañantes' | 'Combos' | 'Pizzas' | 'Platos' | string;
   drinkType?: 'refresco' | 'jugo' | 'licor';
   price: number; // En USD
-  priceSmall?: number; // En USD (configurable para pizza pequeña)
+  priceSmall?: number; // En USD (retrocompatibilidad)
   description: string;
   image: string;
   badge?: string;
@@ -23,12 +23,14 @@ export interface Ingredient {
   id: string;
   name: string;
   priceUSD: number;
+  isBase?: boolean;
+  isExtra?: boolean;
   priceGrandeCompleta?: number;
   priceGrandeMitad?: number;
   pricePequenaCompleta?: number;
   pricePequenaMitad?: number;
-  isBaseForPizza: boolean;
-  isExtraForPizza: boolean;
+  isBaseForPizza?: boolean;
+  isExtraForPizza?: boolean;
   category?: string;
   available?: boolean;
   shift?: 'manana' | 'noche' | 'ambos';

@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
-  IoPizza,
+  IoFastFood,
   IoSwapHorizontal,
   IoRestaurant,
   IoCard,
@@ -28,49 +28,49 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const getActiveUserBadge = () => {
     if (userSession?.role === 'admin') {
-      return { label: 'ADMINISTRADOR', icon: <IoShieldCheckmarkOutline className="text-emerald-700" /> };
+      return { label: 'ADMINISTRADOR', icon: <IoShieldCheckmarkOutline className="text-yellow-600 text-sm" /> };
     }
     switch (location.pathname) {
       case '/mesonero':
-        return { label: 'MESERO', icon: <IoRestaurant className="text-emerald-700" /> };
+        return { label: 'MESERO', icon: <IoRestaurant className="text-yellow-600 text-sm" /> };
       case '/caja':
-        return { label: 'CAJA', icon: <IoCard className="text-emerald-700" /> };
+        return { label: 'CAJA POS', icon: <IoCard className="text-yellow-600 text-sm" /> };
       case '/cocina':
-        return { label: 'COCINA', icon: <IoFlame className="text-amber-600" /> };
+        return { label: 'COCINA KDS', icon: <IoFlame className="text-amber-500 text-sm" /> };
       default:
-        return { label: 'BASILICO PIZZERIA', icon: <IoPizza className="text-emerald-700" /> };
+        return { label: 'CRISPY BURGER', icon: <IoFastFood className="text-yellow-600 text-sm" /> };
     }
   };
 
   const activeBadge = getActiveUserBadge();
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-slate-50/90 backdrop-blur-xl border-b border-slate-200 shadow-2xl pt-[env(safe-area-inset-top)]">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm pt-[env(safe-area-inset-top)]">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-2">
         
         {/* Left Section: Mobile Menu Toggle + Brand Logo */}
         <div className="flex items-center gap-2.5">
           {onToggleMobileSidebar && location.pathname !== '/' && userSession && (
             <button
               onClick={onToggleMobileSidebar}
-              className="md:hidden p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-emerald-500 hover:text-[#070707] transition-all"
+              className="md:hidden p-1.5 rounded-lg bg-gray-100 text-gray-800 border border-gray-200 hover:bg-yellow-400 hover:text-black transition-all"
               title="Abrir menú"
             >
-              <IoMenu className="text-xl" />
+              <IoMenu className="text-lg" />
             </button>
           )}
 
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-white to-emerald-800 border border-emerald-200 flex items-center justify-center shadow-lg shadow-emerald-900/40 group-hover:scale-105 transition-all">
-              <IoPizza className="text-emerald-700 text-xl" />
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-yellow-400 border border-yellow-500 flex items-center justify-center shadow-sm group-hover:scale-105 transition-all">
+              <IoFastFood className="text-black text-lg" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-black text-lg tracking-tight text-slate-900 group-hover:text-emerald-800 transition-colors">
-                  BASILICO
+                <span className="font-black text-base tracking-tight text-black group-hover:text-yellow-600 transition-colors">
+                  CRISPY
                 </span>
-                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-white text-emerald-700 border border-emerald-200">
-                  EN VIVO
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-yellow-400 text-black border border-yellow-500 uppercase">
+                  BURGER
                 </span>
               </div>
             </div>
@@ -80,16 +80,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Center: Current Active Role Badge */}
         {userSession && (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-emerald-200 shadow-inner">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200">
               {activeBadge.icon}
-              <span className="text-xs font-black tracking-wide text-slate-900 uppercase">
+              <span className="text-xs font-black tracking-wide text-gray-900 uppercase">
                 {activeBadge.label}
               </span>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-[10px] text-slate-600">
-              <IoWifi className={isConnected ? 'text-emerald-700' : 'text-amber-600'} />
-              <span>{isConnected ? 'CONECTADO' : 'DESCONECTADO'}</span>
+            <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gray-100 border border-gray-200 text-[10px] text-gray-600">
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
+              <span className="font-bold">{isConnected ? 'ONLINE' : 'OFFLINE'}</span>
             </div>
           </div>
         )}
@@ -99,14 +99,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenExchangeModal && userSession && (
             <button
               onClick={onOpenExchangeModal}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-white/[0.08] border border-slate-200 text-xs font-bold text-slate-700 transition-all"
-              title="Cambiar tasas oficiales COP / Bs."
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 hover:bg-yellow-50 border border-gray-200 hover:border-yellow-400 text-xs font-bold text-gray-800 transition-all"
+              title="Cambiar tasas de cambio COP / Bs."
             >
-              <IoSwapHorizontal className="text-emerald-700" />
-              <div className="hidden sm:flex items-center gap-2 text-xs">
-                <span>COP: <strong className="text-slate-900">${exchangeRates.COP.toLocaleString()}</strong></span>
-                <span className="text-slate-400">|</span>
-                <span>Bs: <strong className="text-slate-900">{exchangeRates.Bs.toFixed(2)}</strong></span>
+              <IoSwapHorizontal className="text-yellow-600 text-sm" />
+              <div className="hidden sm:flex items-center gap-1.5 text-xs">
+                <span>COP: <strong className="text-black">${exchangeRates.COP.toLocaleString()}</strong></span>
+                <span className="text-gray-300">|</span>
+                <span>Bs: <strong className="text-black">{exchangeRates.Bs.toFixed(2)}</strong></span>
               </div>
             </button>
           )}

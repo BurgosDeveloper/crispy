@@ -405,6 +405,22 @@ Para optimizar y agilizar la operación en Crispy POS, el sistema se ha simplifi
    - `mesero` (Mesero Principal)
    - `cocina` (Jefe de Cocina)
 
+## Sistema de Diseño y UI Crispy POS (Blanco, Amarillo y Negro)
+
+En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
+1. **Paleta de Colores Oficial**:
+   - **Superficies y Fondos**: Blanco puro (`#FFFFFF`) y fondo neutro ultra claro (`#F8FAFC`).
+   - **Acento Primario**: Amarillo Crispy (`#FACC15` / `#EAB308`).
+   - **Contraste y Tipografía**: Negro profundo (`#111827` / `#000000`) para máxima legibilidad contable y operativa.
+2. **Formularios Planos y Compactos (Zero Scroll)**:
+   - Escalado base calibrado al 95% para asegurar que las tarjetas de pedidos, cajas y comandas quepan completamente en pantalla sin requerir scrolls innecesarios.
+   - Entradas de texto (`input`, `select`, `textarea`) limpias con bordes definidos (`#E2E8F0`) y halo de foco en amarillo (`#FACC15`).
+   - Botones de acción planos (`crispy-btn-primary`, `crispy-btn-dark`, `crispy-btn-outline`) con feedback visual instantáneo.
+3. **Identidad de Marca Unificada**:
+   - Barra superior (Navbar), panel lateral (Sidebar) y Login actualizados con la identidad **CRISPY BURGER POS** e iconografía de hamburguesa/comida rápida (`IoFastFood`).
+4. **Retrocompatibilidad Visual**:
+   - Mapeo automático de clases legadas (`.clay-btn`, `.clay-card`, `.glass-panel`) hacia el nuevo sistema plano amarillo/negro/blanco para preservar la armonía visual en cualquier vista residual.
+
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 
 1. **Cerrar a Crédito**: Desde el modal de cobro unificado (`PaymentLedgerModal`) o la vista de Caja POS, cualquier comanda puede ser cerrada bajo la modalidad de **Crédito / Cuenta por Cobrar**.

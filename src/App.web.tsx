@@ -58,7 +58,7 @@ const MainAppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-sans antialiased text-slate-900 selection:bg-emerald-500 selection:text-black">
+    <div className="min-h-screen flex flex-col bg-gray-100 font-sans antialiased text-gray-900 selection:bg-yellow-400 selection:text-black">
       {/* Global Navbar */}
       <Navbar
         onOpenExchangeModal={() => setIsExchangeModalOpen(true)}

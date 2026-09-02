@@ -1,82 +1,142 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html, body {
-    font-size: 115% !important; /* Scale up all rem-based typography globally */
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 95% !important; /* Compact base sizing so dashboards fit in full screen without scrolling */
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     background-color: #F8FAFC !important;
-    color: #0F172A !important;
+    color: #111827 !important;
     -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.2px;
     overflow-x: hidden;
+    height: 100%;
+  }
+
+  #root {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: #111827;
   }
 
   input, select, textarea {
     background-color: #FFFFFF !important;
-    color: #0F172A !important;
-    border-color: #CBD5E1 !important;
+    color: #111827 !important;
+    border-color: #E2E8F0 !important;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #FACC15 !important;
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35) !important;
+    outline: none !important;
   }
 
   input:-webkit-autofill,
   input:-webkit-autofill:hover, 
   input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #0F172A !important;
-    -webkit-box-shadow: 0 0 0px 1000px #F8FAFC inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    -webkit-box-shadow: 0 0 0px 1000px #FFFFFF inset !important;
     transition: background-color 5000s ease-in-out 0s;
   }
 }
 
-/* Custom Glassmorphism & Claymorphism Utilities */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(203, 213, 225, 0.5);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+/* Crispy POS Design System: Flat, Modern, White - Yellow - Black */
+:root {
+  --crispy-yellow: #FACC15;
+  --crispy-yellow-dark: #EAB308;
+  --crispy-yellow-light: #FEF08A;
+  --crispy-black: #111827;
+  --crispy-black-soft: #1F2937;
+  --crispy-white: #FFFFFF;
+  --crispy-surface: #F8FAFC;
+  --crispy-border: #E2E8F0;
 }
 
-.clay-card {
-  background: linear-gradient(145deg, #FFFFFF, #F1F5F9);
-  border: 1px solid rgba(203, 213, 225, 0.4);
-  box-shadow: 
-    8px 8px 24px rgba(0, 0, 0, 0.05),
-    -4px -4px 16px rgba(255, 255, 255, 0.8),
-    inset 1px 1px 2px rgba(255, 255, 255, 1);
-  border-radius: 1.5rem;
+/* Flat UI Cards & Containers */
+.crispy-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-.clay-btn {
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  color: #FFFFFF;
+.crispy-card-hover {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease-in-out;
+}
+
+.crispy-card-hover:hover {
+  border-color: #FACC15;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+}
+
+/* Flat Action Buttons */
+.crispy-btn-primary {
+  background-color: #FACC15;
+  color: #111827;
   font-weight: 800;
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #EAB308;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.15s ease-in-out;
 }
 
-.clay-btn:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
-  background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+.crispy-btn-primary:hover {
+  background-color: #EAB308;
+  color: #000000;
 }
 
-.neon-border {
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+.crispy-btn-dark {
+  background-color: #111827;
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid #1F2937;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.15s ease-in-out;
 }
 
-.neon-glow-text {
-  color: #059669;
-  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+.crispy-btn-dark:hover {
+  background-color: #000000;
 }
 
-/* Custom Scrollbars */
+.crispy-btn-outline {
+  background-color: #FFFFFF;
+  color: #111827;
+  font-weight: 700;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.crispy-btn-outline:hover {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+/* Compact full-screen layout helpers (zero unnecessary scrolling) */
+.full-screen-dashboard {
+  height: calc(100vh - 4rem);
+  overflow: hidden;
+}
+
+.compact-scroll-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F8FAFC;
+}
+
+/* Custom Slim Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -86,42 +146,39 @@
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
   border-radius: 9999px;
-  border: 1px solid rgba(203, 213, 225, 0.2);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
 
-/* Tema operativo claro: toda superficie debe conservar texto negro o verde oscuro. */
-:root {
-  --pos-surface: #ffffff;
-  --pos-surface-muted: #edf7f1;
-  --pos-ink: #102a20;
-  --pos-ink-strong: #062d1e;
-}
-
-#root {
-  color: var(--pos-ink);
-}
-
-#root [class*="bg-"] {
-  background-color: var(--pos-surface) !important;
+/* Retrocompatibilidad visual plana */
+.clay-btn {
+  background-color: #FACC15 !important;
+  color: #111827 !important;
+  font-weight: 800 !important;
+  border: 1px solid #EAB308 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
   background-image: none !important;
+  border-radius: 0.625rem !important;
 }
 
-#root [class*="text-"] {
-  color: var(--pos-ink) !important;
+.clay-btn:hover {
+  background-color: #EAB308 !important;
+  color: #000000 !important;
 }
 
-#root [class*="border-white"] {
-  border-color: #b7d5c4 !important;
+.clay-card {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  background-image: none !important;
+  border-radius: 0.75rem !important;
 }
 
-#root input,
-#root select,
-#root textarea {
-  background-color: var(--pos-surface-muted) !important;
-  color: var(--pos-ink-strong) !important;
-  border-color: #8dbba2 !important;
+.glass-panel {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.75rem !important;
 }

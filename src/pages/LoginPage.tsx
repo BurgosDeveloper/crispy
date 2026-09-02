@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
-  IoPizza,
+  IoFastFood,
   IoPersonOutline,
   IoKeyOutline,
   IoArrowForward,
@@ -11,7 +11,7 @@ import {
 
 export const LoginPage: React.FC = () => {
   const { login } = useApp();
-  const [username, setUsername] = useState('basilico');
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -26,70 +26,70 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-black relative overflow-hidden">
-      {/* Background Glossy Glow Spheres */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-emerald-900/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 text-gray-900 relative overflow-hidden">
+      {/* Background Yellow Glow Accent */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-yellow-400/20 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Glassmorphism Card */}
-      <div className="relative w-full max-w-md p-8 rounded-3xl bg-gradient-to-br from-white via-slate-50 to-slate-100 border border-emerald-200 shadow-2xl shadow-emerald-950/80 backdrop-blur-2xl space-y-8">
+      {/* Main Flat White Card */}
+      <div className="relative w-full max-w-md p-8 rounded-2xl bg-white border border-gray-200 shadow-xl space-y-6">
         
         {/* Header / Brand */}
         <div className="text-center space-y-3">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-white to-emerald-800 border border-emerald-300/40 flex items-center justify-center shadow-xl shadow-emerald-900/60 transform hover:scale-105 transition-all">
-            <IoPizza className="text-4xl text-emerald-700" />
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-yellow-400 border border-yellow-500 flex items-center justify-center shadow-md transform hover:scale-105 transition-all">
+            <IoFastFood className="text-3xl text-black" />
           </div>
 
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-100 border border-yellow-300 text-black text-[10px] font-black uppercase tracking-widest mb-2">
               <IoShieldCheckmarkOutline />
-              <span>SISTEMA DE ACCESO BASILICO</span>
+              <span>SISTEMA DE CONTROL CRISPY</span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">BASILICO PIZZERIA</h1>
-            <p className="text-xs text-slate-700/70 mt-1">Ingresa tus credenciales para acceder al sistema.</p>
+            <h1 className="text-2xl font-black tracking-tight text-gray-900">CRISPY BURGER POS</h1>
+            <p className="text-xs text-gray-500 mt-1">Ingresa tus credenciales para acceder al sistema.</p>
           </div>
         </div>
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-700 text-xs font-bold space-y-2 animate-shake">
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold space-y-1">
             <div className="flex items-center gap-2">
-              <IoWarningOutline className="text-lg shrink-0" />
+              <IoWarningOutline className="text-base shrink-0" />
               <span>{errorMessage}</span>
             </div>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Username Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 block">Usuario:</label>
+            <label className="text-xs font-bold text-gray-700 block">Usuario:</label>
             <div className="relative">
-              <IoPersonOutline className="absolute left-4 top-3.5 text-emerald-700 text-base" />
+              <IoPersonOutline className="absolute left-3.5 top-3 text-yellow-600 text-base" />
               <input
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Nombre de usuario"
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white/80 border border-slate-300 text-slate-900 placeholder-gray-500 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-900 placeholder-gray-400 text-xs outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 transition-all font-bold"
               />
             </div>
           </div>
 
           {/* Password Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 block">Contraseña:</label>
+            <label className="text-xs font-bold text-gray-700 block">Contraseña:</label>
             <div className="relative">
-              <IoKeyOutline className="absolute left-4 top-3.5 text-emerald-700 text-base" />
+              <IoKeyOutline className="absolute left-3.5 top-3 text-yellow-600 text-base" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña"
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white/80 border border-slate-300 text-slate-900 placeholder-gray-500 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-900 placeholder-gray-400 text-xs outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 transition-all font-bold"
               />
             </div>
           </div>
@@ -97,12 +97,19 @@ export const LoginPage: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-black text-sm hover:from-emerald-400 hover:to-emerald-300 transition-all shadow-xl shadow-emerald-950/80 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+            className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm border border-yellow-500 transition-all shadow-sm flex items-center justify-center gap-2 transform active:scale-[0.99]"
           >
             <span>INGRESAR AL SISTEMA</span>
-            <IoArrowForward className="text-lg" />
+            <IoArrowForward className="text-base" />
           </button>
         </form>
+
+        {/* Access Quick Roles Info */}
+        <div className="pt-2 border-t border-gray-100 text-center">
+          <p className="text-[11px] text-gray-500 font-semibold">
+            Roles disponibles: <span className="text-black font-bold">admin</span>, <span className="text-black font-bold">caja</span>, <span className="text-black font-bold">mesero</span>, <span className="text-black font-bold">cocina</span>
+          </p>
+        </div>
 
       </div>
     </div>

@@ -20,36 +20,41 @@ export const ExchangeRateModal: React.FC<ExchangeRateModalProps> = ({ onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-50/80 backdrop-blur-md animate-in fade-in">
-      <div className="glass-panel rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-[#D8E6DF]/30 flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col">
         
         {/* Header */}
-        <div className="bg-white p-4 text-slate-900 flex items-center justify-between border-b border-[#D8E6DF]/20">
+        <div className="bg-gray-50 px-5 py-4 text-gray-900 flex items-center justify-between border-b border-gray-200">
           <div className="flex items-center gap-2.5">
-            <IoSwapHorizontal className="text-xl text-slate-700" />
-            <h3 className="font-extrabold text-base">Actualizar Tasas de Cambio</h3>
+            <div className="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center text-black">
+              <IoSwapHorizontal className="text-lg" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm text-gray-900">Tasas de Cambio</h3>
+              <p className="text-[10px] text-gray-500">Actualización en tiempo real</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-[#D8E6DF]/10 text-slate-700">
-            <IoClose className="text-lg" />
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 transition-colors">
+            <IoClose className="text-xl" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="p-5 space-y-4 text-slate-900">
+        <div className="p-5 space-y-4 text-gray-900">
           <div>
-            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700/70 mb-1">
+            <label className="block text-[11px] font-black uppercase tracking-wider text-gray-700 mb-1">
               TASA COP POR 1 USD ($)
             </label>
             <input
               type="number"
               value={copRate}
               onChange={(e) => setCopRate(parseFloat(e.target.value) || 0)}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-[#D8E6DF]/20 rounded-xl font-extrabold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#10b981]"
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gray-300 rounded-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700/70 mb-1">
+            <label className="block text-[11px] font-black uppercase tracking-wider text-gray-700 mb-1">
               TASA BOLÍVARES (BS.) POR 1 USD ($)
             </label>
             <input
@@ -57,19 +62,19 @@ export const ExchangeRateModal: React.FC<ExchangeRateModalProps> = ({ onClose })
               step="0.1"
               value={bsRate}
               onChange={(e) => setBsRate(parseFloat(e.target.value) || 0)}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-[#D8E6DF]/20 rounded-xl font-extrabold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#10b981]"
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gray-300 rounded-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-white border-t border-[#D8E6DF]/20 flex items-center justify-between gap-3">
-          <button onClick={onClose} className="text-xs font-bold text-slate-700/70 px-3 hover:text-slate-900">
+        <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+          <button onClick={onClose} className="text-xs font-bold text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="clay-btn px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5"
+            className="bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 font-black px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm active:scale-[0.98]"
           >
             <IoCheckmark className="text-base" /> Guardar Tasas
           </button>
