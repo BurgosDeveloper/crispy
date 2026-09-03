@@ -418,7 +418,16 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
    - Botones de acción planos (`crispy-btn-primary`, `crispy-btn-dark`, `crispy-btn-outline`) con feedback visual instantáneo.
 3. **Identidad de Marca Unificada**:
    - Barra superior (Navbar), panel lateral (Sidebar) y Login actualizados con la identidad **CRISPY BURGER POS** e iconografía de hamburguesa/comida rápida (`IoFastFood`).
-4. **Retrocompatibilidad Visual**:
+4. **Pantalla Completa de Mesas (Zero Scroll) y Accesos Reducidos**:
+   - Rejilla autoajustable y densa (`TableCompactGrid`) donde todas las mesas son visibles a la vez en pantalla sin requerir desplazamiento vertical.
+   - Botones tipo chip ultra-compactos en la cabecera para `🛵 + DELIVERY` y `🛍️ + PICKUP`, liberando el área principal.
+5. **Catálogo 100% Texto (Cero Imágenes)**:
+   - Catálogo de productos (`ProductTextCatalog`) basado estrictamente en tipografía de alto contraste y precio en USD, eliminando imágenes pesadas para respuesta táctil instantánea.
+6. **Configurador Plano de Hamburguesas**:
+   - Módulo `BurgerBuilderModal` para personalización directa de hamburguesas: desmarcado de ingredientes base (`🚫 SIN: [Ingrediente]`) y selección de adicionales (`➕ EXTRA: [Ingrediente]`), con cálculo en tiempo real y notas de cocina.
+7. **Generador y Exportador de PC (Crispy POS)**:
+   - Script `scripts/build-export.js` actualizado para generar los accesos directos de Windows `Crispy Burger.lnk`, el ejecutable silencioso `CrispyPOS.vbs` y el script con consola `CrispyPOS_Con_Consola.bat`, manteniendo compatibilidad con los accesos previos.
+8. **Retrocompatibilidad Visual**:
    - Mapeo automático de clases legadas (`.clay-btn`, `.clay-card`, `.glass-panel`) hacia el nuevo sistema plano amarillo/negro/blanco para preservar la armonía visual en cualquier vista residual.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar

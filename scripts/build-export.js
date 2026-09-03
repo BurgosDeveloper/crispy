@@ -58,10 +58,11 @@ if (fs.existsSync(srcIcon)) {
   fs.writeFileSync(exportIcoIcon, icoBuffer);
 }
 
-// 2. Generar archivo ejecutable VBS y BAT que abren el POS con la IP LAN vigente.
+// 2. Generar archivos ejecutables VBS y BAT que abren el POS con la IP LAN vigente.
 const vbsPath = path.join(exportDir, 'BasilicoPOS.vbs');
+const crispyVbsPath = path.join(exportDir, 'CrispyPOS.vbs');
 const vbsContent = `' =========================================================
-' BASILICO PIZZERIA - EJECUTABLE DE ESCRITORIO PC
+' CRISPY BURGER POS - EJECUTABLE DE ESCRITORIO PC
 ' =========================================================
 Set WshShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -73,44 +74,56 @@ strRoot = fso.GetParentFolderName(strPath)
 WshShell.Run "cmd /c cd /d """ & strRoot & """ && node scripts\\launch-pos.js", 0, False
 `;
 fs.writeFileSync(vbsPath, vbsContent);
+fs.writeFileSync(crispyVbsPath, vbsContent);
 
-// Generar también script .BAT de inicio directo inteligente
+// Generar también scripts .BAT de inicio directo inteligente
 const batPath = path.join(exportDir, 'BasilicoPOS_Con_Consola.bat');
+const crispyBatPath = path.join(exportDir, 'CrispyPOS_Con_Consola.bat');
 const batContent = `@echo off
-title SERVIDOR & POS BASILICO PIZZERIA
+title SERVIDOR & POS CRISPY BURGER
 cd /d "%~dp0.."
-node scripts\launch-pos.js
+node scripts\\launch-pos.js
 `;
 fs.writeFileSync(batPath, batContent);
+fs.writeFileSync(crispyBatPath, batContent);
 
 // 3. Crear accesos directos actualizados para export/ y el Escritorio de Windows.
 const psScriptPath = path.join(rootDir, 'create_shortcut.ps1');
 const psScriptContent = `
 $WshShell = New-Object -ComObject WScript.Shell
-$shortcutPaths = @(
-  "${exportDir.replace(/\\/g, '\\\\')}\\Basilico Pizzeria.lnk",
-  (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Basilico Pizzeria.lnk')
+$desktopDir = [Environment]::GetFolderPath('Desktop')
+$shortcutConfigs = @(
+  @{ Path = "${exportDir.replace(/\\/g, '\\\\')}\\Crispy Burger.lnk"; Target = "${crispyVbsPath.replace(/\\/g, '\\\\')}"; Desc = "Crispy Burger - Sistema POS & KDS" },
+  @{ Path = (Join-Path $desktopDir 'Crispy Burger.lnk'); Target = "${crispyVbsPath.replace(/\\/g, '\\\\')}"; Desc = "Crispy Burger - Sistema POS & KDS" },
+  @{ Path = "${exportDir.replace(/\\/g, '\\\\')}\\Basilico Pizzeria.lnk"; Target = "${vbsPath.replace(/\\/g, '\\\\')}"; Desc = "Basilico Pizzeria - Sistema POS" },
+  @{ Path = (Join-Path $desktopDir 'Basilico Pizzeria.lnk'); Target = "${vbsPath.replace(/\\/g, '\\\\')}"; Desc = "Basilico Pizzeria - Sistema POS" }
 )
 $timestamp = Get-Date
-foreach ($shortcutPath in $shortcutPaths) {
-  $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-  $Shortcut.TargetPath = "${vbsPath.replace(/\\/g, '\\\\')}"
+foreach ($cfg in $shortcutConfigs) {
+  $Shortcut = $WshShell.CreateShortcut($cfg.Path)
+  $Shortcut.TargetPath = $cfg.Target
   $Shortcut.WorkingDirectory = "${rootDir.replace(/\\/g, '\\\\')}"
   $Shortcut.IconLocation = "${exportIcoIcon.replace(/\\/g, '\\\\')}"
-  $Shortcut.Description = "Basilico Pizzeria - Sistema POS & KDS de Escritorio"
+  $Shortcut.Description = $cfg.Desc
   $Shortcut.Save()
-  $shortcutItem = Get-Item -LiteralPath $shortcutPath
-  $shortcutItem.CreationTime = $timestamp
-  $shortcutItem.LastWriteTime = $timestamp
+  if (Test-Path -LiteralPath $cfg.Path) {
+    $shortcutItem = Get-Item -LiteralPath $cfg.Path
+    $shortcutItem.CreationTime = $timestamp
+    $shortcutItem.LastWriteTime = $timestamp
+  }
 }
 $launcherPaths = @(
   "${vbsPath.replace(/\\/g, '\\\\')}",
-  "${batPath.replace(/\\/g, '\\\\')}"
+  "${crispyVbsPath.replace(/\\/g, '\\\\')}",
+  "${batPath.replace(/\\/g, '\\\\')}",
+  "${crispyBatPath.replace(/\\/g, '\\\\')}"
 )
 foreach ($launcherPath in $launcherPaths) {
-  $launcherItem = Get-Item -LiteralPath $launcherPath
-  $launcherItem.CreationTime = $timestamp
-  $launcherItem.LastWriteTime = $timestamp
+  if (Test-Path -LiteralPath $launcherPath) {
+    $launcherItem = Get-Item -LiteralPath $launcherPath
+    $launcherItem.CreationTime = $timestamp
+    $launcherItem.LastWriteTime = $timestamp
+  }
 }
 `;
 
