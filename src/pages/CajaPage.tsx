@@ -88,6 +88,12 @@ export const CajaPage: React.FC = () => {
   const [isCompactView, setIsCompactView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_caja_view_mode') !== 'expanded';
   });
+  const [expandedOrderIds, setExpandedOrderIds] = useState<string[]>([]);
+  const toggleExpandOrder = (orderId: string) => {
+    setExpandedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
 
   // States para confirmación e impresión de reportes de intervalo
   const [pendingReportChoice, setPendingReportChoice] = useState<{
@@ -521,185 +527,282 @@ export const CajaPage: React.FC = () => {
                 const isPaid = ord.paymentStatus === 'pagado';
                 const isDelivered = ord.status === 'entregada';
                 const isSelectedForMultiPay = selectedOrderIdsForMultiPay.includes(ord.id);
+                const isExpanded = expandedOrderIds.includes(ord.id);
                 const paid = ord.paidAmountUSD || 0;
                 const remaining = Math.max(0, ord.totalUSD - paid);
-                const totalItemsCount = (ord.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
-                const itemsSummary = (ord.items || []).map((it) => `${it.quantity}x ${it.productName}`).join(', ');
+                const isDelivery = ord.type === 'delivery';
+                const isPickup = ord.type === 'pickup';
+                const titleText = ord.type === 'mesa'
+                  ? `Mesa #${ord.tableNumber}`
+                  : `${isDelivery ? '🛵 Delivery' : '🛍️ PickUp'}: ${ord.customerName || (isDelivery ? 'Delivery' : 'PickUp')}`;
 
-                return (
-                  <div
-                    key={ord.id}
-                    className={`p-3 rounded-xl border flex flex-col justify-between shadow-xs transition-all ${
-                      isSelectedForMultiPay
-                        ? 'bg-yellow-100 border-2 border-yellow-500 ring-2 ring-yellow-400'
-                        : isPaid
-                        ? 'bg-green-50/40 border-green-300'
-                        : isPrepared
-                        ? 'bg-yellow-50/50 border-yellow-400'
-                        : 'bg-white border-gray-200 hover:border-yellow-400 hover:shadow-sm'
-                    }`}
-                  >
-                    {/* Top block */}
-                    <div>
-                      {/* Fila 1: Cabecera con número, tipo y BOTÓN OJO 👁️ */}
-                      <div className="flex items-center justify-between pb-1.5 border-b border-gray-100 gap-1">
+                if (!isExpanded) {
+                  // MINICOMANDA: Solo número de mesa o nombre delivery/pickup, 3 montos en cada moneda y botón ojo que expande
+                  return (
+                    <div
+                      key={ord.id}
+                      className={`p-3.5 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${
+                        isSelectedForMultiPay
+                          ? 'bg-yellow-100 border-2 border-yellow-500 ring-2 ring-yellow-400'
+                          : isPaid
+                          ? 'bg-green-50/50 border-green-300'
+                          : isPrepared
+                          ? 'bg-yellow-50/60 border-yellow-400'
+                          : 'bg-white border-gray-200 hover:border-yellow-400 hover:shadow-sm'
+                      }`}
+                    >
+                      {/* Cabecera: Mesa/Nombre y Botón Ojo */}
+                      <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-gray-100">
                         <div className="flex items-center gap-1.5 min-w-0">
                           {!isPaid && (
                             <input
                               type="checkbox"
                               checked={isSelectedForMultiPay}
                               onChange={() => handleToggleOrderForMultiPay(ord.id)}
-                              className="w-3.5 h-3.5 accent-yellow-500 rounded cursor-pointer shrink-0"
-                              title="Seleccionar para unificar comandas"
+                              className="w-4 h-4 accent-yellow-500 rounded cursor-pointer shrink-0"
+                              title="Seleccionar para cobrar varias"
                             />
                           )}
-                          <span className="text-base font-black text-black">#{ord.orderNumber}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-yellow-400 text-black border border-yellow-500 font-black uppercase truncate">
-                            {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : (ord.type || 'mesa').toUpperCase()}
+                          <span className="text-base font-black text-black truncate" title={titleText}>
+                            {titleText}
                           </span>
                         </div>
 
-                        {/* BOTÓN OJO 👁️ PARA VER DETALLE COMPLETO (Tarea 4) */}
+                        {/* Botón Ojito que expande esta comanda en el sitio */}
                         <button
                           type="button"
-                          onClick={() => setOrderDetailModalOrder(ord)}
-                          className="p-1 rounded-lg bg-gray-100 hover:bg-yellow-400 text-gray-700 hover:text-black transition-all border border-gray-300 hover:border-yellow-500 shrink-0 shadow-xs flex items-center gap-1 text-[11px] font-black cursor-pointer"
-                          title="Ver detalles completos de la comanda (Ítems, personalizaciones, proteínas, notas)"
+                          onClick={() => toggleExpandOrder(ord.id)}
+                          className="px-2 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs transition-all border border-yellow-500 shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+                          title="Expandir comanda completa"
                         >
                           <span>👁️</span>
-                          <span className="text-[10px] font-bold">Ver</span>
+                          <span className="text-[10px] font-extrabold">Ver</span>
                         </button>
                       </div>
 
-                      {/* Fila 2: Cliente y Hora */}
-                      <div className="flex items-center justify-between text-[11px] text-gray-700 font-bold mt-1.5">
-                        <span className="truncate flex items-center gap-1">
-                          <IoPersonOutline className="text-gray-400 shrink-0" />
-                          <span className="truncate">{ord.customerName || (ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : 'General')}</span>
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-mono shrink-0 ml-1">
-                          {ord.createdAt ? new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                      </div>
-
-                      {/* Fila 3: Resumen compacto de ítems */}
-                      <div className="my-1.5 py-1 px-1.5 rounded-lg bg-gray-50 border border-gray-100 text-[11px] text-gray-800">
-                        <div className="flex items-center justify-between font-black text-gray-900 text-[10px]">
-                          <span className="text-yellow-800">🍔 {totalItemsCount} {totalItemsCount === 1 ? 'ítem' : 'ítems'}</span>
-                          <span className="text-gray-500 font-bold">{ord.items?.length || 0} prod.</span>
+                      {/* Los 3 montos en cada moneda */}
+                      <div className="pt-2 space-y-1">
+                        <div className="text-lg font-black text-black leading-tight">
+                          ${ord.totalUSD.toFixed(2)} <span className="text-xs font-bold text-gray-500">USD</span>
                         </div>
-                        <p className="truncate text-[10px] text-gray-600 font-medium mt-0.5" title={itemsSummary}>
-                          {itemsSummary}
-                        </p>
-                      </div>
-
-                      {/* Fila 4: Badges de Cocina y Pago */}
-                      <div className="flex flex-wrap items-center gap-1 mb-1.5">
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase border flex items-center gap-0.5 ${
-                            isPrepared
-                              ? 'bg-green-100 text-green-900 border-green-300'
-                              : 'bg-yellow-100 text-yellow-900 border-yellow-300 animate-pulse'
-                          }`}
-                        >
-                          {isPrepared ? <IoCheckmarkCircle className="text-green-700 text-xs" /> : <IoTimeOutline className="text-yellow-700 text-xs" />}
-                          <span>{isDelivered ? '📦 Entregada' : isPrepared ? '🔥 Lista' : '⏳ En Cocina'}</span>
-                        </span>
-
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase border flex items-center gap-0.5 ${
-                            ord.paymentStatus === 'credito'
-                              ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
-                              : isPaid
-                              ? 'bg-green-100 text-green-900 border-green-300'
-                              : 'bg-red-100 text-red-900 border-red-300'
-                          }`}
-                        >
-                          {ord.paymentStatus === 'credito' ? '⚠️ Crédito' : isPaid ? '💳 Pagado' : '❌ Pendiente'}
-                        </span>
+                        <div className="text-xs font-bold text-gray-700">
+                          🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()} COP
+                        </div>
+                        <div className="text-xs font-bold text-gray-700">
+                          🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
+                        </div>
                       </div>
                     </div>
+                  );
+                }
 
-                    {/* Bottom block: Totales y Botones de Acción */}
-                    <div className="pt-1.5 border-t border-gray-100 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-base font-black text-black leading-tight">
-                            ${ord.totalUSD.toFixed(2)} <span className="text-[10px] font-bold text-gray-600">USD</span>
-                          </div>
-                          <div className="text-[9px] text-gray-500 font-bold">
-                            🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()} | 🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)}
-                          </div>
-                        </div>
-
-                        {remaining > 0 && paid > 0 && (
-                          <span className="text-[10px] font-black text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200">
-                            Resta: ${remaining.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Barra de Acciones Rápidas */}
-                      <div className="flex items-center gap-1 pt-0.5">
-                        {!isPaid ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPayModal(ord)}
-                            className="flex-1 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-1 border border-yellow-500 shadow-xs transition-all cursor-pointer"
-                            title="Cobrar esta comanda inmediatamente"
-                          >
-                            <IoCashOutline className="text-xs" />
-                            <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
-                          </button>
-                        ) : !isDelivered ? (
-                          <button
-                            type="button"
-                            onClick={() => updateOrderStatus(ord.id, 'entregada')}
-                            className="flex-1 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs flex items-center justify-center gap-1 border border-gray-300 transition-all cursor-pointer"
-                          >
-                            <IoCheckmarkDone className="text-xs" />
-                            <span>ENTREGAR</span>
-                          </button>
-                        ) : (
-                          <div className="flex-1 py-1 rounded-lg bg-green-100 border border-green-300 text-green-900 text-[10px] font-black text-center">
-                            ✓ COMPLETADA
-                          </div>
-                        )}
-
-                        {/* Precuenta Rápida */}
-                        <button
-                          type="button"
-                          onClick={() => setPrinterSelectOrder(ord)}
-                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 transition-all cursor-pointer shadow-xs"
-                          title="Imprimir pre-cuenta del cliente"
-                        >
-                          <IoPrintOutline className="text-xs" />
-                        </button>
-
-                        {/* Adicionar Ítem Rápido */}
+                // SI ESTÁ EXPANDIDA: Muestra la comanda en modo completo con botón de Colapsar
+                return (
+                  <div
+                    key={ord.id}
+                    className={`col-span-1 md:col-span-2 p-4 rounded-2xl border shadow-md space-y-3 transition-all ${
+                      isSelectedForMultiPay
+                        ? 'bg-yellow-100 border-2 border-yellow-500 ring-2 ring-yellow-400'
+                        : isPaid
+                        ? 'bg-white border-green-300'
+                        : isPrepared
+                        ? 'bg-yellow-50/50 border-yellow-400'
+                        : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    {/* Header line con botón Colapsar */}
+                    <div className="flex items-center justify-between pb-2.5 border-b border-gray-200 gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {!isPaid && (
-                          <button
-                            type="button"
-                            onClick={() => setOrderAppendModalOrder(ord)}
-                            className="p-1.5 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-900 border border-yellow-300 font-black text-[11px] transition-all cursor-pointer shadow-xs"
-                            title="Adicionar productos a esta comanda"
-                          >
-                            ➕
-                          </button>
+                          <input
+                            type="checkbox"
+                            checked={isSelectedForMultiPay}
+                            onChange={() => handleToggleOrderForMultiPay(ord.id)}
+                            className="w-4 h-4 accent-yellow-500 rounded cursor-pointer"
+                            title="Seleccionar para unificar comandas"
+                          />
                         )}
-
-                        {/* Cambiar mesa si es salón */}
+                        <span className="text-2xl font-black text-black tracking-wide">#{ord.orderNumber}</span>
+                        <span className="text-xs px-2.5 py-0.5 rounded-lg bg-yellow-400 text-black border border-yellow-500 font-black uppercase">
+                          {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : (ord.type || 'mesa').toUpperCase()}
+                        </span>
                         {ord.type === 'mesa' && !isPaid && !isDelivered && (
                           <button
                             type="button"
                             onClick={() => setTableChangeOrder(ord)}
-                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 text-xs transition-all cursor-pointer shadow-xs"
-                            title="Cambiar de mesa"
+                            className="px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 text-[10px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                            title="Reubicar o cambiar mesa de salón"
                           >
                             <IoSwapHorizontal />
+                            <span>Cambiar Mesa</span>
                           </button>
                         )}
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Botón Colapsar */}
+                        <button
+                          type="button"
+                          onClick={() => toggleExpandOrder(ord.id)}
+                          className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-yellow-400 text-black font-black text-xs transition-all border border-gray-300 hover:border-yellow-500 shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+                          title="Colapsar a minicomanda"
+                        >
+                          <span>👁️</span>
+                          <span className="text-[10px] font-extrabold">Colapsar</span>
+                        </button>
+
+                        {/* Dual Status Badges */}
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${
+                              isPrepared
+                                ? 'bg-green-100 text-green-900 border-green-300'
+                                : 'bg-yellow-100 text-yellow-900 border-yellow-300 animate-pulse'
+                            }`}
+                          >
+                            {isPrepared ? <IoCheckmarkCircle className="text-green-700" /> : <IoTimeOutline className="text-yellow-700" />}
+                            <span>{isDelivered ? '📦 ENTREGADA' : isPrepared ? '🔥 LISTA' : '⏳ EN COCINA'}</span>
+                          </span>
+
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${
+                              ord.paymentStatus === 'credito'
+                                ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
+                                : isPaid
+                                ? 'bg-green-100 text-green-900 border-green-300'
+                                : 'bg-red-100 text-red-900 border-red-300'
+                            }`}
+                          >
+                            {ord.paymentStatus === 'credito' ? (
+                              <span>⚠️ A CRÉDITO</span>
+                            ) : isPaid ? (
+                              <>
+                                <IoCard />
+                                <span>💳 PAGADO</span>
+                              </>
+                            ) : (
+                              <>
+                                <IoCloseCircle />
+                                <span>❌ PENDIENTE PAGO</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-800 font-extrabold break-words flex items-center gap-1.5">
+                      <IoPersonOutline className="text-gray-500" />
+                      <span>Cliente: {ord.customerName || (ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type === 'pickup' ? 'PickUp / Para Llevar' : 'Delivery')}</span>
+                    </p>
+
+                    {ord.kitchenNotes && (
+                      <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-gray-800 font-medium break-words flex items-start gap-1.5">
+                        <IoDocumentTextOutline className="mt-0.5 shrink-0 text-yellow-700" />
+                        <div><span className="font-bold">Nota Cocina:</span> {ord.kitchenNotes}</div>
+                      </div>
+                    )}
+
+                    {/* Order Items Breakdown */}
+                    <div className="space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-200 max-h-44 overflow-y-auto">
+                      {(ord.items || []).map((it) => (
+                        <div key={it.id} className="space-y-0.5 text-xs border-b border-gray-100 pb-1 last:border-0 last:pb-0">
+                          <div className="flex justify-between items-start font-bold text-gray-900 gap-2">
+                            <span className="break-words flex-1 flex items-center gap-1 text-xs">
+                              <span className="font-black text-black">• {it.quantity}x</span>
+                              <span className="font-bold">{it.productName}</span>
+                              {it.isTakeaway && <span className="text-amber-700 font-bold ml-1 text-[10px]">(📦 LLEVAR)</span>}
+                              {it.isPaidIndividually && (
+                                <span className="px-1.5 py-0.5 rounded bg-green-100 border border-green-300 text-green-900 text-[9px] font-black uppercase">
+                                  ✓ PAGADO
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-black font-black text-xs shrink-0">
+                              ${(it.price * it.quantity).toFixed(2)}
+                            </span>
+                          </div>
+
+                          {it.sugarPreference && (
+                            <p className="text-[10px] text-blue-700 font-bold ml-2">
+                              🥤 Azúcar: {it.sugarPreference}
+                            </p>
+                          )}
+
+                          {it.proteins && it.proteins.length > 0 && (
+                            <p className="text-[10px] text-amber-800 font-bold ml-2">
+                              🥩 Proteínas: {it.proteins.join(' + ')}
+                            </p>
+                          )}
+
+                          {it.removedIngredients && it.removedIngredients.length > 0 && (
+                            <p className="text-[10px] text-red-600 font-bold ml-2">
+                              🚫 SIN: {it.removedIngredients.join(', ')}
+                            </p>
+                          )}
+
+                          {it.extras && it.extras.length > 0 && (
+                            <div className="ml-2 text-[10px] text-gray-700 font-bold space-y-0.5">
+                              {it.extras.map((ex, exIdx) => (
+                                <div key={exIdx} className="flex justify-between">
+                                  <span>➕ EXTRA: {ex.name}</span>
+                                  {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pricing breakdown & Multi-currency display */}
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs font-black text-gray-700 uppercase">Total Comanda:</span>
+                        <div className="text-right">
+                          <span className="text-xl font-black text-black">
+                            ${ord.totalUSD.toFixed(2)} USD
+                          </span>
+                          <div className="text-xs font-bold text-gray-700">
+                            🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()} COP | 🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                      {!isPaid && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPayModal(ord)}
+                          className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                        >
+                          <IoCashOutline className="text-base" />
+                          <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setPrinterSelectOrder(ord)}
+                        className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        title="Imprimir pre-cuenta del cliente"
+                      >
+                        <IoPrintOutline className="text-base" />
+                        <span>Pre-cuenta</span>
+                      </button>
+
+                      {!isPaid && (
+                        <button
+                          type="button"
+                          onClick={() => setOrderAppendModalOrder(ord)}
+                          className="p-2.5 rounded-xl bg-yellow-100 hover:bg-yellow-200 text-yellow-900 border border-yellow-300 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          title="Adicionar productos a esta comanda"
+                        >
+                          <span>➕ Adicionar</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

@@ -10,6 +10,7 @@ import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
 import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
+import { roundCOP } from '../utils/currencyRounding';
 
 import {
   IoRestaurant,
@@ -69,6 +70,12 @@ export const MeseroPage: React.FC = () => {
   const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_mesero_view_mode') !== 'expanded';
   });
+  const [expandedOrderIds, setExpandedOrderIds] = useState<string[]>([]);
+  const toggleExpandOrder = (orderId: string) => {
+    setExpandedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
 
   // Catalog Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
@@ -309,65 +316,110 @@ export const MeseroPage: React.FC = () => {
                 No hay comandas activas en este momento.
               </div>
             ) : isCompactComandasView ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
                 {orders
                   .filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada')
                   .map((ord) => {
                     const isReady = ord.status === 'preparada';
+                    const isExpanded = expandedOrderIds.includes(ord.id);
+                    const isDelivery = ord.type === 'delivery';
+                    const titleText = ord.type === 'mesa'
+                      ? `Mesa #${ord.tableNumber}`
+                      : `${isDelivery ? '🛵' : '🛍️'} ${ord.customerName || (isDelivery ? 'Delivery' : 'PickUp')}`;
                     const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
                     const itemsSummary = (ord.items || []).map((i) => `${i.quantity}x ${i.productName}`).join(', ');
 
+                    if (!isExpanded) {
+                      // MINICOMANDA: Solo mesa o nombre delivery/pickup, montos en cada moneda y botón de ojito
+                      return (
+                        <div
+                          key={ord.id}
+                          className={`p-3 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${
+                            isReady
+                              ? 'bg-yellow-200/80 border-yellow-500 ring-2 ring-yellow-400'
+                              : 'bg-white border-gray-200 hover:border-yellow-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-gray-100">
+                            <span className="font-black text-xs text-black truncate" title={titleText}>
+                              {titleText}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandOrder(ord.id)}
+                              className="px-1.5 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all shadow-xs border border-yellow-500 cursor-pointer shrink-0"
+                              title="Expandir comanda"
+                            >
+                              👁️ Ver
+                            </button>
+                          </div>
+
+                          <div className="pt-1.5 space-y-0.5">
+                            <div className="text-sm font-black text-black">
+                              ${ord.totalUSD.toFixed(2)} <span className="text-[9px] font-bold text-gray-500">USD</span>
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-700 truncate">
+                              🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()}
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-700 truncate">
+                              🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // COMANDA EXPANDIDA
                     return (
                       <div
                         key={ord.id}
-                        className={`p-2 rounded-xl border flex flex-col justify-between shadow-xs transition-all ${
+                        className={`col-span-2 p-3 rounded-2xl border flex flex-col justify-between shadow-md space-y-2 transition-all ${
                           isReady
-                            ? 'bg-yellow-200/80 border-yellow-500 ring-2 ring-yellow-400'
+                            ? 'bg-yellow-100/90 border-yellow-500 ring-2 ring-yellow-400'
                             : 'bg-white border-gray-200 hover:border-yellow-400'
                         }`}
                       >
-                        {/* Header */}
+                        {/* Header con botón Colapsar */}
                         <div>
-                          <div className="flex items-center justify-between gap-1 pb-1 border-b border-gray-100">
-                            <div className="flex items-center gap-1 min-w-0">
-                              <span className="font-black text-xs text-black">#{ord.orderNumber}</span>
-                              <span className="text-[9px] font-extrabold text-black bg-yellow-400 px-1 py-0.2 rounded uppercase truncate">
-                                {ord.type === 'mesa' ? `M#${ord.tableNumber}` : ord.type}
+                          <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-gray-100">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-black text-sm text-black">#{ord.orderNumber}</span>
+                              <span className="text-[10px] font-extrabold text-black bg-yellow-400 px-1.5 py-0.5 rounded uppercase truncate">
+                                {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type}
                               </span>
                             </div>
 
-                            {/* Botón Ojo 👁️ */}
                             <button
                               type="button"
-                              onClick={() => setOrderDetailModalOrder(ord)}
-                              className="p-1 rounded bg-gray-100 hover:bg-yellow-400 text-gray-700 hover:text-black text-xs font-bold transition-all shadow-xs border border-gray-200 cursor-pointer"
-                              title="Ver detalles completos de la comanda"
+                              onClick={() => toggleExpandOrder(ord.id)}
+                              className="px-2 py-0.5 rounded bg-gray-100 hover:bg-yellow-400 text-black text-[10px] font-black transition-all shadow-xs border border-gray-300 cursor-pointer shrink-0"
+                              title="Colapsar a minicomanda"
                             >
-                              👁️
+                              👁️ Colapsar
                             </button>
                           </div>
 
                           {/* Customer */}
                           {ord.customerName && (
-                            <p className="text-[10px] text-gray-800 font-bold mt-1 truncate" title={ord.customerName}>
+                            <p className="text-xs text-gray-800 font-extrabold mt-1 truncate" title={ord.customerName}>
                               👤 {ord.customerName}
                             </p>
                           )}
 
                           {/* Items summary */}
-                          <div className="my-1 py-0.5 px-1 rounded bg-gray-50 border border-gray-100">
-                            <div className="text-[10px] font-black text-yellow-800">
+                          <div className="my-1 py-1 px-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                            <div className="text-[11px] font-black text-yellow-800">
                               🍔 {itemsCount} {itemsCount === 1 ? 'ítem' : 'ítems'}
                             </div>
-                            <p className="text-[9px] text-gray-500 font-medium truncate" title={itemsSummary}>
+                            <p className="text-[10px] text-gray-600 font-medium" title={itemsSummary}>
                               {itemsSummary}
                             </p>
                           </div>
 
                           {/* Status */}
-                          <div className="flex items-center justify-between text-[9px] font-black uppercase mb-1">
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase mb-1">
                             <span
-                              className={`px-1.5 py-0.5 rounded ${
+                              className={`px-2 py-0.5 rounded ${
                                 isReady
                                   ? 'bg-green-600 text-white animate-pulse'
                                   : 'bg-yellow-400 text-black'
@@ -375,18 +427,18 @@ export const MeseroPage: React.FC = () => {
                             >
                               {isReady ? '¡LISTA!' : 'EN PREP.'}
                             </span>
-                            <span className="text-black font-black text-[11px]">
-                              ${ord.totalUSD.toFixed(2)}
+                            <span className="text-black font-black text-xs">
+                              ${ord.totalUSD.toFixed(2)} USD
                             </span>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="pt-1 border-t border-gray-100 flex items-center justify-between gap-1">
+                        <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between gap-1.5">
                           <button
                             type="button"
                             onClick={() => setOrderAppendModalOrder(ord)}
-                            className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all cursor-pointer text-center"
+                            className="flex-1 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black transition-all cursor-pointer text-center"
                             title="Adicionar ítem"
                           >
                             + Ítem
@@ -395,7 +447,7 @@ export const MeseroPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => reprintKitchenOrder(ord.id)}
-                            className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
                             title="Reimprimir en cocina"
                           >
                             <IoPrintOutline />
@@ -405,7 +457,7 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setTableChangeOrder(ord)}
-                              className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
                               title="Cambiar mesa"
                             >
                               <IoSwapHorizontal />
