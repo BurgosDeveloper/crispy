@@ -6,7 +6,7 @@ const lanIp = connectionInfo.lanIp || 'SIN IP LAN';
 const backendUrl = connectionInfo.backendUrl || 'No disponible';
 
 console.log('\n============================================================');
-console.log(' 🍕 BASILICO PIZZERIA - SERVIDOR Y AUTO-DETECCIÓN LAN');
+console.log(' 🍔 CRISPY BURGER POS - SERVIDOR Y AUTO-DETECCIÓN LAN');
 console.log('============================================================');
 console.log(`  Red LAN Host IP:  ${backendUrl}`);
 console.log(`  Interfaz activa:  ${connectionInfo.interfaceName || 'No disponible'}`);

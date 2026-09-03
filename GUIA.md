@@ -287,6 +287,10 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 1. En comandas de salón (`type === 'mesa'`) activas, tanto en Mesero como en Caja se dispone del botón `🔄 Cambiar Mesa`.
 2. Al presionarlo se despliega la modal interactiva `ChangeTableModal` mostrando el catálogo de mesas disponibles en verde (`Libre`), mientras que las ocupadas por otras comandas se muestran en rojo/deshabilitadas.
 3. Al confirmar el traslado, el endpoint `PATCH /api/orders/:id/change-table` ejecuta una transacción en PostgreSQL que:
+## Reubicación y Cambio de Mesa en Tiempo Real
+1. En comandas de salón (`type === 'mesa'`) activas, tanto en Mesero como en Caja se dispone del botón `🔄 Cambiar Mesa`.
+2. Al presionarlo se despliega la modal interactiva `ChangeTableModal` mostrando el catálogo de mesas disponibles en verde (`Libre`), mientras que las ocupadas por otras comandas se muestran en rojo/deshabilitadas.
+3. Al confirmar el traslado, el endpoint `PATCH /api/orders/:id/change-table` ejecuta una transacción en PostgreSQL que:
    - Reasigna el `table_number` de la comanda a la nueva mesa.
    - Marca la nueva mesa como `ocupada`.
    - Verifica si la mesa anterior quedó sin pedidos activos y la libera automáticamente (`libre`).
@@ -296,29 +300,46 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 1. **Modo Colapsable en Sidebar (`Sidebar.tsx`)**:
    - Botón toggle `[ ⏪ / ⏩ ]` en la cabecera superior del menú lateral.
    - Alterna entre el modo extendido (`w-72`) y el modo compacto de solo iconos (`w-20`), permitiendo maximizar el espacio útil de la pantalla para comandas y mesas.
+
+## Generación de Accesos Directos para PC (Windows)
+
+```powershell
+npm run build:export
+```
+
+El comando compila la versión web de producción y genera o actualiza en `export/`:
+
+- `CrispyPOS.vbs`: inicio silencioso de Crispy POS.
+- `CrispyPOS_Con_Consola.bat`: inicio de Crispy POS con consola del servidor.
+- `Crispy Burger.lnk`: acceso directo de Windows (en `export/` y en el Escritorio).
+- `pizza_icon.ico`: icono del acceso directo.
+
+También puedes hacer doble clic en `Actualizar_Accesos_Directos.bat`. Ese archivo ejecuta solo el generador de exportación; para incluir cambios nuevos de la interfaz usa primero `npm run build` o, preferiblemente, `npm run build:export`.
+
+## Abrir el sistema en desarrollo
+
+En una consola:
+
+```powershell
+cd server
+npm run start
+```
+
 En otra consola:
 
 ```powershell
 npm run start
 ```
 
-El POS de caja queda en `http://localhost:3000/caja` durante desarrollo. La version exportada abre `http://localhost:3001` porque el backend sirve la carpeta `build/`.
+El POS de caja queda en `http://localhost:3000/caja` durante desarrollo. La versión exportada abre `http://localhost:3001` porque el backend sirve la carpeta `build/`.
 
 ## Inicio confiable desde el acceso directo
 
-El acceso directo `Basilico Pizzeria.lnk` abre el POS por la IP LAN actual del backend, por ejemplo `http://192.168.1.5:3001`. La interfaz y Socket.IO se conectan siempre por esa dirección LAN, incluso cuando se abre el POS desde la PC servidor.
+El acceso directo `Crispy Burger.lnk` abre el POS por la IP LAN actual del backend, por ejemplo `http://192.168.1.5:3001`. La interfaz y Socket.IO se conectan siempre por esa dirección LAN, incluso cuando se abre el POS desde la PC servidor.
 
-Al abrir el acceso directo, Basilico inicia el backend si hace falta y consulta su dirección LAN vigente antes de abrir el navegador. No debes ejecutar `ipconfig`, copiar IP ni editar archivos: `npm run build:export` y el acceso directo detectan automáticamente la IP privada de la interfaz Wi-Fi/Ethernet activa.
+Al abrir el acceso directo, Crispy Burger inicia el backend si hace falta y consulta su dirección LAN vigente antes de abrir el navegador. No debes ejecutar `ipconfig`, copiar IP ni editar archivos: `npm run build:export` y el acceso directo detectan automáticamente la IP privada de la interfaz Wi-Fi/Ethernet activa.
 
 Si el router cambia la IP mientras el sistema está apagado, el acceso directo vuelve a consultar la IP al iniciar. Para que tablets, celulares u otras PCs puedan conservar una dirección fija, crea una reserva DHCP para la PC servidor en el router usando la dirección MAC de su adaptador Wi-Fi.
-
-## Generar APK Android
-
-```powershell
-npm run build:apk
-```
-
-El resultado se copia a `export/BasilicoPizzeria.apk` cuando la compilacion Android finaliza correctamente.
 
 ## Verificar antes de exportar
 

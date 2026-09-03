@@ -75,7 +75,7 @@ async function openPos(backendUrl) {
   }
 
   if (await tryOpenBrowser('cmd.exe', ['/c', 'start', '', backendUrl])) return;
-  throw new Error('No se encontró un navegador para abrir Basilico.');
+  throw new Error('No se encontró un navegador para abrir Crispy Burger.');
 }
 
 async function waitForBackend() {
@@ -87,7 +87,7 @@ async function waitForBackend() {
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
   }
-  throw new Error('Basilico no pudo iniciar el backend LAN. Revisa PostgreSQL y la conexión de red.');
+  throw new Error('Crispy Burger no pudo iniciar el backend LAN. Revisa PostgreSQL y la conexión de red.');
 }
 
 async function launch() {

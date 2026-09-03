@@ -59,7 +59,6 @@ if (fs.existsSync(srcIcon)) {
 }
 
 // 2. Generar archivos ejecutables VBS y BAT que abren el POS con la IP LAN vigente.
-const vbsPath = path.join(exportDir, 'BasilicoPOS.vbs');
 const crispyVbsPath = path.join(exportDir, 'CrispyPOS.vbs');
 const vbsContent = `' =========================================================
 ' CRISPY BURGER POS - EJECUTABLE DE ESCRITORIO PC
@@ -73,18 +72,15 @@ strRoot = fso.GetParentFolderName(strPath)
 ' El lanzador Node espera el backend y abre Chrome con su IP LAN actual.
 WshShell.Run "cmd /c cd /d """ & strRoot & """ && node scripts\\launch-pos.js", 0, False
 `;
-fs.writeFileSync(vbsPath, vbsContent);
 fs.writeFileSync(crispyVbsPath, vbsContent);
 
-// Generar también scripts .BAT de inicio directo inteligente
-const batPath = path.join(exportDir, 'BasilicoPOS_Con_Consola.bat');
+// Generar también script .BAT de inicio directo con consola
 const crispyBatPath = path.join(exportDir, 'CrispyPOS_Con_Consola.bat');
 const batContent = `@echo off
 title SERVIDOR & POS CRISPY BURGER
 cd /d "%~dp0.."
 node scripts\\launch-pos.js
 `;
-fs.writeFileSync(batPath, batContent);
 fs.writeFileSync(crispyBatPath, batContent);
 
 // 3. Crear accesos directos actualizados para export/ y el Escritorio de Windows.
@@ -92,11 +88,23 @@ const psScriptPath = path.join(rootDir, 'create_shortcut.ps1');
 const psScriptContent = `
 $WshShell = New-Object -ComObject WScript.Shell
 $desktopDir = [Environment]::GetFolderPath('Desktop')
+
+# Eliminar accesos directos legados de Basilico si existen
+$legacyShortcuts = @(
+  "${exportDir.replace(/\\/g, '\\\\')}\\Basilico Pizzeria.lnk",
+  "${exportDir.replace(/\\/g, '\\\\')}\\BasilicoPOS.vbs",
+  "${exportDir.replace(/\\/g, '\\\\')}\\BasilicoPOS_Con_Consola.bat",
+  (Join-Path $desktopDir 'Basilico Pizzeria.lnk')
+)
+foreach ($legacy in $legacyShortcuts) {
+  if (Test-Path -LiteralPath $legacy) {
+    Remove-Item -LiteralPath $legacy -Force -ErrorAction SilentlyContinue
+  }
+}
+
 $shortcutConfigs = @(
   @{ Path = "${exportDir.replace(/\\/g, '\\\\')}\\Crispy Burger.lnk"; Target = "${crispyVbsPath.replace(/\\/g, '\\\\')}"; Desc = "Crispy Burger - Sistema POS & KDS" },
-  @{ Path = (Join-Path $desktopDir 'Crispy Burger.lnk'); Target = "${crispyVbsPath.replace(/\\/g, '\\\\')}"; Desc = "Crispy Burger - Sistema POS & KDS" },
-  @{ Path = "${exportDir.replace(/\\/g, '\\\\')}\\Basilico Pizzeria.lnk"; Target = "${vbsPath.replace(/\\/g, '\\\\')}"; Desc = "Basilico Pizzeria - Sistema POS" },
-  @{ Path = (Join-Path $desktopDir 'Basilico Pizzeria.lnk'); Target = "${vbsPath.replace(/\\/g, '\\\\')}"; Desc = "Basilico Pizzeria - Sistema POS" }
+  @{ Path = (Join-Path $desktopDir 'Crispy Burger.lnk'); Target = "${crispyVbsPath.replace(/\\/g, '\\\\')}"; Desc = "Crispy Burger - Sistema POS & KDS" }
 )
 $timestamp = Get-Date
 foreach ($cfg in $shortcutConfigs) {
@@ -112,10 +120,9 @@ foreach ($cfg in $shortcutConfigs) {
     $shortcutItem.LastWriteTime = $timestamp
   }
 }
+
 $launcherPaths = @(
-  "${vbsPath.replace(/\\/g, '\\\\')}",
   "${crispyVbsPath.replace(/\\/g, '\\\\')}",
-  "${batPath.replace(/\\/g, '\\\\')}",
   "${crispyBatPath.replace(/\\/g, '\\\\')}"
 )
 foreach ($launcherPath in $launcherPaths) {
@@ -139,7 +146,7 @@ try {
   }
 }
 
-const exportedLauncherPaths = [vbsPath, batPath];
+const exportedLauncherPaths = [crispyVbsPath, crispyBatPath];
 for (const launcherPath of exportedLauncherPaths) {
   if (fs.existsSync(launcherPath)) {
     const timestamp = new Date();
@@ -147,35 +154,12 @@ for (const launcherPath of exportedLauncherPaths) {
   }
 }
 
-// 4. Copiar / Generar APK de Android configurada con icono de pizza en export
-const apkDest = path.join(exportDir, 'BasilicoPizzeria.apk');
-
-// Comprobar si existe apk previa en android/app/build/outputs/apk/release/app-release.apk
-const apkSource = path.join(rootDir, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
-if (fs.existsSync(apkSource)) {
-  fs.copyFileSync(apkSource, apkDest);
-  console.log('✅ APK de Android copiada exitosamente a export/BasilicoPizzeria.apk');
-} else {
-  // Crear APK paquete listo para distribución si no se ha ejecutado `./gradlew assembleRelease`
-  const dummyApkInfo = `# BASILICO PIZZERIA - INSTRUCCIONES DE INSTALACIÓN APK ANDROID
-Nombre App: Basilico Pizzeria
-Icono: Icono de Pizza (assets/icon.png)
-Backend LAN URL: Auto-detectable
-
-Para compilar la versión APK nativa firmada final:
-1. Ejecuta: node scripts/print-lan.js
-2. Ejecuta: npx expo prebuild --platform android
-3. Ejecuta: cd android && ./gradlew assembleRelease
-4. Copia el archivo generado en android/app/build/outputs/apk/release/app-release.apk a esta carpeta.
-`;
-  fs.writeFileSync(path.join(exportDir, 'INSTRUCCIONES_APK_ANDROID.txt'), dummyApkInfo);
-}
-
 console.log('\n============================================================');
-console.log(' 🍕 ARCHIVOS DE EXPORTACIÓN Y EJECUTABLE CREADOS EN export/');
+console.log(' 🍔 CRISPY BURGER POS - ARCHIVOS DE EXPORTACIÓN Y EJECUTABLE');
 console.log('============================================================');
 console.log(` 📂 Carpeta Export: ${exportDir}`);
-console.log(` 💻 Ejecutable PC: ${vbsPath}`);
-console.log(` 🔗 Acceso Directo PC: ${path.join(exportDir, 'Basilico Pizzeria.lnk')}`);
+console.log(` 💻 Ejecutable Silencioso PC: ${crispyVbsPath}`);
+console.log(` 💻 Ejecutable Consola PC: ${crispyBatPath}`);
+console.log(` 🔗 Acceso Directo PC: ${path.join(exportDir, 'Crispy Burger.lnk')}`);
 console.log(` 🖼️ Icono oficial: ${exportIcoIcon}`);
 console.log('============================================================\n');
