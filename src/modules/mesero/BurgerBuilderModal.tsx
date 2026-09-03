@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, Ingredient } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { IoClose, IoAdd, IoRemove, IoCheckmark, IoCloseCircle } from 'react-icons/io5';
@@ -18,6 +18,7 @@ interface BurgerBuilderModalProps {
     finalPrice: number;
   }) => void;
   defaultTakeaway?: boolean;
+  exchangeRates?: { COP: number; Bs: number };
 }
 
 const DEFAULT_BURGER_BASE_INGREDIENTS = [
@@ -36,6 +37,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   onClose,
   onConfirm,
   defaultTakeaway = false,
+  exchangeRates = { COP: 3950, Bs: 36.5 },
 }) => {
   const [quantity, setQuantity] = useState<number>(1);
   const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway);
@@ -79,6 +81,9 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     });
   };
 
+  const copRate = exchangeRates?.COP || 3950;
+  const bsRate = exchangeRates?.Bs || 36.5;
+
   const extrasTotal = selectedExtras.reduce((sum, e) => sum + e.price, 0);
   const unitPrice = burger.price + extrasTotal;
   const totalPrice = unitPrice * quantity;
@@ -99,15 +104,23 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl max-w-lg w-full border border-gray-200 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-        {/* Header */}
+        {/* Header con las 3 monedas */}
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div>
             <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
               <span>🍔</span> {burger.name}
             </h3>
-            <p className="text-[11px] text-gray-500 font-semibold">
-              Precio Base: ${burger.price.toFixed(2)} USD
-            </p>
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              <span className="text-[10px] font-black text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500">
+                Base: ${burger.price.toFixed(2)} USD
+              </span>
+              <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                ${Math.round(burger.price * copRate).toLocaleString()} COP
+              </span>
+              <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                {(burger.price * bsRate).toFixed(2)} Bs
+              </span>
+            </div>
           </div>
 
           <button
@@ -237,11 +250,19 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer con las 3 monedas */}
         <div className="p-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2 shrink-0">
           <div>
             <span className="text-[10px] text-gray-500 block uppercase font-bold">Total a sumar:</span>
-            <span className="text-base font-black text-black">${totalPrice.toFixed(2)} USD</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-base font-black text-black">${totalPrice.toFixed(2)} USD</span>
+              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                ${Math.round(totalPrice * copRate).toLocaleString()} COP
+              </span>
+              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                {(totalPrice * bsRate).toFixed(2)} Bs
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

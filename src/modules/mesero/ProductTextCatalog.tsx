@@ -27,20 +27,19 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
     ...Array.from(new Set(products.map((p) => p.category))).filter(Boolean).sort(),
   ];
 
-  // Filter products by category and search
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory =
-      selectedCategory === 'Todas' || product.category === selectedCategory;
-    const matchesSearch =
-      searchQuery.trim() === '' ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (product.baseIngredients && product.baseIngredients.some(ing => ing.toLowerCase().includes(searchQuery.toLowerCase())));
-    return matchesCategory && matchesSearch;
-  });
-
-  const copRate = exchangeRates.COP || 3950;
-  const bsRate = exchangeRates.Bs || 36.5;
+  // Filter products by category and search, then sort strictly ALPHABETICALLY (A-Z)
+  const sortedProducts = products
+    .filter((product) => {
+      const matchesCategory =
+        selectedCategory === 'Todas' || product.category === selectedCategory;
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (product.baseIngredients && product.baseIngredients.some(ing => ing.toLowerCase().includes(searchQuery.toLowerCase())));
+      return matchesCategory && matchesSearch;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
   return (
     <div className="flex flex-col h-full space-y-2">
@@ -86,66 +85,31 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
         </div>
       </div>
 
-      {/* 100% TEXT-BASED PRODUCT TILES (ZERO IMAGES) */}
+      {/* 100% TEXT-BASED ULTRA-COMPACT PRODUCT TILES (ALPHABETICAL ORDER A-Z) */}
       <div className="flex-1 overflow-y-auto pr-1">
-        {filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-36 text-center text-gray-400 text-xs">
+        {sortedProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-36 text-center text-gray-400 text-xs font-bold">
             <p>No se encontraron productos para "{searchQuery}"</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredProducts.map((product) => {
-              const isBurger = product.category === 'Hamburguesas';
-              const isDrink = product.category === 'Bebidas';
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-1.5">
+            {sortedProducts.map((product) => {
               const priceUSD = product.price;
-              const priceCOP = Math.round(priceUSD * copRate);
-              const priceBs = (priceUSD * bsRate).toFixed(2);
 
               return (
                 <button
                   key={product.id}
                   type="button"
                   onClick={() => onSelectProduct(product)}
-                  className="p-2.5 rounded-xl bg-white hover:bg-yellow-50/90 border border-gray-200 hover:border-yellow-500 text-left transition-all shadow-xs hover:shadow-sm flex flex-col justify-between group active:scale-[0.98]"
+                  className="px-2.5 py-2 rounded-xl bg-white hover:bg-yellow-50 border border-gray-200 hover:border-yellow-500 text-left transition-all shadow-xs hover:shadow-sm flex items-center justify-between gap-1.5 group active:scale-[0.98]"
+                  title={`${product.name} - $${priceUSD.toFixed(2)} USD (Toca para personalizar y ver las 3 monedas)`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-start justify-between gap-1">
-                      <h4 className="font-black text-xs text-gray-900 group-hover:text-black leading-tight">
-                        {product.name}
-                      </h4>
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-yellow-100 text-black border border-yellow-300 uppercase shrink-0">
-                        {isBurger ? '🍔 BURGER' : isDrink ? '🥤 BEBIDA' : '🍟 EXTRA'}
-                      </span>
-                    </div>
-
-                    {/* Ingredientes base del producto en texto */}
-                    {product.baseIngredients && product.baseIngredients.length > 0 ? (
-                      <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug font-medium">
-                        <span className="text-[10px] text-gray-400 font-bold uppercase mr-1">Trae:</span>
-                        {product.baseIngredients.join(', ')}
-                      </p>
-                    ) : product.description ? (
-                      <p className="text-[11px] text-gray-500 line-clamp-1 font-normal">
-                        {product.description}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Precios en las 3 monedas según la tasa vigente */}
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-1.5 border-t border-gray-100 text-[10px]">
-                    <span className="font-black text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500">
-                      ${priceUSD.toFixed(2)} USD
-                    </span>
-                    <span className="font-bold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                      ${priceCOP.toLocaleString()} COP
-                    </span>
-                    <span className="font-bold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                      {priceBs} Bs
-                    </span>
-                    <span className="ml-auto font-black text-yellow-600 group-hover:text-yellow-700 text-xs">
-                      + Pedir
-                    </span>
-                  </div>
+                  <span className="font-black text-xs text-gray-900 group-hover:text-black leading-tight truncate">
+                    {product.name}
+                  </span>
+                  <span className="font-black text-xs text-black bg-yellow-400 group-hover:bg-yellow-500 px-2 py-0.5 rounded-lg border border-yellow-500 shrink-0 shadow-xs">
+                    ${priceUSD.toFixed(2)}
+                  </span>
                 </button>
               );
             })}

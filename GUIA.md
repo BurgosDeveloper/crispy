@@ -442,10 +442,14 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
 4. **Pantalla Completa de Mesas (Zero Scroll) y Accesos Reducidos**:
    - Rejilla autoajustable y densa (`TableCompactGrid`) donde todas las mesas son visibles a la vez en pantalla sin requerir desplazamiento vertical.
    - Botones tipo chip ultra-compactos en la cabecera para `🛵 + DELIVERY` y `🛍️ + PICKUP`, liberando el área principal.
-5. **Catálogo 100% Texto (Cero Imágenes)**:
-   - Catálogo de productos (`ProductTextCatalog`) basado estrictamente en tipografía de alto contraste y precio en USD, eliminando imágenes pesadas para respuesta táctil instantánea.
-6. **Configurador Plano de Hamburguesas**:
-   - Módulo `BurgerBuilderModal` para personalización directa de hamburguesas: desmarcado de ingredientes base (`🚫 SIN: [Ingrediente]`) y selección de adicionales (`➕ EXTRA: [Ingrediente]`), con cálculo en tiempo real y notas de cocina.
+5. **Catálogo Alfabético Ultra-Compacto (100% Texto, Zero Scroll)**:
+   - Catálogo de productos (`ProductTextCatalog`) ordenado estrictamente de forma alfabética (A-Z).
+   - Fichas ultra-compactas de una sola línea con distribución eficiente: Nombre del producto a la izquierda (`font-black text-xs`) y precio en dólares a la derecha (`[$X.XX]`).
+   - Cero imágenes y cero textos de ingredientes en la ficha principal para que entren decenas de productos en pantalla simultáneamente sin scroll vertical.
+6. **Configurador Plano de Hamburguesas y Bebidas con 3 Monedas**:
+   - Módulos `BurgerBuilderModal` y `DrinkSelectorModal` para personalización al tocar cualquier producto.
+   - Presentación simultánea de los 3 precios en el encabezado y en el total (`USD`, `COP` y `Bs`) calculados según la tasa activa.
+   - Desmarcado de ingredientes base que trae la hamburguesa (`🚫 SIN: [Ingrediente]`) y selección de adicionales (`➕ EXTRA: [Ingrediente]`), con cálculo en tiempo real y notas de cocina.
 7. **Generador y Exportador de PC (Crispy POS)**:
    - Script `scripts/build-export.js` actualizado para generar los accesos directos de Windows `Crispy Burger.lnk`, el ejecutable silencioso `CrispyPOS.vbs` y el script con consola `CrispyPOS_Con_Consola.bat`, manteniendo compatibilidad con los accesos previos.
 8. **Retrocompatibilidad Visual**:

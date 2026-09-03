@@ -673,6 +673,7 @@ export const MeseroPage: React.FC = () => {
         onClose={() => setSelectedBurger(null)}
         onConfirm={handleConfirmBurgerAdd}
         defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
+        exchangeRates={exchangeRates}
       />
 
       {/* MODAL 3: SELECTOR DE BEBIDAS / JUGOS */}
@@ -682,6 +683,7 @@ export const MeseroPage: React.FC = () => {
         onClose={() => setSelectedDrink(null)}
         onConfirm={handleConfirmDrinkAdd}
         defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
+        exchangeRates={exchangeRates}
       />
 
       {/* MODAL 4: CAMBIO DE MESA */}
