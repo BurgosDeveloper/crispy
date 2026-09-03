@@ -98,7 +98,9 @@ CREATE TABLE IF NOT EXISTS order_items (
   notes TEXT,
   size VARCHAR(32) DEFAULT 'Estándar',
   is_half_half BOOLEAN DEFAULT FALSE,
-  half_details JSONB
+  half_details JSONB,
+  is_cut BOOLEAN DEFAULT FALSE,
+  cut_preference VARCHAR(32) DEFAULT 'Entera'
 );
 
 -- 7. Historial Desglosado de Pagos y Vueltos

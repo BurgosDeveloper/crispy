@@ -276,8 +276,8 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[96vh] border-2 border-yellow-400 shadow-2xl flex flex-col overflow-hidden text-gray-900">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-white w-screen h-screen max-w-none max-h-none overflow-hidden text-gray-900 animate-in fade-in select-none">
+      <div className="w-full h-full flex flex-col overflow-hidden text-gray-900 border-none rounded-none shadow-none">
         {/* Top Title Bar */}
         <div className="bg-slate-950 text-white px-6 py-4 flex items-center justify-between shrink-0 border-b-2 border-yellow-400">
           <div className="flex items-center gap-2.5 flex-wrap">

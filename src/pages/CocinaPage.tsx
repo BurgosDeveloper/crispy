@@ -240,11 +240,22 @@ export const CocinaPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {it.isTakeaway && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 border border-amber-200 text-[9px] font-black shrink-0 flex items-center gap-1">
-                                <IoBagOutline /> 📦 PARA LLEVAR
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                              {it.isTakeaway && (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 border border-amber-200 text-[9px] font-black flex items-center gap-1">
+                                  <IoBagOutline /> 📦 PARA LLEVAR
+                                </span>
+                              )}
+                              {(it.isCut || it.cutPreference === 'Picada') ? (
+                                <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-300 text-[9px] font-black">
+                                  🔪 PICADA (EN 2)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300 text-[9px] font-black">
+                                  🍔 ENTERA
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {it.isHalfHalf && it.halfDetails && (

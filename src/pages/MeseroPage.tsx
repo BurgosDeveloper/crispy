@@ -136,6 +136,8 @@ export const MeseroPage: React.FC = () => {
     removedIngredients: string[];
     extras: { name: string; price: number }[];
     isTakeaway: boolean;
+    isCut: boolean;
+    cutPreference: 'Picada' | 'Entera';
     notes?: string;
     finalPrice: number;
   }) => {
@@ -150,6 +152,8 @@ export const MeseroPage: React.FC = () => {
       removedIngredients: config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
       extras: config.extras.length > 0 ? config.extras : undefined,
       isTakeaway: config.isTakeaway,
+      isCut: config.isCut,
+      cutPreference: config.cutPreference,
       notes: config.notes,
       isNewOrModified: false,
     };
@@ -726,11 +730,22 @@ export const MeseroPage: React.FC = () => {
                               <span className="text-xs font-black text-gray-900 block leading-tight">
                                 {item.productName}
                               </span>
-                              {item.isTakeaway && (
-                                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 rounded inline-block mt-0.5">
-                                  📦 Para Llevar
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                {item.isTakeaway && (
+                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 rounded inline-block">
+                                    📦 Para Llevar
+                                  </span>
+                                )}
+                                {(item.isCut || item.cutPreference === 'Picada') ? (
+                                  <span className="text-[9px] font-bold text-red-700 bg-red-50 px-1 rounded inline-block">
+                                    🔪 Picada
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-gray-600 bg-gray-100 px-1 rounded inline-block">
+                                    🍔 Entera
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             <span className="text-xs font-black text-black shrink-0">

@@ -197,6 +197,12 @@ function itemDetails(item, order = {}) {
   const details = [];
 
   if (item.isTakeaway || item.is_takeaway) details.push('*** PARA LLEVAR ***');
+  const isCut = !!(item.isCut || item.is_cut || item.cutPreference === 'Picada' || item.cut_preference === 'Picada');
+  if (isCut) {
+    details.push('🔪 PICADA (CORTADA EN DOS)');
+  } else {
+    details.push('🍔 ENTERA');
+  }
   if (item.proteins?.length) details.push(`PROTEINA: ${item.proteins.join(' + ')}`);
   if (item.removedIngredients?.length) details.push(`SIN: ${item.removedIngredients.join(', ')}`);
   if (item.extras?.length) {

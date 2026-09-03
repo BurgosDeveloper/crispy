@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { IoCheckmarkCircleOutline, IoClose, IoPersonOutline, IoReceiptOutline } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoClose, IoPersonOutline, IoReceiptOutline } from 'react-icons/io5';
 import { Order } from '../data/mockData';
+import { roundCOP } from '../utils/currencyRounding';
 
 interface SplitPaymentSelectionModalProps {
   order: Order | null;
@@ -8,6 +9,7 @@ interface SplitPaymentSelectionModalProps {
   initialItemIds?: string[];
   onCancel: () => void;
   onConfirm: (payerName: string, itemIds: string[]) => void;
+  exchangeRates?: { COP: number; Bs: number };
 }
 
 export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProps> = ({
@@ -16,6 +18,7 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
   initialItemIds = [],
   onCancel,
   onConfirm,
+  exchangeRates = { COP: 3950, Bs: 36.5 },
 }) => {
   const [payerName, setPayerName] = useState(initialPayerName);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>(initialItemIds);
@@ -30,89 +33,230 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
   if (!order) return null;
 
   const toggleItem = (itemId: string) => {
-    setSelectedItemIds((current) => current.includes(itemId)
-      ? current.filter((id) => id !== itemId)
-      : [...current, itemId]);
+    setSelectedItemIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]
+    );
+  };
+
+  const selectAllUnpaid = () => {
+    const unpaidIds = order.items.filter((it) => !it.isPaidIndividually).map((it) => it.id);
+    setSelectedItemIds(unpaidIds);
+  };
+
+  const deselectAll = () => {
+    setSelectedItemIds([]);
   };
 
   const normalizedPayerName = payerName.trim();
   const canContinue = normalizedPayerName.length > 0 && selectedItemIds.length > 0;
 
+  const copRate = exchangeRates?.COP || 3950;
+  const bsRate = exchangeRates?.Bs || 36.5;
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#062f22]/45 p-3 backdrop-blur-sm">
-      <section className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-emerald-200 bg-[#f6fbf8] p-4 shadow-2xl md:p-6">
-        <header className="mb-5 flex items-start justify-between gap-3 border-b border-emerald-100 pb-4">
+    <div className="fixed inset-0 z-[70] flex flex-col bg-white text-gray-900 w-screen h-screen overflow-hidden animate-in fade-in select-none">
+      {/* 1. TOP HEADER - PANTALLA COMPLETA CRISPY */}
+      <header className="bg-slate-950 text-white px-6 py-4 flex items-center justify-between border-b-4 border-yellow-400 shrink-0 shadow-md">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-3xl">👥</span>
           <div>
-            <p className="text-xs font-black uppercase tracking-wide text-[#08724c]">Cobro dividido por persona</p>
-            <h2 className="flex items-center gap-2 text-xl font-black text-[#062f22]"><IoReceiptOutline /> Comanda #{order.orderNumber}</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide flex items-center gap-3">
+              <span>COBRO DIVIDIDO POR PERSONA</span>
+              <span className="bg-yellow-400 text-black px-3 py-1 rounded-xl text-xs sm:text-sm font-black">
+                Comanda #{order.orderNumber}
+              </span>
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-300 mt-0.5">
+              Selecciona qué productos consumió este comensal para cobrar su cuenta por separado
+            </p>
           </div>
-          <button onClick={onCancel} className="rounded-lg p-2 text-[#07513a] hover:bg-emerald-100" title="Cancelar selección">
-            <IoClose size={22} />
-          </button>
-        </header>
-
-        <label className="mb-5 block text-xs font-black text-[#07513a]">
-          <span className="mb-1.5 flex items-center gap-1.5"><IoPersonOutline /> Nombre de la persona</span>
-          <input
-            autoFocus
-            value={payerName}
-            onChange={(event) => setPayerName(event.target.value)}
-            placeholder="Ej: Carlos"
-            maxLength={128}
-            className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm font-bold text-[#062f22] outline-none focus:border-emerald-500"
-          />
-        </label>
-
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-black text-[#062f22]">Ítems que pagará</h3>
-          <span className="rounded-lg bg-[#ddf4e8] px-3 py-1.5 text-xs font-black text-[#07513a]">${selectedTotalUSD.toFixed(2)} USD</span>
         </div>
 
-        <div className="space-y-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition-colors cursor-pointer"
+          title="Cancelar división"
+        >
+          <IoClose className="text-3xl" />
+        </button>
+      </header>
+
+      {/* 2. BODY SCROLLABLE - AMPLIO Y ESPACIOSO */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 max-w-5xl mx-auto w-full">
+        {/* INPUT DE NOMBRE DE LA PERSONA */}
+        <div className="bg-stone-50 p-5 rounded-3xl border-2 border-gray-200 shadow-xs space-y-2">
+          <label className="block text-sm sm:text-base font-black uppercase text-gray-800 tracking-wider flex items-center gap-2">
+            <IoPersonOutline className="text-yellow-600 text-xl" />
+            <span>Nombre del comensal o persona que paga:</span>
+          </label>
+          <input
+            autoFocus
+            type="text"
+            value={payerName}
+            onChange={(e) => setPayerName(e.target.value)}
+            placeholder="Ej: Carlos, Ana, Persona 1..."
+            maxLength={128}
+            className="w-full px-5 py-3.5 text-lg sm:text-xl bg-white border-2 border-gray-300 rounded-2xl text-gray-900 font-black focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-xs"
+          />
+        </div>
+
+        {/* CONTROLES DE SELECCIÓN RÁPIDA E INDICADOR */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg font-black text-gray-900 uppercase">
+              Productos de la comanda:
+            </span>
+            <span className="text-xs sm:text-sm font-bold bg-yellow-100 text-yellow-900 border border-yellow-300 px-3 py-1 rounded-xl">
+              {selectedItemIds.length} seleccionado(s)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={selectAllUnpaid}
+              className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 text-xs sm:text-sm font-black border border-gray-300 transition-all cursor-pointer"
+            >
+              Seleccionar Todos
+            </button>
+            <button
+              type="button"
+              onClick={deselectAll}
+              className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 text-xs sm:text-sm font-black border border-gray-300 transition-all cursor-pointer"
+            >
+              Deseleccionar
+            </button>
+          </div>
+        </div>
+
+        {/* LISTA DE ÍTEMS CON TAMAÑO GRANDE TÁCTIL */}
+        <div className="space-y-3">
           {order.items.map((item) => {
             const isPaid = item.isPaidIndividually;
             const isSelected = selectedItemIds.includes(item.id);
             const itemTotalUSD = item.price * item.quantity;
+
             return (
               <button
                 key={item.id}
                 type="button"
                 disabled={isPaid}
                 onClick={() => toggleItem(item.id)}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors ${
+                className={`w-full p-4 sm:p-5 rounded-2xl border-2 flex items-center justify-between gap-4 text-left transition-all cursor-pointer shadow-xs ${
                   isPaid
-                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500'
+                    ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-75'
                     : isSelected
-                      ? 'border-emerald-500 bg-emerald-50 text-[#062f22]'
-                      : 'border-emerald-100 bg-white text-[#062f22] hover:border-emerald-300'
+                    ? 'bg-yellow-50 border-yellow-400 text-black shadow-md scale-[1.01]'
+                    : 'bg-white border-gray-200 text-gray-800 hover:border-yellow-400 hover:bg-yellow-50/20'
                 }`}
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${isSelected || isPaid ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white'}`}>
-                    {(isSelected || isPaid) && <IoCheckmarkCircleOutline size={15} />}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div
+                    className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${
+                      isSelected || isPaid
+                        ? 'bg-yellow-400 border-yellow-500 text-black'
+                        : 'bg-white border-gray-300 text-transparent'
+                    }`}
+                  >
+                    {(isSelected || isPaid) && <IoCheckmarkCircle className="text-xl" />}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base sm:text-lg font-black text-gray-900">
+                        {item.quantity}x {item.productName}
+                      </span>
+                      {item.isTakeaway && (
+                        <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200">
+                          📦 Llevar
+                        </span>
+                      )}
+                      {(item.isCut || item.cutPreference === 'Picada') && (
+                        <span className="text-xs font-bold text-red-800 bg-red-100 px-2 py-0.5 rounded-lg border border-red-200">
+                          🔪 Picada
+                        </span>
+                      )}
+                    </div>
+
+                    {isPaid && (
+                      <p className="text-xs font-black text-emerald-700 mt-1">
+                        ✓ Ya pagado por {item.paidByName || 'Cliente previo'}
+                      </p>
+                    )}
+
+                    {item.proteins && item.proteins.length > 0 && (
+                      <p className="text-xs text-amber-800 font-bold mt-0.5">
+                        🥩 {item.proteins.join(' + ')}
+                      </p>
+                    )}
+
+                    {item.removedIngredients && item.removedIngredients.length > 0 && (
+                      <p className="text-xs text-red-600 font-bold mt-0.5">
+                        🚫 SIN: {item.removedIngredients.join(', ')}
+                      </p>
+                    )}
+
+                    {item.extras && item.extras.length > 0 && (
+                      <p className="text-xs text-gray-600 font-bold mt-0.5">
+                        ➕ {item.extras.map((e) => e.name).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className="text-lg sm:text-2xl font-black text-gray-900 block">
+                    ${itemTotalUSD.toFixed(2)} USD
                   </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">{item.quantity}x {item.productName}</span>
-                    {isPaid && <span className="block text-xs font-bold text-[#07513a]">Pagado por {item.paidByName || 'Cliente'}</span>}
+                  <span className="text-xs sm:text-sm font-bold text-gray-500">
+                    ${(item.price).toFixed(2)} c/u
                   </span>
-                </span>
-                <span className="shrink-0 text-sm font-black">${itemTotalUSD.toFixed(2)}</span>
+                </div>
               </button>
             );
           })}
         </div>
+      </main>
 
-        <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-emerald-100 pt-4 sm:flex-row">
-          <button onClick={onCancel} className="flex-1 rounded-lg border border-emerald-300 bg-white px-4 py-3 text-xs font-black text-[#07513a]">Cancelar</button>
+      {/* 3. FOOTER TOTALES Y BOTONES */}
+      <footer className="bg-slate-950 text-white px-6 py-5 border-t-4 border-yellow-400 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xl">
+        <div>
+          <span className="text-xs font-black uppercase tracking-wider text-gray-400 block">
+            Subtotal a cobrar a {normalizedPayerName || 'este comensal'}:
+          </span>
+          <div className="flex items-baseline gap-3 flex-wrap mt-0.5">
+            <span className="text-3xl sm:text-4xl font-black text-yellow-400">
+              ${selectedTotalUSD.toFixed(2)} USD
+            </span>
+            <span className="text-base sm:text-lg font-black text-gray-300">
+              🇨🇴 {roundCOP(selectedTotalUSD * copRate).toLocaleString()} COP
+            </span>
+            <span className="text-base sm:text-lg font-black text-gray-300">
+              🇻🇪 {(selectedTotalUSD * bsRate).toFixed(2)} Bs
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
           <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-4 rounded-2xl text-sm sm:text-base font-black text-gray-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+          >
+            CANCELAR
+          </button>
+          <button
+            type="button"
             onClick={() => onConfirm(normalizedPayerName, selectedItemIds)}
             disabled={!canContinue}
-            className="flex-1 rounded-lg bg-[#08724c] px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="px-8 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-base sm:text-xl border-2 border-yellow-500 flex items-center gap-2 shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:bg-gray-700 disabled:border-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
           >
-            Continuar al cobro
+            <IoReceiptOutline className="text-2xl" />
+            <span>CONTINUAR AL COBRO</span>
           </button>
-        </footer>
-      </section>
+        </div>
+      </footer>
     </div>
   );
-};
+};

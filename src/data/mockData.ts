@@ -80,6 +80,8 @@ export interface OrderItem {
   extras?: OrderItemExtra[];
   sugarPreference?: 'Con azúcar' | 'Sin azúcar' | 'Poca azúcar' | string;
   isTakeaway?: boolean;
+  isCut?: boolean;
+  cutPreference?: 'Picada' | 'Entera';
   isNewOrModified?: boolean;
   isPaidIndividually?: boolean;
   paidByName?: string;

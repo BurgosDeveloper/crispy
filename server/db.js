@@ -130,6 +130,8 @@ async function initDb() {
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS drink_type VARCHAR(32);`,
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS category VARCHAR(64);`,
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS proteins TEXT[];`,
+      `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_cut BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cut_preference VARCHAR(32) DEFAULT 'Entera';`,
 
       `CREATE TABLE IF NOT EXISTS order_payments (id VARCHAR(64) PRIMARY KEY, order_id VARCHAR(64) REFERENCES orders(id) ON DELETE CASCADE, payer_name VARCHAR(128) DEFAULT 'Cliente General', payment_method VARCHAR(32) NOT NULL, amount_paid_usd NUMERIC(10, 2) NOT NULL DEFAULT 0.00, cash_tendered_usd NUMERIC(10, 2) DEFAULT 0.00, cash_tendered_cop NUMERIC(12, 2) DEFAULT 0.00, cash_tendered_bs NUMERIC(12, 2) DEFAULT 0.00, change_given_usd NUMERIC(10, 2) DEFAULT 0.00, change_given_cop NUMERIC(12, 2) DEFAULT 0.00, change_given_bs NUMERIC(12, 2) DEFAULT 0.00, item_ids TEXT[], cop_rate NUMERIC(10, 2) DEFAULT 3950.00, bs_rate NUMERIC(10, 2) DEFAULT 36.50, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
       `ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS cash_tendered_bs NUMERIC(12, 2) DEFAULT 0.00;`,

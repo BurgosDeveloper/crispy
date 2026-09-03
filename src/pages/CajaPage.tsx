@@ -727,6 +727,11 @@ export const CajaPage: React.FC = () => {
                               <span className="font-black text-black">• {it.quantity}x</span>
                               <span className="font-bold">{it.productName}</span>
                               {it.isTakeaway && <span className="text-amber-700 font-bold ml-1 text-[10px]">(📦 LLEVAR)</span>}
+                              {(it.isCut || it.cutPreference === 'Picada') ? (
+                                <span className="text-red-700 font-black ml-1 text-[10px]">(🔪 PICADA)</span>
+                              ) : (
+                                <span className="text-gray-600 font-bold ml-1 text-[10px]">(🍔 ENTERA)</span>
+                              )}
                               {it.isPaidIndividually && (
                                 <span className="px-1.5 py-0.5 rounded bg-green-100 border border-green-300 text-green-900 text-[9px] font-black uppercase">
                                   ✓ PAGADO
@@ -860,6 +865,52 @@ export const CajaPage: React.FC = () => {
                           <span>➕ Adicionar</span>
                         </button>
                       )}
+
+                      {/* Botón Editar Comanda */}
+                      {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            requireAdminPin(
+                              `Editar Comanda #${ord.orderNumber}`,
+                              'Autorizar Edición de Comanda',
+                              () => setOrderEditModalOrder(ord)
+                            );
+                          }}
+                          className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          title="Editar comanda activa"
+                        >
+                          <span>✏️ Editar</span>
+                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
+                        </button>
+                      )}
+
+                      {/* Botón Anular Comanda */}
+                      {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            requireAdminPin(
+                              `Anular Comanda #${ord.orderNumber}`,
+                              'Autorizar Anulación de Comanda',
+                              async () => {
+                                if (!window.confirm(`¿Seguro que deseas anular y eliminar completamente la comanda #${ord.orderNumber}? Se liberará su número correlativo y se borrarán todos sus registros.`)) return;
+                                try {
+                                  await deleteOrder(ord.id);
+                                } catch (delError) {
+                                  alert(delError instanceof Error ? delError.message : 'No se pudo anular la comanda');
+                                }
+                              }
+                            );
+                          }}
+                          className="p-2.5 rounded-xl bg-red-100 hover:bg-red-600 hover:text-white text-red-700 border border-red-300 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          title="Anular comanda"
+                        >
+                          <IoTrashOutline className="text-sm" />
+                          <span>🗑️ Anular</span>
+                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-400 text-xs" />}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -979,6 +1030,11 @@ export const CajaPage: React.FC = () => {
                               <span className="font-black text-black">• {it.quantity}x</span>
                               <span className="font-bold">{it.productName}</span>
                               {it.isTakeaway && <span className="text-amber-700 font-bold ml-1 text-[10px]">(📦 LLEVAR)</span>}
+                              {(it.isCut || it.cutPreference === 'Picada') ? (
+                                <span className="text-red-700 font-black ml-1 text-[10px]">(🔪 PICADA)</span>
+                              ) : (
+                                <span className="text-gray-600 font-bold ml-1 text-[10px]">(🍔 ENTERA)</span>
+                              )}
                               {it.isPaidIndividually && (
                                 <span className="px-1.5 py-0.5 rounded bg-green-100 border border-green-300 text-green-900 text-[9px] font-black uppercase">
                                   ✓ PAGADO
@@ -1805,6 +1861,7 @@ export const CajaPage: React.FC = () => {
           initialItemIds={splitPaymentScope?.itemIds}
           onCancel={handleCancelSplitPaymentSelection}
           onConfirm={handleConfirmSplitPaymentSelection}
+          exchangeRates={exchangeRates}
         />
       )}
 
