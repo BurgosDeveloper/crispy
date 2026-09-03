@@ -171,10 +171,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
-    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-      const saved = window.localStorage.getItem('basilico_user_session');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem('basilico_user_session');
+        window.localStorage.removeItem('crispy_user_session');
+      } catch (e) {}
+
+      if (typeof window.sessionStorage !== 'undefined') {
+        const saved = window.sessionStorage.getItem('crispy_user_session');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.sessionToken) return parsed;
+          } catch (e) {}
+        }
       }
     }
     return null;
@@ -224,11 +234,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cajaChicaTransactions, setCajaChicaTransactions] = useState<CajaChicaTransaction[]>([]);
   const [ultimoCierre, setUltimoCierre] = useState<CajaChicaCierre | null>(null);
 
+  const logout = useCallback(() => {
+    setUserSession(null);
+    if (typeof window !== 'undefined') {
+      if (typeof window.sessionStorage !== 'undefined') {
+        window.sessionStorage.removeItem('crispy_user_session');
+      }
+      try {
+        window.localStorage.removeItem('basilico_user_session');
+        window.localStorage.removeItem('crispy_user_session');
+      } catch (e) {}
+    }
+  }, []);
+
   const apiFetch = useCallback((url: string, options: RequestInit = {}) => {
     const headers = new Headers(options.headers);
-    if (userSession?.sessionToken) headers.set('x-basilico-session', userSession.sessionToken);
-    return fetch(url, { ...options, headers });
-  }, [userSession?.sessionToken]);
+    if (userSession?.sessionToken) {
+      headers.set('Authorization', `Bearer ${userSession.sessionToken}`);
+      headers.set('x-crispy-token', userSession.sessionToken);
+      headers.set('x-basilico-session', userSession.sessionToken);
+    }
+    return fetch(url, { ...options, headers }).then((res) => {
+      if (res.status === 401 && typeof window !== 'undefined') {
+        logout();
+      }
+      return res;
+    });
+  }, [userSession?.sessionToken, logout]);
 
   // Fetch Functions
   const fetchProducts = useCallback(async () => {
@@ -310,8 +342,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.success && data.user) {
           const session: UserSession = { username: data.user.username, role: data.user.role, shift: data.user.shift, sessionToken: data.user.sessionToken };
           setUserSession(session);
-          if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-            window.localStorage.setItem('basilico_user_session', JSON.stringify(session));
+          if (typeof window !== 'undefined') {
+            if (typeof window.sessionStorage !== 'undefined') {
+              window.sessionStorage.setItem('crispy_user_session', JSON.stringify(session));
+            }
+            try {
+              window.localStorage.removeItem('basilico_user_session');
+              window.localStorage.removeItem('crispy_user_session');
+            } catch (e) {}
           }
           return { success: true };
         }
@@ -325,12 +363,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const logout = () => {
-    setUserSession(null);
-    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-      window.localStorage.removeItem('basilico_user_session');
-    }
-  };
+  // Validar token en el servidor al cargar o reactivar pestaña
+  useEffect(() => {
+    if (!backendUrl || !userSession?.sessionToken) return;
+    let isSubscribed = true;
+    fetch(`${backendUrl}/api/auth/verify-session`, {
+      headers: {
+        'Authorization': `Bearer ${userSession.sessionToken}`,
+        'x-crispy-token': userSession.sessionToken,
+      },
+    }).then((res) => {
+      if (!res.ok && isSubscribed) {
+        console.warn('Token JWT inválido o expirado. Cerrando sesión.');
+        logout();
+      }
+    }).catch(() => {});
+    return () => { isSubscribed = false; };
+  }, [backendUrl, userSession?.sessionToken, logout]);
 
   useEffect(() => {
     if (!backendUrl || !userSession?.sessionToken) {
@@ -339,7 +388,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const socket: Socket = io(backendUrl, {
-      auth: { sessionToken: userSession?.sessionToken },
+      auth: {
+        token: userSession?.sessionToken,
+        sessionToken: userSession?.sessionToken,
+      },
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       timeout: 5000,

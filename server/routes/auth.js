@@ -101,5 +101,23 @@ module.exports = function(io) {
     }
   });
 
+  // Verificar validez y expiración del token JWT
+  router.get('/verify-session', (req, res) => {
+    const authHeader = req.get('authorization') || req.get('Authorization');
+    let token = null;
+    if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+      token = authHeader.substring(7).trim();
+    } else {
+      token = req.get('x-crispy-token') || req.get('x-basilico-session');
+    }
+
+    const { getSession } = require('../helpers/sessionAuth');
+    const user = getSession(token);
+    if (!user) {
+      return res.status(401).json({ valid: false, error: 'Token JWT no válido o expirado.' });
+    }
+    return res.json({ valid: true, user });
+  });
+
   return router;
 };

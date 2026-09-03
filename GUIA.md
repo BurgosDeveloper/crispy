@@ -603,3 +603,18 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - **Comandas y Adiciones de Cocina**: Enrutadas automáticamente a la **Impresora de Cocina**.
    - **Arqueos y Cierres de Turno**: Enrutados automáticamente a la **Impresora de Caja**.
    - **Pre-Cuentas y Reportes**: Permite selección explícita del destino mediante el modal selector.
+
+## Seguridad, Autenticación Obligatoria con JWT y Ciclo de Sesión
+1. **Firma Criptográfica JWT (RFC 7519 HMAC-SHA256)**:
+   - Los inicios de sesión (`/api/auth/login`) emiten un token JWT estándar firmado con secreto (`CRISPY_JWT_SECRET`) que encapsula la identidad `{ username, role, shift, exp }`.
+   - Implementado en `server/helpers/sessionAuth.js` con comparación segura `crypto.timingSafeEqual` para blindar contra ataques de sincronización.
+2. **Ciclo de Sesión Efímero en Navegador (`sessionStorage`)**:
+   - El token se almacena estrictamente en `window.sessionStorage` (`crispy_user_session`), limpiando residuos de `localStorage`.
+   - **Comportamiento requerido**: Al cerrar la ventana del sistema, apagar la computadora o cerrar el navegador, la sesión expira automáticamente. Al reabrir el sistema, nadie puede acceder a ninguna pantalla sin autenticarse primero.
+3. **Protección Integral de API y WebSockets**:
+   - Todo request HTTP bajo `/api` (a excepción de `/api/auth/login`) es evaluado por el middleware `requireSession`. Si no se envía un JWT válido en `Authorization: Bearer <token>` o `x-crispy-token`, la API rechaza con 401 Unauthorized.
+   - El handshake de Socket.IO (`io.use(...)`) verifica obligatoriamente el JWT (`socket.handshake.auth.token` / `sessionToken`). Si el token es inválido o no existe, la conexión en tiempo real es denegada.
+   - Si cualquier petición HTTP devuelve 401, el cliente web invoca `logout()` de forma inmediata, limpiando la memoria y redirigiendo al inicio de sesión.
+4. **Guardias Estrictos de Rutas en Frontend (`App.web.tsx`)**:
+   - Componente `ProtectedRoute` y `MainAppLayout` evalúan `userSession?.sessionToken`.
+   - Si no hay sesión válida, cualquier intento de navegar a `/caja`, `/mesonero`, `/cocina` o `/menu-admin` renderiza directamente la pantalla de inicio de sesión (`LoginPage`).

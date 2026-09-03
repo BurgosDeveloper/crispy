@@ -19,7 +19,7 @@ const ProtectedRoute: React.FC<{
 }> = ({ allowedRoles, children }) => {
   const { userSession } = useApp();
 
-  if (!userSession) {
+  if (!userSession || !userSession.sessionToken) {
     return <LoginPage />;
   }
 
@@ -43,8 +43,8 @@ const MainAppLayout: React.FC = () => {
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // If user is not authenticated, show LoginPage
-  if (!userSession) {
+  // If user is not authenticated with valid JWT, force LoginPage
+  if (!userSession || !userSession.sessionToken) {
     return <LoginPage />;
   }
 
