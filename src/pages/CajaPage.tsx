@@ -333,21 +333,21 @@ export const CajaPage: React.FC = () => {
   const saldoEfectivoCOP = filteredApertura.copCash + cashIngresosCOP - cashEgresosCOP;
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 max-w-7xl mx-auto text-white">
+    <div className="p-3 sm:p-6 space-y-6 max-w-7xl mx-auto text-gray-900">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-[#0B2A1A]/90 via-[#070707] to-[#0B2A1A]/80 border border-emerald-500/30 backdrop-blur-xl shadow-2xl">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#0B2A1A] border border-emerald-500/40 flex items-center justify-center shadow-lg">
-            <IoCard className="text-3xl text-emerald-400" />
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-yellow-400 border border-yellow-500 flex items-center justify-center text-black shadow-xs">
+            <IoCard className="text-2xl" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight">Caja</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase">
+              <h1 className="text-xl font-black tracking-tight text-black">Caja POS</h1>
+              <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-900 border border-green-300 text-[10px] font-black uppercase">
                 EN VIVO
               </span>
             </div>
-            <p className="text-xs text-[#D8E6DF]/70 mt-1">
+            <p className="text-xs text-gray-500 font-semibold mt-0.5">
               Cobro de comandas, caja chica, arqueo de cierre y reportes de ventas.
             </p>
           </div>
@@ -357,10 +357,10 @@ export const CajaPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setSearchParams({ tab: 'comandas' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
               activeSubTab === 'comandas' || activeSubTab === 'default'
-                ? 'bg-emerald-500 text-black shadow-lg'
-                : 'bg-white/[0.04] text-gray-300 hover:text-white'
+                ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
             <IoCard />
@@ -369,10 +369,10 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'cajachica' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
               activeSubTab === 'cajachica'
-                ? 'bg-emerald-500 text-black shadow-lg'
-                : 'bg-white/[0.04] text-gray-300 hover:text-white'
+                ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
             <IoCashOutline />
@@ -381,10 +381,10 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'historico' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
               activeSubTab === 'historico'
-                ? 'bg-emerald-500 text-black shadow-lg'
-                : 'bg-white/[0.04] text-gray-300 hover:text-white'
+                ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
             <IoTimeOutline />
@@ -393,10 +393,10 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'reportes' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
               activeSubTab === 'reportes'
-                ? 'bg-emerald-500 text-black shadow-lg'
-                : 'bg-white/[0.04] text-gray-300 hover:text-white'
+                ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
             <IoBarChartOutline />
@@ -406,10 +406,10 @@ export const CajaPage: React.FC = () => {
           {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
             <button
               onClick={() => setIsExchangeModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-500/40 shadow-lg hover:border-emerald-400"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-xs"
               title="Actualizar tasas de cambio del turno (COP y Bs)"
             >
-              <IoSwapHorizontal className="text-emerald-400" />
+              <IoSwapHorizontal className="text-yellow-600" />
               <span>💱 TASAS: COP ${exchangeRates.COP.toLocaleString()} | {exchangeRates.Bs.toFixed(2)} Bs</span>
             </button>
           )}
@@ -462,29 +462,29 @@ export const CajaPage: React.FC = () => {
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-white flex items-center gap-2">
-              <IoCard className="text-emerald-400 text-xl" />
+            <h2 className="text-lg font-black text-black flex items-center gap-2">
+              <IoCard className="text-yellow-600 text-xl" />
               <span>COMANDAS ACTIVAS EN SISTEMA</span>
             </h2>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/mesonero')}
-                className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs flex items-center gap-2 shadow-lg transition-all"
+                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-sm transition-all"
                 title="Ir a la pantalla de Mesero para tomar y enviar nuevos pedidos"
               >
                 <span>🍽️ + CREAR PEDIDO (MESERO)</span>
               </button>
-              <span className="text-xs text-gray-400">Total: {activeComandas.length} Comandas</span>
+              <span className="text-xs text-gray-500 font-bold">Total: {activeComandas.length} Comandas</span>
             </div>
           </div>
 
           {activeComandas.length === 0 ? (
-            <div className="p-16 text-center rounded-3xl bg-white/[0.02] border border-white/10 space-y-4">
-              <IoCheckmarkDone className="text-5xl text-emerald-400 mx-auto" />
-              <p className="text-sm text-gray-400 font-bold">No hay comandas pendientes por cobrar en este momento.</p>
+            <div className="p-12 text-center rounded-2xl bg-white border border-gray-200 shadow-xs space-y-3">
+              <IoCheckmarkDone className="text-4xl text-yellow-500 mx-auto" />
+              <p className="text-xs text-gray-500 font-bold">No hay comandas pendientes por cobrar en este momento.</p>
               <button
                 onClick={() => navigate('/mesonero')}
-                className="px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs inline-flex items-center gap-2 shadow-xl transition-all"
+                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs inline-flex items-center gap-2 border border-yellow-500 shadow-sm transition-all"
               >
                 <span>🍽️ Crear Primera Comanda</span>
               </button>
@@ -500,39 +500,39 @@ export const CajaPage: React.FC = () => {
                 return (
                   <div
                     key={ord.id}
-                    className={`p-4 sm:p-5 rounded-3xl border backdrop-blur-xl shadow-xl space-y-3.5 transition-all ${
+                    className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-all ${
                       isSelectedForMultiPay
-                        ? 'bg-gradient-to-br from-amber-950/90 via-[#070707] to-amber-950/40 border-amber-400 ring-2 ring-amber-400/50'
-                        : isDelivered
-                        ? 'bg-gradient-to-br from-[#0B2A1A]/60 via-[#070707] to-[#0B2A1A]/30 border-emerald-500/30'
+                        ? 'bg-yellow-100 border-2 border-yellow-500 ring-2 ring-yellow-400'
+                        : isPaid
+                        ? 'bg-white border-green-300'
                         : isPrepared
-                        ? 'bg-gradient-to-br from-emerald-950/90 to-[#070707] border-emerald-400 shadow-emerald-950/80'
-                        : 'bg-gradient-to-br from-[#0B2A1A]/80 to-[#070707] border-white/15'
+                        ? 'bg-yellow-50/50 border-yellow-400'
+                        : 'bg-white border-gray-200'
                     }`}
                   >
                     {/* Header line */}
-                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between pb-2.5 border-b border-gray-200">
+                      <div className="flex items-center gap-2.5">
                         {!isPaid && (
                           <input
                             type="checkbox"
                             checked={isSelectedForMultiPay}
                             onChange={() => handleToggleOrderForMultiPay(ord.id)}
-                            className="w-5 h-5 accent-amber-500 rounded cursor-pointer"
+                            className="w-4 h-4 accent-yellow-500 rounded cursor-pointer"
                             title="Seleccionar para unificar comandas"
                           />
                         )}
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-2xl md:text-3xl font-black text-white tracking-wide">#{ord.orderNumber}</span>
-                            <span className="text-xs px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black uppercase">
+                            <span className="text-2xl font-black text-black tracking-wide">#{ord.orderNumber}</span>
+                            <span className="text-xs px-2.5 py-0.5 rounded-lg bg-yellow-400 text-black border border-yellow-500 font-black uppercase">
                               {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : (ord.type || 'mesa').toUpperCase()}
                             </span>
                             {ord.type === 'mesa' && !isPaid && !isDelivered && (
                               <button
                                 type="button"
                                 onClick={() => setTableChangeOrder(ord)}
-                                className="px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-400/40 text-[10px] font-black flex items-center gap-1 shadow-sm transition-all"
+                                className="px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 text-[10px] font-black flex items-center gap-1 shadow-xs transition-all"
                                 title="Reubicar o cambiar mesa de salón"
                               >
                                 <IoSwapHorizontal />
@@ -544,25 +544,25 @@ export const CajaPage: React.FC = () => {
                       </div>
 
                       {/* Dual Status Badges */}
-                      <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex flex-col items-end gap-1">
                         <span
-                          className={`px-3 py-1 rounded-full text-[11px] font-black uppercase border flex items-center gap-1 ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${
                             isPrepared
-                              ? 'bg-emerald-100 text-emerald-950 border-emerald-300 shadow-md'
-                              : 'bg-amber-100 text-amber-950 border-amber-300 animate-pulse'
+                              ? 'bg-green-100 text-green-900 border-green-300'
+                              : 'bg-yellow-100 text-yellow-900 border-yellow-300 animate-pulse'
                           }`}
                         >
-                          {isPrepared ? <IoCheckmarkCircle className="text-emerald-800" /> : <IoTimeOutline className="text-amber-800" />}
-                          <span>{isDelivered ? '📦 ENTREGADA' : isPrepared ? '🔥 LISTA / COCINADA' : '⏳ EN COCINA'}</span>
+                          {isPrepared ? <IoCheckmarkCircle className="text-green-700" /> : <IoTimeOutline className="text-yellow-700" />}
+                          <span>{isDelivered ? '📦 ENTREGADA' : isPrepared ? '🔥 LISTA' : '⏳ EN COCINA'}</span>
                         </span>
 
                         <span
-                          className={`px-3 py-1 rounded-full text-[11px] font-black uppercase border flex items-center gap-1 ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${
                             ord.paymentStatus === 'credito'
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
                               : isPaid
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                              : 'bg-red-500/20 text-red-300 border-red-500/40'
+                              ? 'bg-green-100 text-green-900 border-green-300'
+                              : 'bg-red-100 text-red-900 border-red-300'
                           }`}
                         >
                           {ord.paymentStatus === 'credito' ? (
@@ -570,7 +570,7 @@ export const CajaPage: React.FC = () => {
                           ) : isPaid ? (
                             <>
                               <IoCard />
-                              <span>💳 PAGADO ({ord.paymentMethod})</span>
+                              <span>💳 PAGADO</span>
                             </>
                           ) : (
                             <>
@@ -582,104 +582,55 @@ export const CajaPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="text-sm text-emerald-300 font-extrabold break-words flex items-center gap-1.5">
-                      <IoPersonOutline />
-                      <span>👤 Cliente: {ord.customerName || (ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type === 'pickup' ? 'PickUp / Para Llevar' : 'Delivery')}</span>
+                    <p className="text-xs text-gray-800 font-extrabold break-words flex items-center gap-1.5">
+                      <IoPersonOutline className="text-gray-500" />
+                      <span>Cliente: {ord.customerName || (ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type === 'pickup' ? 'PickUp / Para Llevar' : 'Delivery')}</span>
                     </p>
 
                     {ord.kitchenNotes && (
-                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-medium break-words flex items-start gap-1.5">
-                        <IoDocumentTextOutline className="mt-0.5 shrink-0" />
-                        <div>📝 <span className="font-bold">Nota Cocina:</span> {ord.kitchenNotes}</div>
+                      <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-gray-800 font-medium break-words flex items-start gap-1.5">
+                        <IoDocumentTextOutline className="mt-0.5 shrink-0 text-yellow-700" />
+                        <div><span className="font-bold">Nota Cocina:</span> {ord.kitchenNotes}</div>
                       </div>
                     )}
 
-                    {/* Order Items Breakdown with Individual Paid Flags */}
-                    <div className="space-y-1.5 bg-black/40 p-3 sm:p-3.5 rounded-2xl border border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
+                    {/* Order Items Breakdown */}
+                    <div className="space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-200 max-h-44 overflow-y-auto">
                       {(ord.items || []).map((it) => (
-                        <div key={it.id} className="space-y-1 text-xs border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
-                          <div className="flex justify-between items-start font-bold text-white gap-2">
-                            <span className="break-words flex-1 flex items-center gap-1.5 text-xs sm:text-sm">
-                              <span className="font-black text-amber-400">• {it.quantity}x</span>
-                              <span className="font-extrabold">{it.productName}</span>
-                              {it.isTakeaway && <span className="text-amber-400 font-bold ml-1 text-xs">(📦 LLEVAR)</span>}
+                        <div key={it.id} className="space-y-0.5 text-xs border-b border-gray-100 pb-1 last:border-0 last:pb-0">
+                          <div className="flex justify-between items-start font-bold text-gray-900 gap-2">
+                            <span className="break-words flex-1 flex items-center gap-1 text-xs">
+                              <span className="font-black text-black">• {it.quantity}x</span>
+                              <span className="font-bold">{it.productName}</span>
+                              {it.isTakeaway && <span className="text-amber-700 font-bold ml-1 text-[10px]">(📦 LLEVAR)</span>}
                               {it.isPaidIndividually && (
-                                <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[9px] font-black uppercase">
-                                  ✓ PAGADO POR {it.paidByName || 'PERSONA'}
+                                <span className="px-1.5 py-0.5 rounded bg-green-100 border border-green-300 text-green-900 text-[9px] font-black uppercase">
+                                  ✓ PAGADO
                                 </span>
                               )}
                             </span>
-                            <span className="text-emerald-400 font-black text-xs sm:text-sm shrink-0">
+                            <span className="text-black font-black text-xs shrink-0">
                               ${(it.price * it.quantity).toFixed(2)}
                             </span>
                           </div>
 
                           {it.sugarPreference && (
-                            <p className="text-[11px] text-cyan-300 font-bold ml-3">
-                              🥤 Preferencia: {it.sugarPreference}
+                            <p className="text-[10px] text-blue-700 font-bold ml-2">
+                              🥤 Azúcar: {it.sugarPreference}
                             </p>
                           )}
 
-                          {it.isHalfHalf && it.halfDetails && (
-                            <div className="ml-3 my-1 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1 font-bold">
-                              <div className="text-amber-300 text-[10px] uppercase tracking-wider font-black flex items-center gap-1">
-                                <span>🌓 MITAD Y MITAD ({it.size || 'Grande'}):</span>
-                              </div>
-                              <div className="text-white bg-black/40 p-1.5 rounded-lg border border-white/10 space-y-0.5 text-[11px]">
-                                <div className="text-amber-400 font-black">
-                                  • 1ra Mitad: <span className="text-white">{it.halfDetails.half1Name}</span>
-                                </div>
-                                {it.halfDetails.half1Removed && it.halfDetails.half1Removed.length > 0 && (
-                                  <div className="text-red-400 text-[10px] font-extrabold ml-2">
-                                    🚫 SIN: {it.halfDetails.half1Removed.join(', ')}
-                                  </div>
-                                )}
-                                {it.halfDetails.half1Extras && it.halfDetails.half1Extras.length > 0 && (
-                                  <div className="text-purple-300 text-[10px] font-extrabold ml-2 space-y-0.5">
-                                    {it.halfDetails.half1Extras.map((e, idx) => (
-                                      <div key={idx} className="flex justify-between">
-                                        <span>➕ EXTRAS 1RA: {e.name}</span>
-                                        {e.price > 0 && <span className="text-emerald-400">+${e.price.toFixed(2)}</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="text-white bg-black/40 p-1.5 rounded-lg border border-white/10 space-y-0.5 text-[11px]">
-                                <div className="text-amber-400 font-black">
-                                  • 2da Mitad: <span className="text-white">{it.halfDetails.half2Name}</span>
-                                </div>
-                                {it.halfDetails.half2Removed && it.halfDetails.half2Removed.length > 0 && (
-                                  <div className="text-red-400 text-[10px] font-extrabold ml-2">
-                                    🚫 SIN: {it.halfDetails.half2Removed.join(', ')}
-                                  </div>
-                                )}
-                                {it.halfDetails.half2Extras && it.halfDetails.half2Extras.length > 0 && (
-                                  <div className="text-purple-300 text-[10px] font-extrabold ml-2 space-y-0.5">
-                                    {it.halfDetails.half2Extras.map((e, idx) => (
-                                      <div key={idx} className="flex justify-between">
-                                        <span>➕ EXTRAS 2DA: {e.name}</span>
-                                        {e.price > 0 && <span className="text-emerald-400">+${e.price.toFixed(2)}</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {!it.isHalfHalf && it.removedIngredients && it.removedIngredients.length > 0 && (
-                            <p className="text-[11px] text-red-400 font-bold ml-3 break-words flex items-center gap-1">
-                              <IoCloseCircle /> 🚫 SIN: {it.removedIngredients.join(', ')}
+                          {it.removedIngredients && it.removedIngredients.length > 0 && (
+                            <p className="text-[10px] text-red-600 font-bold ml-2">
+                              🚫 SIN: {it.removedIngredients.join(', ')}
                             </p>
                           )}
 
-                          {!it.isHalfHalf && it.extras && it.extras.length > 0 && (
-                            <div className="ml-3 text-[11px] text-emerald-400 font-bold space-y-0.5">
-                              {(it.extras || []).map((ex, exIdx) => (
+                          {it.extras && it.extras.length > 0 && (
+                            <div className="ml-2 text-[10px] text-gray-700 font-bold space-y-0.5">
+                              {it.extras.map((ex, exIdx) => (
                                 <div key={exIdx} className="flex justify-between">
-                                  <span className="break-words">{it.category && it.category !== 'Pizzas' ? '🥗 CONTORNO:' : '➕ EXTRA:'} {ex.name}</span>
+                                  <span>➕ EXTRA: {ex.name}</span>
                                   {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
                                 </div>
                               ))}
@@ -694,29 +645,29 @@ export const CajaPage: React.FC = () => {
                       const paid = ord.paidAmountUSD || 0;
                       const remaining = Math.max(0, ord.totalUSD - paid);
                       return (
-                        <div className="space-y-2">
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-emerald-500/30 gap-2.5">
-                            <div className="space-y-1 w-full sm:w-auto">
+                        <div className="space-y-1.5">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-yellow-50/80 p-2.5 rounded-xl border border-yellow-300 gap-2">
+                            <div className="space-y-0.5 w-full sm:w-auto">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-xs sm:text-sm font-black text-sky-300 bg-sky-950/80 border border-sky-500/40 px-2 py-0.5 rounded-lg shadow-sm">
+                                <span className="text-xs font-black text-gray-900 bg-white border border-gray-300 px-2 py-0.5 rounded shadow-xs">
                                   🇨🇴 {Math.round(ord.totalUSD * exchangeRates.COP).toLocaleString()} COP
                                 </span>
-                                <span className="text-xs sm:text-sm font-black text-amber-300 bg-amber-950/80 border border-amber-500/40 px-2 py-0.5 rounded-lg shadow-sm">
+                                <span className="text-xs font-black text-gray-900 bg-white border border-gray-300 px-2 py-0.5 rounded shadow-xs">
                                   🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
                                 </span>
                               </div>
                               {paid > 0 && (
-                                <div className="text-[11px] font-black text-emerald-300">
+                                <div className="text-[10px] font-black text-green-700">
                                   Abonado: ${paid.toFixed(2)} USD | Pendiente: ${remaining.toFixed(2)} USD
                                 </div>
                               )}
                             </div>
                             <div className="text-left sm:text-right w-full sm:w-auto">
-                              <div className="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">
-                                ${ord.totalUSD.toFixed(2)} <span className="text-xs font-black text-emerald-200">USD</span>
+                              <div className="text-xl font-black text-black leading-tight">
+                                ${ord.totalUSD.toFixed(2)} <span className="text-xs font-bold text-gray-600">USD</span>
                               </div>
                               {remaining > 0 && paid > 0 && (
-                                <span className="text-[11px] font-black text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-lg border border-amber-500/40 inline-block mt-0.5">
+                                <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block">
                                   Resta: ${remaining.toFixed(2)} USD
                                 </span>
                               )}
@@ -725,21 +676,16 @@ export const CajaPage: React.FC = () => {
 
                           {/* Audit Panel: Payment History & Change Breakdown */}
                           {ord.paymentHistory && ord.paymentHistory.length > 0 && (
-                            <div className="p-2.5 rounded-xl bg-black/60 border border-emerald-500/30 space-y-1 text-[10px]">
-                              <div className="font-black text-emerald-400 uppercase tracking-wider text-[9px]">
-                                📜 HISTORIAL AUDITABLE DE COBROS Y VUELTOS:
+                            <div className="p-2 rounded-lg bg-gray-50 border border-gray-200 space-y-1 text-[10px]">
+                              <div className="font-black text-gray-700 uppercase tracking-wider text-[9px]">
+                                📜 HISTORIAL DE COBROS Y VUELTOS:
                               </div>
                               {ord.paymentHistory.map((pm, pmIdx) => (
-                                <div key={pmIdx} className="flex flex-col border-b border-white/5 pb-1 last:border-0">
-                                  <div className="flex justify-between font-bold text-white">
+                                <div key={pmIdx} className="flex flex-col border-b border-gray-100 pb-0.5 last:border-0">
+                                  <div className="flex justify-between font-bold text-gray-900">
                                     <span>👤 {pm.payerName}: ${pm.amountPaidUSD.toFixed(2)} USD ({pm.paymentMethod})</span>
-                                    <span className="text-gray-400 font-mono text-[9px]">{new Date(pm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="text-gray-500 font-mono text-[9px]">{new Date(pm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   </div>
-                                  {paymentMovementLabels(pm).length > 0 && (
-                                    <div className="text-gray-400 text-[10px] pl-2 font-medium">
-                                      {paymentMovementLabels(pm).join(' | ')}
-                                    </div>
-                                  )}
                                 </div>
                               ))}
                             </div>
@@ -776,7 +722,7 @@ export const CajaPage: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleOpenPayModal(ord)}
-                                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all"
+                                className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all"
                               >
                                 <IoCashOutline className="text-base" />
                                 <span>💳 COBRAR (${(ord.totalUSD - (ord.paidAmountUSD || 0)).toFixed(2)})</span>
@@ -786,14 +732,14 @@ export const CajaPage: React.FC = () => {
 
                           <button
                             onClick={() => handleOpenSplitItemsModal(ord)}
-                            className="w-full py-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-black border border-blue-400 font-black text-xs flex items-center justify-center gap-1 transition-all"
+                            className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1 transition-all"
                           >
                             <span>👥 X PERSONAS</span>
                           </button>
                         </>
                       ) : (
-                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-black text-center flex items-center justify-center gap-1 sm:col-span-2">
-                          <IoCheckmarkCircle className="text-sm" />
+                        <div className="p-2 rounded-xl bg-green-100 border border-green-300 text-green-900 text-[11px] font-black text-center flex items-center justify-center gap-1 sm:col-span-2">
+                          <IoCheckmarkCircle className="text-sm text-green-700" />
                           <span>💳 PAGADO</span>
                         </div>
                       )}
@@ -801,13 +747,13 @@ export const CajaPage: React.FC = () => {
                       {!isDelivered ? (
                         <button
                           onClick={() => updateOrderStatus(ord.id, 'entregada')}
-                          className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs flex items-center justify-center gap-1.5 border border-white/10 transition-all"
+                          className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs flex items-center justify-center gap-1.5 border border-gray-300 transition-all"
                         >
-                          <IoCheckmarkDone className="text-base text-emerald-400" />
+                          <IoCheckmarkDone className="text-base text-gray-700" />
                           <span>📦 ENTREGAR</span>
                         </button>
                       ) : (
-                        <div className="p-2 rounded-xl bg-white/5 text-gray-400 text-[11px] font-bold text-center">
+                        <div className="p-2 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-[11px] font-bold text-center">
                           📦 ENTREGADA
                         </div>
                       )}
@@ -816,7 +762,7 @@ export const CajaPage: React.FC = () => {
                       {!isPaid && (
                         <button
                           onClick={() => setOrderAppendModalOrder(ord)}
-                          className="w-full py-2.5 rounded-xl bg-sky-500/25 hover:bg-sky-500 text-sky-200 hover:text-black border border-sky-400/60 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                          className="w-full py-2.5 rounded-xl bg-yellow-100 hover:bg-yellow-200 text-black border border-yellow-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
                           title="Adicionar nuevos productos a la comanda activa"
                         >
                           <span>➕ ADICIONAR</span>
@@ -826,7 +772,7 @@ export const CajaPage: React.FC = () => {
                       {/* Botón Imprimir Pre-Cuenta / Ticket Completo */}
                       <button
                         onClick={() => setPrinterSelectOrder(ord)}
-                        className="w-full py-2.5 rounded-xl bg-sky-600/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-400/50 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                        className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
                         title="Seleccionar impresora térmica para emitir ticket / pre-cuenta con precios en USD, COP y Bs"
                       >
                         <IoDocumentTextOutline className="text-base" />
@@ -843,7 +789,7 @@ export const CajaPage: React.FC = () => {
                             alert(`⚠️ ${e.message || 'Error al reimprimir'}`);
                           }
                         }}
-                        className="w-full py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-500 text-emerald-300 hover:text-black border border-emerald-400/50 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                        className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
                         title="Reimprimir comanda en impresora de cocina"
                       >
                         <IoPrintOutline className="text-base" />
@@ -859,10 +805,10 @@ export const CajaPage: React.FC = () => {
                               () => setOrderEditModalOrder(ord)
                             );
                           }}
-                          className="w-full py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500 text-purple-200 hover:text-black border border-purple-400 font-black text-xs flex items-center justify-center gap-1.5 transition-all"
+                          className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all"
                         >
                           <span>✏️ EDITAR</span>
-                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-400 text-xs" />}
+                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
                         </button>
                       )}
 

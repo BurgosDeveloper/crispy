@@ -429,6 +429,13 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
    - Script `scripts/build-export.js` actualizado para generar los accesos directos de Windows `Crispy Burger.lnk`, el ejecutable silencioso `CrispyPOS.vbs` y el script con consola `CrispyPOS_Con_Consola.bat`, manteniendo compatibilidad con los accesos previos.
 8. **Retrocompatibilidad Visual**:
    - Mapeo automático de clases legadas (`.clay-btn`, `.clay-card`, `.glass-panel`) hacia el nuevo sistema plano amarillo/negro/blanco para preservar la armonía visual en cualquier vista residual.
+9. **Formas de Pago Multi-Moneda (Tres Columnas: Bolívares, Pesos y Dólares)**:
+   - Pantalla de cobro (`PaymentLedgerModal`) con visualización simultánea de 3 columnas para control contable de contado y vueltos:
+     - **Bolívares**: Total en bolívares, Subtotal pagado en bolívares, Vueltos en bolívares.
+     - **Pesos (COP)**: Total en pesos, Subtotal pagado en pesos, Vueltos en pesos.
+     - **Dólares (USD)**: Total en dólares, Subtotal pagado en dólares, Vueltos en dólares.
+   - Fila de captura ágil de transacciones con inputs planos: `[Monto] [Moneda (USD/COP/Bs)] [Tipo de Pago] [Checkbox: Vueltos] [Confirmar ✔ / Limpiar 🗑]`.
+   - Control estricto de finalización: el botón `FINALIZAR COBRO` solo se activa cuando la comanda está totalmente pagada y no hay vueltos pendientes por entregar.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 
