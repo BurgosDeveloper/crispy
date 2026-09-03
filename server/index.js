@@ -64,7 +64,8 @@ const io = new Server(server, {
 });
 
 io.use((socket, next) => {
-  const user = getSession(socket.handshake.auth?.sessionToken);
+  const token = socket.handshake.auth?.token || socket.handshake.auth?.sessionToken;
+  const user = getSession(token);
   if (!user) return next(new Error('Sesión no válida.'));
   socket.user = user;
   return next();

@@ -363,23 +363,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Validar token en el servidor al cargar o reactivar pestaña
-  useEffect(() => {
-    if (!backendUrl || !userSession?.sessionToken) return;
-    let isSubscribed = true;
-    fetch(`${backendUrl}/api/auth/verify-session`, {
-      headers: {
-        'Authorization': `Bearer ${userSession.sessionToken}`,
-        'x-crispy-token': userSession.sessionToken,
-      },
-    }).then((res) => {
-      if (!res.ok && isSubscribed) {
-        console.warn('Token JWT inválido o expirado. Cerrando sesión.');
-        logout();
-      }
-    }).catch(() => {});
-    return () => { isSubscribed = false; };
-  }, [backendUrl, userSession?.sessionToken, logout]);
+
 
   useEffect(() => {
     if (!backendUrl || !userSession?.sessionToken) {
@@ -410,12 +394,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     socket.on('connect_error', (error) => {
       setIsConnected(false);
-      if (error.message === 'Sesión no válida.') {
-        setUserSession(null);
-        if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-          window.localStorage.removeItem('basilico_user_session');
-        }
-        setSyncError('La sesión anterior venció al reiniciar el servidor. Inicia sesión nuevamente.');
+      if (error.message && error.message.toLowerCase().includes('sesión')) {
+        logout();
+        setSyncError('La sesión venció o no es válida. Inicia sesión nuevamente.');
         return;
       }
       setSyncError(`No se pudo conectar al servidor en ${backendUrl}.`);
