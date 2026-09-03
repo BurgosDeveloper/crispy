@@ -1,12 +1,28 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 
 const rootDir = path.join(__dirname, '..');
 const port = 3001;
 const startupTimeoutMs = 15000;
 const retryDelayMs = 250;
+
+function killBasilicoProcesses() {
+  try {
+    const cmd = 'wmic process where "name=\'node.exe\'" get commandline,processid';
+    const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const lines = out.split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().includes('basilico')) {
+        const match = line.trim().match(/(\d+)$/);
+        if (match) {
+          try { execSync(`taskkill /F /PID ${match[1]}`, { stdio: 'ignore' }); } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {}
+}
 
 function getConnectionInfo() {
   return new Promise((resolve, reject) => {
@@ -22,6 +38,7 @@ function getConnectionInfo() {
         try {
           const connectionInfo = JSON.parse(body);
           if (!connectionInfo.backendUrl) throw new Error('No se detectó una IP LAN válida.');
+          if (connectionInfo.app !== 'crispy') throw new Error('El backend respondiendo no pertenece a Crispy Burger.');
           resolve(connectionInfo);
         } catch (error) {
           reject(error);
@@ -91,11 +108,13 @@ async function waitForBackend() {
 }
 
 async function launch() {
+  killBasilicoProcesses();
   try {
     const connectionInfo = await getConnectionInfo();
     await openPos(connectionInfo.backendUrl);
     return;
   } catch (error) {
+    killBasilicoProcesses();
     startBackend();
   }
 

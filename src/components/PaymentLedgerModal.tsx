@@ -320,93 +320,93 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
         </div>
 
         {/* 3-COLUMN TOTALS (LARGE, HIGH CONTRAST) */}
-        <div className="bg-stone-50 border-b border-gray-200 p-4 sm:p-5 shrink-0">
+        <div className="bg-stone-50 border-b border-gray-200 p-4 sm:p-6 shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* COLUMN 1: BOLIVARES */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
+            <div className="p-4 sm:p-6 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
               <div className="flex justify-between items-baseline font-bold text-gray-700">
-                <span className="text-sm sm:text-base font-extrabold text-gray-800">Total en bolívares:</span>
-                <span className="text-xl sm:text-2xl font-black text-black">{(scopeTotalUSD * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-base sm:text-lg font-black text-gray-800">Total en bolívares:</span>
+                <span className="text-2xl sm:text-3xl font-black text-black">{(scopeTotalUSD * exchangeRates.Bs).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Abonado en bolívares:</span>
-                <span className="text-base sm:text-lg font-black text-blue-700">{(paidUSD * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en bolívares:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{(paidUSD * exchangeRates.Bs).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Vueltos en bolívares:</span>
-                <span className="text-base sm:text-lg font-black text-amber-700">{(changeGivenUSD * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en bolívares:</span>
+                <span className="text-lg sm:text-xl font-black text-amber-700">{(changeGivenUSD * exchangeRates.Bs).toFixed(2)}</span>
               </div>
             </div>
 
             {/* COLUMN 2: PESOS */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
+            <div className="p-4 sm:p-6 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
               <div className="flex justify-between items-baseline font-bold text-gray-700">
-                <span className="text-sm sm:text-base font-extrabold text-gray-800">Total en pesos:</span>
-                <span className="text-xl sm:text-2xl font-black text-black">{roundCOP(scopeTotalUSD * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-base sm:text-lg font-black text-gray-800">Total en pesos:</span>
+                <span className="text-2xl sm:text-3xl font-black text-black">{roundCOP(scopeTotalUSD * exchangeRates.COP).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Abonado en pesos:</span>
-                <span className="text-base sm:text-lg font-black text-blue-700">{roundCOP(paidUSD * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en pesos:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{roundCOP(paidUSD * exchangeRates.COP).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Vueltos en pesos:</span>
-                <span className="text-base sm:text-lg font-black text-amber-700">{roundCOP(changeGivenUSD * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en pesos:</span>
+                <span className="text-lg sm:text-xl font-black text-amber-700">{roundCOP(changeGivenUSD * exchangeRates.COP).toLocaleString()}</span>
               </div>
             </div>
 
             {/* COLUMN 3: DOLARES */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
+            <div className="p-4 sm:p-6 rounded-2xl bg-white border-2 border-gray-200 shadow-sm space-y-2">
               <div className="flex justify-between items-baseline font-bold text-gray-700">
-                <span className="text-sm sm:text-base font-extrabold text-gray-800">Total en dólares:</span>
-                <span className="text-xl sm:text-2xl font-black text-black">${scopeTotalUSD.toFixed(2)}</span>
+                <span className="text-base sm:text-lg font-black text-gray-800">Total en dólares:</span>
+                <span className="text-2xl sm:text-3xl font-black text-black">${scopeTotalUSD.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Abonado en dólares:</span>
-                <span className="text-base sm:text-lg font-black text-blue-700">${paidUSD.toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en dólares:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">${paidUSD.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-xs sm:text-sm text-gray-600 font-bold">Vueltos en dólares:</span>
-                <span className="text-base sm:text-lg font-black text-amber-700">${changeGivenUSD.toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en dólares:</span>
+                <span className="text-lg sm:text-xl font-black text-amber-700">${changeGivenUSD.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {/* Pending / Settled Status Alert */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             {pendingDebtUSD > 0.01 ? (
-              <span className="text-sm sm:text-base font-black text-red-700 bg-red-50 border-2 border-red-300 px-4 py-2 rounded-xl shadow-xs">
+              <span className="text-base sm:text-lg font-black text-red-700 bg-red-50 border-2 border-red-300 px-5 py-2.5 rounded-2xl shadow-xs">
                 ⚠️ Pendiente por cobrar: ${pendingDebtUSD.toFixed(2)} USD (≈ {roundCOP(pendingDebtUSD * exchangeRates.COP).toLocaleString()} COP / {(pendingDebtUSD * exchangeRates.Bs).toFixed(2)} Bs)
               </span>
             ) : pendingChangeUSD > 0.01 ? (
-              <span className="text-sm sm:text-base font-black text-amber-900 bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-xl animate-pulse shadow-xs">
+              <span className="text-base sm:text-lg font-black text-amber-900 bg-amber-100 border-2 border-amber-300 px-5 py-2.5 rounded-2xl animate-pulse shadow-xs">
                 💵 Vuelto pendiente por entregar: ${pendingChangeUSD.toFixed(2)} USD (≈ {roundCOP(pendingChangeUSD * exchangeRates.COP).toLocaleString()} COP / {(pendingChangeUSD * exchangeRates.Bs).toFixed(2)} Bs)
               </span>
             ) : (
-              <span className="text-sm sm:text-base font-black text-green-800 bg-green-50 border-2 border-green-300 px-4 py-2 rounded-xl shadow-xs">
+              <span className="text-base sm:text-lg font-black text-green-800 bg-green-50 border-2 border-green-300 px-5 py-2.5 rounded-2xl shadow-xs">
                 ✅ Cuenta completamente cubierta y balanceada
               </span>
             )}
 
-            <div className="text-xs sm:text-sm text-gray-600 font-extrabold bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
+            <div className="text-sm sm:text-base text-gray-700 font-extrabold bg-gray-100 px-4 py-2 rounded-2xl border border-gray-200">
               Tasa COP: {exchangeRates.COP.toLocaleString()} | Tasa Bs: {exchangeRates.Bs.toFixed(2)}
             </div>
           </div>
         </div>
 
         {/* Scrollable Middle: Fast Payment Entry Form & History */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {error && (
-            <div className="p-3 rounded-xl bg-red-100 text-red-800 text-sm font-bold flex items-center gap-2 border border-red-300">
-              <IoWarningOutline className="text-xl shrink-0" />
+            <div className="p-4 rounded-2xl bg-red-100 text-red-800 text-base font-bold flex items-center gap-2 border-2 border-red-300">
+              <IoWarningOutline className="text-2xl shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Action Row: REGISTRAR LÍNEA DE PAGO / VUELTO */}
-          <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border-2 border-gray-200 space-y-3 shadow-xs">
+          <div className="bg-stone-50 p-5 sm:p-6 rounded-2xl border-2 border-gray-200 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-sm sm:text-base font-black uppercase text-black tracking-wider flex items-center gap-2">
-                <IoReceiptOutline className="text-yellow-600 text-xl" />
+              <span className="text-base sm:text-lg font-black uppercase text-black tracking-wider flex items-center gap-2">
+                <IoReceiptOutline className="text-yellow-600 text-2xl" />
                 <span>REGISTRAR LÍNEA DE PAGO / VUELTO:</span>
               </span>
 
@@ -415,7 +415,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 <button
                   type="button"
                   onClick={fillExactAmount}
-                  className="text-xs sm:text-sm bg-yellow-400 hover:bg-yellow-500 text-black px-3.5 py-1.5 rounded-xl font-black border border-yellow-500 transition-colors shadow-xs cursor-pointer"
+                  className="text-sm sm:text-base bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded-xl font-black border border-yellow-500 transition-colors shadow-xs cursor-pointer"
                 >
                   ⚡ Saldo Exacto
                 </button>
@@ -426,7 +426,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
               {/* Monto input */}
               <div className="sm:col-span-3">
-                <label className="block text-xs font-black text-gray-700 uppercase mb-1">Monto:</label>
+                <label className="block text-sm font-black text-gray-700 uppercase mb-1">Monto:</label>
                 <input
                   ref={amountInputRef}
                   type="number"
@@ -441,17 +441,17 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                     }
                   }}
                   placeholder="0.00"
-                  className="w-full px-4 py-2.5 rounded-xl border-2 border-yellow-400 bg-white font-black text-xl sm:text-2xl text-black focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-yellow-400 bg-white font-black text-2xl sm:text-3xl text-black focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
 
               {/* Moneda select */}
               <div className="sm:col-span-2">
-                <label className="block text-xs font-black text-gray-700 uppercase mb-1">Moneda:</label>
+                <label className="block text-sm font-black text-gray-700 uppercase mb-1">Moneda:</label>
                 <select
                   value={currency}
                   onChange={(e) => changeCurrency(e.target.value as Currency)}
-                  className="w-full px-3 py-3 rounded-xl border-2 border-gray-300 bg-white font-black text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                  className="w-full px-3 py-3.5 rounded-2xl border-2 border-gray-300 bg-white font-black text-sm sm:text-base text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
                 >
                   <option value="USD">DÓLARES (USD)</option>
                   <option value="COP">PESOS (COP)</option>
@@ -461,11 +461,11 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
 
               {/* Metodo select */}
               <div className="sm:col-span-3">
-                <label className="block text-xs font-black text-gray-700 uppercase mb-1">Tipo de Pago:</label>
+                <label className="block text-sm font-black text-gray-700 uppercase mb-1">Tipo de Pago:</label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                  className="w-full px-3 py-3 rounded-xl border-2 border-gray-300 bg-white font-black text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                  className="w-full px-3 py-3.5 rounded-2xl border-2 border-gray-300 bg-white font-black text-sm sm:text-base text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
                 >
                   {methodsByCurrency[currency].map((m) => (
                     <option key={m.value} value={m.value}>
@@ -477,7 +477,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
 
               {/* Checkbox Vueltos */}
               <div className="sm:col-span-2 flex items-center gap-2 pt-2 sm:pt-6">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-bold text-gray-800">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-base font-black text-gray-800">
                   <input
                     type="checkbox"
                     checked={entryType === 'change'}
@@ -494,27 +494,27 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                   type="button"
                   disabled={!Number(amountLocal) || isSubmitting}
                   onClick={handleRegisterEntry}
-                  className="flex-1 py-3 px-4 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm sm:text-base flex items-center justify-center gap-1.5 transition-all border-2 border-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+                  className="flex-1 py-3 px-4 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-base sm:text-lg flex items-center justify-center gap-1.5 transition-all border-2 border-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer"
                   title="Confirmar y agregar línea de pago"
                 >
-                  <IoCheckmark className="text-xl font-black" />
+                  <IoCheckmark className="text-2xl font-black" />
                   <span>{isSubmitting ? '...' : 'AGREGAR'}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setAmountLocal('')}
-                  className="p-3 rounded-xl bg-gray-200 hover:bg-red-100 text-gray-700 hover:text-red-600 transition-colors cursor-pointer"
+                  className="p-3.5 rounded-xl bg-gray-200 hover:bg-red-100 text-gray-700 hover:text-red-600 transition-colors cursor-pointer"
                   title="Limpiar monto"
                 >
-                  <IoTrashOutline className="text-xl" />
+                  <IoTrashOutline className="text-2xl" />
                 </button>
               </div>
             </div>
 
             {/* Equivalent live calculation */}
             {Number(amountLocal) > 0 && (
-              <div className="text-xs sm:text-sm text-gray-700 font-bold pt-2 border-t border-gray-200 flex items-center gap-2">
+              <div className="text-sm sm:text-base text-gray-700 font-extrabold pt-2 border-t border-gray-200 flex items-center gap-2">
                 <span>Equivalente: ${entryUSD.toFixed(2)} USD</span>
                 <span>•</span>
                 <span>{entryType === 'change' ? '🟠 Se registrará como Vuelto entregado al cliente' : '🟢 Se registrará como Pago recibido'}</span>
@@ -523,25 +523,25 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
           </div>
 
           {/* Movements History Table */}
-          <div className="space-y-2">
-            <h4 className="text-xs sm:text-sm font-black uppercase text-gray-800 tracking-wider">
+          <div className="space-y-3">
+            <h4 className="text-sm sm:text-base font-black uppercase text-gray-800 tracking-wider">
               Movimientos Registrados ({scopedHistory.length}):
             </h4>
 
             {scopedHistory.length === 0 ? (
-              <div className="p-6 rounded-2xl border-2 border-dashed border-gray-300 text-center text-sm text-gray-400 font-bold bg-white">
+              <div className="p-8 rounded-2xl border-2 border-dashed border-gray-300 text-center text-base text-gray-400 font-bold bg-white">
                 No hay movimientos registrados para esta comanda.
               </div>
             ) : (
-              <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-xs">
-                <table className="w-full text-left text-sm border-collapse">
+              <div className="rounded-2xl border-2 border-gray-200 overflow-hidden bg-white shadow-xs">
+                <table className="w-full text-left text-base border-collapse">
                   <thead>
-                    <tr className="bg-gray-100 text-gray-800 font-black uppercase text-xs border-b border-gray-200">
-                      <th className="p-3">Tipo</th>
-                      <th className="p-3">Método</th>
-                      <th className="p-3">Moneda Original</th>
-                      <th className="p-3">Equivalente USD</th>
-                      <th className="p-3 text-right">Acción</th>
+                    <tr className="bg-gray-100 text-gray-800 font-black uppercase text-xs sm:text-sm border-b border-gray-200">
+                      <th className="p-3.5">Tipo</th>
+                      <th className="p-3.5">Método</th>
+                      <th className="p-3.5">Moneda Original</th>
+                      <th className="p-3.5">Equivalente USD</th>
+                      <th className="p-3.5 text-right">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 font-bold">
@@ -549,9 +549,9 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                       const isChange = mov.entryType === 'change' || (mov.changeGivenUSD || 0) > 0;
                       return (
                         <tr key={mov.id} className="hover:bg-gray-50">
-                          <td className="p-3">
+                          <td className="p-3.5">
                             <span
-                              className={`px-2.5 py-1 rounded-md text-xs font-black uppercase ${
+                              className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-black uppercase ${
                                 isChange
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                   : 'bg-green-100 text-green-900 border border-green-300'
@@ -560,24 +560,24 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                               {isChange ? 'Vuelto' : 'Pago'}
                             </span>
                           </td>
-                          <td className="p-3 font-black text-gray-900">{mov.method}</td>
-                          <td className="p-3 font-black text-black">
+                          <td className="p-3.5 font-black text-gray-900">{mov.method}</td>
+                          <td className="p-3.5 font-black text-black text-base sm:text-lg">
                             {mov.currency === 'USD' && `$${(mov.amountPaidUSD || mov.cashTenderedUSD || mov.changeGivenUSD || 0).toFixed(2)} USD`}
                             {mov.currency === 'COP' && `${roundCOP(mov.cashTenderedCOP || mov.changeGivenCOP || 0).toLocaleString()} COP`}
                             {mov.currency === 'Bs' && `${(mov.cashTenderedBs || mov.changeGivenBs || 0).toFixed(2)} Bs`}
                           </td>
-                          <td className="p-3 font-black text-black">
+                          <td className="p-3.5 font-black text-black text-base sm:text-lg">
                             ${(mov.amountPaidUSD || mov.cashTenderedUSD || mov.changeGivenUSD || 0).toFixed(2)} USD
                           </td>
-                          <td className="p-3 text-right">
+                          <td className="p-3.5 text-right">
                             <button
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleRemoveEntry(mov.id)}
-                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                              className="p-2 rounded-xl text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
                               title="Anular este movimiento"
                             >
-                              <IoTrashOutline className="text-base" />
+                              <IoTrashOutline className="text-xl" />
                             </button>
                           </td>
                         </tr>
@@ -591,13 +591,13 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-stone-100 px-6 py-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="bg-stone-100 px-6 py-5 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div>
             {!paymentScope && (
               <button
                 type="button"
                 onClick={() => setIsCreditPromptOpen(true)}
-                className="px-5 py-3 rounded-xl bg-white hover:bg-gray-50 text-black font-black text-xs sm:text-sm border-2 border-gray-300 shadow-sm transition-all cursor-pointer"
+                className="px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-black font-black text-sm sm:text-base border-2 border-gray-300 shadow-sm transition-all cursor-pointer"
               >
                 📝 CERRAR A CRÉDITO
               </button>
@@ -608,7 +608,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-3 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
+              className="px-6 py-3.5 rounded-xl text-sm sm:text-base font-black text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
             >
               CANCELAR
             </button>
@@ -617,7 +617,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               type="button"
               disabled={!isReadyToClose || isSubmitting}
               onClick={handleFinalize}
-              className={`px-8 py-3.5 rounded-xl text-sm sm:text-base font-black uppercase tracking-wider transition-all shadow-md cursor-pointer ${
+              className={`px-10 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider transition-all shadow-md cursor-pointer ${
                 isReadyToClose && !isSubmitting
                   ? 'bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-95'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300'

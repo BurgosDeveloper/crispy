@@ -592,6 +592,21 @@ export const CajaPage: React.FC = () => {
                           🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
                         </div>
                       </div>
+
+                      {/* Si ya está pagada y no entregada, botón rápido para marcarla como entregada y quitarla de pantalla */}
+                      {isPaid && !isDelivered && (
+                        <div className="pt-2 border-t border-gray-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => updateOrderStatus(ord.id, 'entregada')}
+                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer animate-pulse"
+                            title="Marcar como entregada para finalizar y quitar de activas"
+                          >
+                            <IoCheckmarkDone className="text-base" />
+                            <span>📦 MARCAR ENTREGADA</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -772,14 +787,56 @@ export const CajaPage: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                      {!isPaid && (
+                      {!isPaid ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPayModal(ord)}
+                            className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                          >
+                            <IoCashOutline className="text-base" />
+                            <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSplitItemsModal(ord)}
+                            className="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border-2 border-blue-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                            title="Cobro dividido por personas o ítems individuales"
+                          >
+                            <span>👥 X PERSONAS</span>
+                          </button>
+                        </>
+                      ) : (
+                        <div className="py-2 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 text-xs font-black flex items-center gap-1">
+                          <IoCheckmarkCircle className="text-base text-green-700" />
+                          <span>💳 PAGADO</span>
+                        </div>
+                      )}
+
+                      {/* Botón Entregar / Reactivar (Quita la comanda si se cobró o la reactiva) */}
+                      {!isDelivered ? (
                         <button
                           type="button"
-                          onClick={() => handleOpenPayModal(ord)}
-                          className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                          onClick={() => updateOrderStatus(ord.id, 'entregada')}
+                          className={`py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                            isPaid
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 animate-pulse'
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300'
+                          }`}
+                          title="Marcar orden como entregada (si está cobrada se retira de la pantalla)"
                         >
-                          <IoCashOutline className="text-base" />
-                          <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
+                          <IoCheckmarkDone className="text-base" />
+                          <span>📦 MARCAR ENTREGADA</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => updateOrderStatus(ord.id, 'preparada')}
+                          className="py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          title="Reactivar comanda"
+                        >
+                          <span>↩️ REACTIVAR</span>
                         </button>
                       )}
 
