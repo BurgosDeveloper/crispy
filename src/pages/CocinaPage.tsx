@@ -271,6 +271,12 @@ export const CocinaPage: React.FC = () => {
                             </div>
                           )}
 
+                          {!it.isHalfHalf && it.proteins && it.proteins.length > 0 && (
+                            <div className="ml-8 text-xs font-black text-amber-900 bg-amber-400/20 px-2 py-1 rounded-lg border border-yellow-400 flex items-center gap-1">
+                              🥩 PROTEÍNA: {it.proteins.join(' + ')}
+                            </div>
+                          )}
+
                           {!it.isHalfHalf && it.removedIngredients && it.removedIngredients.length > 0 && (
                             <div className="ml-8 text-xs font-black text-red-600 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 flex items-center gap-1">
                               <IoCloseCircleOutline /> 🚫 SIN: {it.removedIngredients.join(', ')}

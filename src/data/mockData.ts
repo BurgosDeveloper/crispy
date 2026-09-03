@@ -75,6 +75,7 @@ export interface OrderItem {
   isHalfHalf?: boolean;
   halfDetails?: HalfDetails;
   modifiers?: string[];
+  proteins?: string[];
   removedIngredients?: string[];
   extras?: OrderItemExtra[];
   sugarPreference?: 'Con azúcar' | 'Sin azúcar' | 'Poca azúcar' | string;

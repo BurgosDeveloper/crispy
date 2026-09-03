@@ -210,6 +210,11 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   {/* Regular pizza/item extras & removed ingredients */}
                   {!item.isHalfHalf && (
                     <>
+                      {item.proteins && item.proteins.length > 0 && (
+                        <div className="text-xs font-black pl-2 mt-1 text-amber-800 bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-200 inline-block">
+                          🥩 Proteína(s): {item.proteins.join(' + ')}
+                        </div>
+                      )}
                       {item.removedIngredients && item.removedIngredients.length > 0 && (
                         <div className="text-xs font-bold pl-2 mt-1.5 text-red-600">
                           🚫 Sin: {item.removedIngredients.join(', ')}

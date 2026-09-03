@@ -196,6 +196,7 @@ function itemDetails(item, order = {}) {
   const details = [];
 
   if (item.isTakeaway || item.is_takeaway) details.push('*** PARA LLEVAR ***');
+  if (item.proteins?.length) details.push(`PROTEINA: ${item.proteins.join(' + ')}`);
   if (item.removedIngredients?.length) details.push(`SIN: ${item.removedIngredients.join(', ')}`);
   if (item.extras?.length) {
     details.push(`EXTRA: ${item.extras.map((extra) => extra.name || extra).join(', ')}`);

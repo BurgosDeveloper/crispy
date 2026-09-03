@@ -92,6 +92,7 @@ async function fetchAllOrders() {
         isHalfHalf: !!it.is_half_half,
         halfDetails: safeJsonParseObj(it.half_details),
         removedIngredients: it.removed_ingredients || [],
+        proteins: it.proteins || [],
         extras: safeJsonParse(it.extras_json),
         sugarPreference: it.sugar_preference || undefined,
         drinkType: it.drink_type || undefined,

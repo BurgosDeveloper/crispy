@@ -120,6 +120,7 @@ export const MeseroPage: React.FC = () => {
   const handleConfirmBurgerAdd = (config: {
     burger: Product;
     quantity: number;
+    proteins?: string[];
     removedIngredients: string[];
     extras: { name: string; price: number }[];
     isTakeaway: boolean;
@@ -133,6 +134,7 @@ export const MeseroPage: React.FC = () => {
       price: config.finalPrice,
       quantity: config.quantity,
       category: config.burger.category,
+      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
       removedIngredients: config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
       extras: config.extras.length > 0 ? config.extras : undefined,
       isTakeaway: config.isTakeaway,
@@ -548,6 +550,13 @@ export const MeseroPage: React.FC = () => {
                               ${(item.price * item.quantity).toFixed(2)}
                             </span>
                           </div>
+
+                          {/* Proteins (Tarea 3) */}
+                          {item.proteins && item.proteins.length > 0 && (
+                            <div className="text-[10px] text-amber-800 font-extrabold bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 inline-block">
+                              🥩 {item.proteins.join(' + ')}
+                            </div>
+                          )}
 
                           {/* Removed ingredients (SIN) */}
                           {item.removedIngredients && item.removedIngredients.length > 0 && (

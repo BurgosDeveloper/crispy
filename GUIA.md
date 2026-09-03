@@ -478,6 +478,13 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
 6. **Paleta de Identidad Visual Crispy (Tarea 15)**:
    - Se removieron los remanentes visuales verde esmeralda y fondos oscuros heredados.
    - El sistema unifica sus interfaces bajo el esquema oficial: **Blanco, Crema suave (`#FAF8F5`), Amarillo (`#FACC15`) y Negro**, con bordes limpios y tipografía de alto contraste legible a distancia.
+7. **Cambio de Proteínas Personalizado en Hamburguesas (Tarea 3)**:
+   - En el configurador de hamburguesas (`BurgerBuilderModal`), el mesonero o cajero puede cambiar libremente las proteínas de la hamburguesa:
+     - **Sencilla (1 Carne)**: Se cambia la proteína única a elección entre `Carne de Res`, `Pollo Crispy`, `Pollo a la Plancha`, `Carne Mixta` o `Carne Smash`.
+     - **Doble (2 Carnes)**: Se permite cambiar una de las dos, o ambas de forma independiente (ej: 1 Res + 1 Pollo a la Plancha, o ambas Pollo Crispy, etc.).
+     - **Triple (3 Carnes)**: Se permite cambiar 1 de las 3, 2 de las 3 o las 3 proteínas de manera totalmente independiente.
+     - **Selector de carnes integrado**: Botones rápidos `[1 Carne] [2 Carnes] [3 Carnes]` en la cabecera de la sección para adaptar la hamburguesa al gusto del comensal.
+   - **Persistencia y Visibilidad**: La selección se almacena en PostgreSQL (`order_items.proteins TEXT[]`), se propaga en tiempo real a cocina (`CocinaPage`), carritos de mesero, detalles de comanda y se imprime con claridad tanto en pre-cuentas como en tickets térmicos ESC/POS.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 

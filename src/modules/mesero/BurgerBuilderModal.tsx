@@ -3,6 +3,28 @@ import { Product, Ingredient } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { IoClose, IoAdd, IoRemove, IoCheckmark, IoCloseCircle } from 'react-icons/io5';
 
+export const AVAILABLE_BURGER_PROTEINS = [
+  { id: 'res', name: 'Carne de Res', icon: '🥩' },
+  { id: 'pollo_crispy', name: 'Pollo Crispy', icon: '🍗' },
+  { id: 'pollo_plancha', name: 'Pollo a la Plancha', icon: '🍳' },
+  { id: 'mixta', name: 'Carne Mixta', icon: '🥓' },
+  { id: 'smash', name: 'Carne Smash', icon: '🍔' },
+];
+
+const getInitialProteins = (burger: Product): string[] => {
+  const nameLower = (burger.name || '').toLowerCase();
+  const isChicken = nameLower.includes('chicken') || nameLower.includes('pollo');
+  const defaultProtein = isChicken ? 'Pollo Crispy' : 'Carne de Res';
+
+  if (nameLower.includes('triple') || nameLower.includes('3 carnes')) {
+    return [defaultProtein, defaultProtein, defaultProtein];
+  }
+  if (nameLower.includes('doble') || nameLower.includes('2 carnes')) {
+    return [defaultProtein, defaultProtein];
+  }
+  return [defaultProtein];
+};
+
 interface BurgerBuilderModalProps {
   burger: Product | null;
   availableExtras: Ingredient[];
@@ -11,6 +33,7 @@ interface BurgerBuilderModalProps {
   onConfirm: (config: {
     burger: Product;
     quantity: number;
+    proteins?: string[];
     removedIngredients: string[];
     extras: { name: string; price: number }[];
     isTakeaway: boolean;
@@ -41,6 +64,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState<number>(1);
   const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway);
+  const [proteins, setProteins] = useState<string[]>([]);
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
   const [selectedExtras, setSelectedExtras] = useState<{ name: string; price: number }[]>([]);
   const [notes, setNotes] = useState<string>('');
@@ -52,6 +76,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       setRemovedIngredients([]);
       setSelectedExtras([]);
       setNotes('');
+      setProteins(getInitialProteins(burger));
     }
   }, [burger, defaultTakeaway]);
 
@@ -88,10 +113,22 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const unitPrice = burger.price + extrasTotal;
   const totalPrice = unitPrice * quantity;
 
+  const handleSetPattyCount = (count: number) => {
+    const defaultProt = proteins[0] || (burger.name.toLowerCase().includes('chicken') ? 'Pollo Crispy' : 'Carne de Res');
+    if (count === 1) {
+      setProteins([proteins[0] || defaultProt]);
+    } else if (count === 2) {
+      setProteins([proteins[0] || defaultProt, proteins[1] || defaultProt]);
+    } else if (count === 3) {
+      setProteins([proteins[0] || defaultProt, proteins[1] || defaultProt, proteins[2] || defaultProt]);
+    }
+  };
+
   const handleSave = () => {
     onConfirm({
       burger,
       quantity,
+      proteins: proteins.length > 0 ? proteins : undefined,
       removedIngredients,
       extras: selectedExtras,
       isTakeaway,
@@ -165,6 +202,87 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               />
               <span>📦 Para Llevar</span>
             </label>
+          </div>
+
+          {/* SECCIÓN CAMBIO DE PROTEÍNA PERSONALIZADA (Tarea 3) */}
+          <div className="space-y-2.5 p-3 rounded-xl bg-amber-50/50 border border-yellow-300">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-gray-900 flex items-center gap-1.5">
+                <span>🥩</span>
+                <span>
+                  {proteins.length === 1
+                    ? 'Proteína de la Hamburguesa (Sencilla)'
+                    : proteins.length === 2
+                    ? 'Proteínas de la Hamburguesa (Doble - 2 Carnes)'
+                    : 'Proteínas de la Hamburguesa (Triple - 3 Carnes)'}
+                </span>
+              </span>
+
+              {/* Selector de número de carnes */}
+              <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-gray-300">
+                {[1, 2, 3].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handleSetPattyCount(num)}
+                    className={`px-2 py-0.5 text-[10px] font-black rounded transition-all ${
+                      proteins.length === num
+                        ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
+                        : 'text-gray-600 hover:text-black'
+                    }`}
+                  >
+                    {num === 1 ? '1 Carne' : num === 2 ? '2 Carnes' : '3 Carnes'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-600 font-medium leading-tight">
+              {proteins.length === 1
+                ? 'Puedes cambiar la proteína base de la hamburguesa:'
+                : `Puedes cambiar cada una de las ${proteins.length} proteínas de forma independiente:`}
+            </p>
+
+            <div className="space-y-2">
+              {proteins.map((currentProtein, slotIndex) => (
+                <div key={slotIndex} className="bg-white p-2.5 rounded-xl border border-gray-200 space-y-1.5 shadow-xs">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-black text-gray-800">
+                      {proteins.length === 1 ? 'Proteína seleccionada:' : `Carne / Proteína #${slotIndex + 1}:`}
+                    </span>
+                    <span className="font-black text-black bg-yellow-400 px-2 py-0.5 rounded border border-yellow-500 text-xs shadow-xs">
+                      {currentProtein}
+                    </span>
+                  </div>
+
+                  {/* Botones de selección de proteína */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {AVAILABLE_BURGER_PROTEINS.map((prot) => {
+                      const isSelected = currentProtein === prot.name;
+                      return (
+                        <button
+                          key={prot.id}
+                          type="button"
+                          onClick={() => {
+                            const updated = [...proteins];
+                            updated[slotIndex] = prot.name;
+                            setProteins(updated);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-black text-left flex items-center gap-1.5 transition-all border ${
+                            isSelected
+                              ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
+                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                          }`}
+                        >
+                          <span>{prot.icon}</span>
+                          <span className="truncate">{prot.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Base Ingredients (Tap to remove "SIN:") */}

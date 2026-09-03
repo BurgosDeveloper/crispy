@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   price NUMERIC(10, 2) NOT NULL,
   quantity INT NOT NULL DEFAULT 1,
   removed_ingredients TEXT[],
+  proteins TEXT[],
   extras_json JSONB,
   sugar_preference VARCHAR(32),
   is_takeaway BOOLEAN DEFAULT FALSE,

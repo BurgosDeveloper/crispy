@@ -975,6 +975,7 @@ export class ReportService {
         if (it.halfDetails.half2Removed?.length) details.push(`  Sin: ${it.halfDetails.half2Removed.join(', ')}`);
         if (it.halfDetails.half2Extras?.length) details.push(`  Extra: ${it.halfDetails.half2Extras.map((e) => e.name).join(', ')}`);
       } else {
+        if (it.proteins?.length) details.push(`Proteína: ${it.proteins.join(' + ')}`);
         if (it.removedIngredients?.length) details.push(`Sin: ${it.removedIngredients.join(', ')}`);
         if (it.extras?.length) details.push(`Extra: ${it.extras.map((e) => e.name).join(', ')}`);
       }
