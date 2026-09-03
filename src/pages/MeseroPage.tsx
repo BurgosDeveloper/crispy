@@ -9,6 +9,7 @@ import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
+import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 
 import {
   IoRestaurant,
@@ -64,6 +65,7 @@ export const MeseroPage: React.FC = () => {
   const [tableChangeOrder, setTableChangeOrder] = useState<Order | null>(null);
   const [orderAppendModalOrder, setOrderAppendModalOrder] = useState<Order | null>(null);
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
+  const [activeOrderForPay, setActiveOrderForPay] = useState<Order | null>(null);
   const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_mesero_view_mode') !== 'expanded';
   });
@@ -262,6 +264,8 @@ export const MeseroPage: React.FC = () => {
             onSelectTarget={handleOpenOrder}
             onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
             onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
+            canPay={userSession?.role === 'caja' || userSession?.role === 'admin'}
+            onPayOrder={(ord) => setActiveOrderForPay(ord)}
           />
         </div>
       )}
@@ -850,6 +854,16 @@ export const MeseroPage: React.FC = () => {
           isOpen={!!orderDetailModalOrder}
           onClose={() => setOrderDetailModalOrder(null)}
           exchangeRates={exchangeRates}
+          onPayOrder={userSession?.role === 'caja' || userSession?.role === 'admin' ? (ord) => setActiveOrderForPay(ord) : undefined}
+        />
+      )}
+
+      {/* MODAL 7: COBRO DIRECTO DESDE MESAS (TAREA 5) */}
+      {activeOrderForPay && (
+        <PaymentLedgerModal
+          order={activeOrderForPay}
+          onClose={() => setActiveOrderForPay(null)}
+          onViewOrder={(ord) => setOrderDetailModalOrder(ord)}
         />
       )}
     </div>

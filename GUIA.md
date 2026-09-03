@@ -491,6 +491,19 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
    - **Tarjeta Compacta de Información Crítica**: Resume número de orden `#X`, cliente/mesa, hora de ingreso, total de ítems solicitados, badges de preparación (`⏳ En Cocina` / `🔥 Lista` / `📦 Entregada`) y pago (`💳 Pendiente` / `✅ Pagado` / `⚠️ Crédito`), monto en USD, COP y Bs, y botones de acción rápida (`💳 COBRAR`, `🧾 Pre-cuenta`, `➕ Adicionar`, `🔄 Mover Mesa`).
    - **Botón Ojo `👁️` de Inspección Total**: Cada tarjeta compacta incluye el botón ojo `👁️` que despliega inmediatamente el modal `OrderDetailModal` con el desglose pormenorizado de productos, proteínas personalizadas, ingredientes retirados ("SIN"), extras, notas especiales y cobro directo.
    - **Persistencia de Preferencia**: La elección de vista (`compact` vs `expanded`) se memoriza en el almacenamiento local del dispositivo del usuario.
+9. **Cobro Directo desde la Tarjeta de la Mesa (Tarea 5)**:
+   - **Acceso Exclusivo para Roles Caja y Admin**: En la cuadrícula de mesas (`TableCompactGrid`), cuando una mesa se encuentra ocupada, los usuarios con rol `caja` o `admin` disponen del botón directo `💳 Cobrar`.
+   - **Flujo Ininterrumpido**: Al presionar `Cobrar`, se abre directamente el libro contable de cobro (`PaymentLedgerModal`) sin tener que trasladarse manualmente a `/caja`. Al registrar el pago, la mesa se libera y se actualiza instantáneamente en todos los dispositivos conectados vía WebSocket.
+10. **Reinicio de Correlativos tras Arqueo y Cierre (Tarea 9)**:
+    - **Archivado Seguro en PostgreSQL**: Al ejecutar el arqueo y cierre en `caja.js`, todas las comandas completadas o canceladas se archivan (`archived_at = CURRENT_TIMESTAMP`), preservando intacta toda la información histórica para auditorías y reportes.
+    - **Reinicio Automático**: El cálculo correlativo `SELECT COALESCE(MAX(...), 0) + 1 FROM orders WHERE archived_at IS NULL` garantiza que el nuevo turno inicie en `#1` (o correlativo siguiente a cuentas por cobrar pendientes).
+11. **Impresión Selectiva de Cocina (Tarea 12)**:
+    - **Filtrado Inteligente de Ítems**: La función centralizada `isKitchenItem` distingue entre comida preparada (hamburguesas, acompañantes, salsas, jugos naturales, batidos) y bebidas comerciales embotelladas/enlatadas (refrescos, cervezas, licores, agua mineral).
+    - **Cero Desperdicio de Papel Térmico**: Las órdenes que contienen exclusivamente bebidas selladas no generan tickets térmicos de cocina ni saturan la pantalla de cocina KDS, asignándoles de inmediato el estado `preparada`.
+12. **Redondeo Contable Comercial en Bs y Pesos COP (Tarea 13)**:
+    - **Pesos COP al Millar Comercial Superior**: Dado que en el comercio diario y transacciones en efectivo no circulan denominaciones inferiores a $1.000 COP, los montos en pesos se redondean al millar comercial superior (`Math.ceil(monto / 1000) * 1000`).
+    - **Bolívares (Bs)**: Se redondean estrictamente a dos decimales contables (`Math.round(monto * 100) / 100`).
+    - **Consistencia Descentralizada**: Implementado en `src/utils/currencyRounding.ts` y `server/helpers/currencyRounding.js`, sincronizando los cálculos en pre-cuentas de clientes, modales de armado, cajas y tickets ESC/POS.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 

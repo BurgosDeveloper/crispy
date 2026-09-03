@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../../data/mockData';
+import { roundCOP } from '../../utils/currencyRounding';
 import { IoClose, IoAdd, IoRemove, IoCheckmark } from 'react-icons/io5';
 
 interface DrinkSelectorModalProps {
@@ -73,7 +74,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
                 ${drink.price.toFixed(2)} USD
               </span>
               <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                ${Math.round(drink.price * copRate).toLocaleString()} COP
+                ${roundCOP(drink.price * copRate).toLocaleString()} COP
               </span>
               <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
                 {(drink.price * bsRate).toFixed(2)} Bs
@@ -172,7 +173,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-base font-black text-black">${totalPrice.toFixed(2)} USD</span>
               <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                ${Math.round(totalPrice * copRate).toLocaleString()} COP
+                ${roundCOP(totalPrice * copRate).toLocaleString()} COP
               </span>
               <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
                 {(totalPrice * bsRate).toFixed(2)} Bs

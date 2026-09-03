@@ -3,6 +3,7 @@ const net = require('net');
 const path = require('path');
 
 const PRINTER_CONFIG_PATH = path.join(__dirname, '../config/thermal-printer.json');
+const { roundCOP } = require('./currencyRounding');
 // Font expansion in ESC/POS uses discrete sizes. Extra character spacing gives
 // the 80 mm ticket approximately 40% more horizontal presence without relying
 // on vendor-specific font modes.
@@ -955,7 +956,7 @@ function buildReceiptTicket(order, rates = {}) {
   lines.push(divider('='));
   lines.push('\x1BE\x01');
   lines.push(`TOTAL USD: $${totalUSD.toFixed(2)} USD`);
-  lines.push(`TOTAL COP: ${Math.round(totalUSD * copRate).toLocaleString('en-US')} COP`);
+  lines.push(`TOTAL COP: ${roundCOP(totalUSD * copRate).toLocaleString('en-US')} COP`);
   lines.push(`TOTAL Bs:  ${(totalUSD * bsRate).toFixed(2)} Bs`);
   lines.push('\x1BE\x00');
   lines.push(divider('-'));

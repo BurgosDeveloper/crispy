@@ -13,6 +13,7 @@ import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
+import { roundCOP } from '../utils/currencyRounding';
 import {
   IoCard,
   IoCashOutline,
@@ -627,7 +628,7 @@ export const CajaPage: React.FC = () => {
                             ${ord.totalUSD.toFixed(2)} <span className="text-[10px] font-bold text-gray-600">USD</span>
                           </div>
                           <div className="text-[9px] text-gray-500 font-bold">
-                            🇨🇴 ${Math.round(ord.totalUSD * exchangeRates.COP).toLocaleString()} | 🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)}
+                            🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()} | 🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)}
                           </div>
                         </div>
 
@@ -865,7 +866,7 @@ export const CajaPage: React.FC = () => {
                             <div className="space-y-0.5 w-full sm:w-auto">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="text-xs font-black text-gray-900 bg-white border border-gray-300 px-2 py-0.5 rounded shadow-xs">
-                                  🇨🇴 {Math.round(ord.totalUSD * exchangeRates.COP).toLocaleString()} COP
+                                  🇨🇴 {roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()} COP
                                 </span>
                                 <span className="text-xs font-black text-gray-900 bg-white border border-gray-300 px-2 py-0.5 rounded shadow-xs">
                                   🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs

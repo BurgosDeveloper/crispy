@@ -2,6 +2,7 @@
 
 import { Order, CajaChicaTransaction, ExchangeRates } from '../data/mockData';
 import { ReporteIntervaloData } from './excelExportService';
+import { roundCOP } from '../utils/currencyRounding';
 
 export class ReportService {
   private openPrintWindow(title: string, htmlContent: string) {
@@ -957,7 +958,7 @@ export class ReportService {
     const copRate = order.copRateAtPayment || rates.COP;
     const bsRate = order.bsRateAtPayment || rates.Bs;
     const totalUSD = order.totalUSD || 0;
-    const totalCOP = Math.round(totalUSD * copRate);
+    const totalCOP = roundCOP(totalUSD * copRate);
     const totalBs = (totalUSD * bsRate).toFixed(2);
     const cleanOrderNumber = (order.orderNumber || '').toString().replace(/^#+/, '');
 

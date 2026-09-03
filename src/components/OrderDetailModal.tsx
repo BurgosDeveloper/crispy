@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
+import { roundCOP } from '../utils/currencyRounding';
 import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline, IoCashOutline } from 'react-icons/io5';
 
 interface OrderDetailModalProps {
@@ -49,7 +50,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   };
 
   const totalUSD = order.totalUSD || 0;
-  const totalCOP = Math.round(totalUSD * exchangeRates.COP);
+  const totalCOP = roundCOP(totalUSD * exchangeRates.COP);
   const totalBs = (totalUSD * exchangeRates.Bs).toFixed(2);
 
   // Calculate sum of currently selected items if in selectable mode

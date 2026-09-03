@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Ingredient } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
+import { roundCOP } from '../../utils/currencyRounding';
 import { IoClose, IoAdd, IoRemove, IoCheckmark, IoCloseCircle } from 'react-icons/io5';
 
 export const AVAILABLE_BURGER_PROTEINS = [
@@ -152,7 +153,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                 Base: ${burger.price.toFixed(2)} USD
               </span>
               <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                ${Math.round(burger.price * copRate).toLocaleString()} COP
+                ${roundCOP(burger.price * copRate).toLocaleString()} COP
               </span>
               <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
                 {(burger.price * bsRate).toFixed(2)} Bs
@@ -375,7 +376,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-base font-black text-black">${totalPrice.toFixed(2)} USD</span>
               <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                ${Math.round(totalPrice * copRate).toLocaleString()} COP
+                ${roundCOP(totalPrice * copRate).toLocaleString()} COP
               </span>
               <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
                 {(totalPrice * bsRate).toFixed(2)} Bs

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Table, Order } from '../../data/mockData';
 import {
   IoCar,
@@ -6,6 +6,7 @@ import {
   IoAdd,
   IoEyeOutline,
   IoRestaurant,
+  IoCashOutline,
 } from 'react-icons/io5';
 
 interface TableCompactGridProps {
@@ -14,6 +15,8 @@ interface TableCompactGridProps {
   onSelectTarget: (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => void;
   onViewActiveOrder?: (order: Order) => void;
   onAppendOrder?: (order: Order) => void;
+  onPayOrder?: (order: Order) => void;
+  canPay?: boolean;
 }
 
 export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
@@ -22,6 +25,8 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onSelectTarget,
   onViewActiveOrder,
   onAppendOrder,
+  onPayOrder,
+  canPay = false,
 }) => {
   const activeOrders = orders.filter(
     (o) =>
@@ -137,18 +142,47 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
               {/* Bottom Actions: If Occupied, provide compact action buttons */}
               {isOccupied && activeOrder ? (
                 <div className="flex items-center gap-1 pt-1 border-t border-yellow-200/80 shrink-0">
-                  {onAppendOrder && (
+                  {canPay && onPayOrder && activeOrder.paymentStatus !== 'pagado' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPayOrder(activeOrder);
+                      }}
+                      className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[10px] flex items-center justify-center gap-0.5 border border-yellow-500 shadow-xs transition-all cursor-pointer"
+                      title="Cobrar comanda de esta mesa"
+                    >
+                      <IoCashOutline className="text-xs" />
+                      <span>Cobrar</span>
+                    </button>
+                  )}
+
+                  {onAppendOrder && (!canPay || activeOrder.paymentStatus === 'pagado') && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onAppendOrder(activeOrder);
                       }}
-                      className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[10px] flex items-center justify-center gap-0.5 shadow-sm transition-all"
+                      className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[10px] flex items-center justify-center gap-0.5 shadow-sm transition-all cursor-pointer"
                       title="Adicionar productos a esta comanda"
                     >
                       <IoAdd className="text-xs" />
                       <span>+ Ítem</span>
+                    </button>
+                  )}
+
+                  {canPay && onAppendOrder && activeOrder.paymentStatus !== 'pagado' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAppendOrder(activeOrder);
+                      }}
+                      className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition-all cursor-pointer"
+                      title="Adicionar productos a esta comanda"
+                    >
+                      <IoAdd className="text-xs" />
                     </button>
                   )}
 
@@ -159,7 +193,7 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         e.stopPropagation();
                         onViewActiveOrder(activeOrder);
                       }}
-                      className="p-1 rounded bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transition-all"
+                      className="p-1 rounded bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transition-all cursor-pointer"
                       title="Ver detalle de comanda"
                     >
                       <IoEyeOutline className="text-xs" />
