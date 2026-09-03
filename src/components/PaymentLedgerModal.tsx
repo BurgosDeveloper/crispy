@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   IoClose,
   IoEyeOutline,
@@ -94,16 +94,14 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     setCreditError('');
   }, [order, paymentScope?.payerName]);
 
-  if (!order) return null;
-
-  const history = order.paymentHistory || [];
+  const history = order?.paymentHistory || [];
   const scopedItems = paymentScope
-    ? order.items.filter((item) => paymentScope.itemIds.includes(item.id))
-    : order.items;
+    ? (order?.items || []).filter((item) => paymentScope.itemIds.includes(item.id))
+    : (order?.items || []);
 
   const scopeTotalUSD = paymentScope
     ? scopedItems.reduce((total, item) => total + item.price * item.quantity, 0)
-    : order.totalUSD;
+    : (order?.totalUSD || 0);
 
   const scopedHistory = paymentScope
     ? history.filter((entry) => entry.itemIds?.some((itemId) => paymentScope.itemIds.includes(itemId)))
@@ -161,16 +159,19 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   const entryUSD = asUSD(Number(amountLocal) || 0, currency, exchangeRates.COP, exchangeRates.Bs);
 
   const isReadyToClose =
-    Math.max(0, order.totalUSD - fullOrderPaidUSD) <= 0.01 &&
-    Math.max(0, fullOrderTenderedUSD - order.totalUSD - fullOrderChangeUSD) <= 0.01;
+    Math.max(0, (order?.totalUSD || 0) - fullOrderPaidUSD) <= 0.01 &&
+    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= 0.01;
 
   // Auto-switch to change if debt is settled but change is owed
   useEffect(() => {
+    if (!order) return;
     if (pendingDebtUSD <= 0.01 && pendingChangeUSD > 0.01 && entryType === 'payment') {
       setEntryType('change');
       setAmountLocal('');
     }
-  }, [pendingDebtUSD, pendingChangeUSD, entryType]);
+  }, [order, pendingDebtUSD, pendingChangeUSD, entryType]);
+
+  if (!order) return null;
 
   const changeCurrency = (nextCurrency: Currency) => {
     setCurrency(nextCurrency);

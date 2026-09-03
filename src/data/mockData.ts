@@ -110,6 +110,9 @@ export interface OrderPaymentBreakdown {
   changeGivenBs?: number;
   copRate?: number;
   bsRate?: number;
+  entryType?: 'payment' | 'change';
+  method?: string;
+  currency?: string;
   itemIds?: string[];
   createdAt: string;
 }

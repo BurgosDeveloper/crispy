@@ -438,6 +438,7 @@ export const MeseroPage: React.FC = () => {
                   onSelectCategory={setSelectedCategory}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
+                  exchangeRates={exchangeRates}
                 />
               </div>
 
@@ -687,8 +688,7 @@ export const MeseroPage: React.FC = () => {
       {tableChangeOrder && (
         <ChangeTableModal
           order={tableChangeOrder}
-          tables={tables}
-          orders={orders}
+          isOpen={!!tableChangeOrder}
           onClose={() => setTableChangeOrder(null)}
         />
       )}
@@ -705,12 +705,9 @@ export const MeseroPage: React.FC = () => {
       {orderDetailModalOrder && (
         <OrderDetailModal
           order={orderDetailModalOrder}
+          isOpen={!!orderDetailModalOrder}
           onClose={() => setOrderDetailModalOrder(null)}
-          onCancelOrder={async (orderId) => {
-            await cancelOrder(orderId);
-            setOrderDetailModalOrder(null);
-          }}
-          onReopenOrder={async () => {}}
+          exchangeRates={exchangeRates}
         />
       )}
     </div>

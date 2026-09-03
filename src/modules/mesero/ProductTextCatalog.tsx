@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Product } from '../../data/mockData';
 import { IoSearch, IoClose } from 'react-icons/io5';
 
@@ -9,6 +9,7 @@ interface ProductTextCatalogProps {
   onSelectCategory: (category: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  exchangeRates?: { COP: number; Bs: number };
 }
 
 export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
@@ -18,6 +19,7 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
   onSelectCategory,
   searchQuery,
   onSearchChange,
+  exchangeRates = { COP: 3950, Bs: 36.5 },
 }) => {
   // Extract unique categories cleanly
   const allCategories = [
@@ -32,22 +34,26 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
     const matchesSearch =
       searchQuery.trim() === '' ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.baseIngredients && product.baseIngredients.some(ing => ing.toLowerCase().includes(searchQuery.toLowerCase())));
     return matchesCategory && matchesSearch;
   });
+
+  const copRate = exchangeRates.COP || 3950;
+  const bsRate = exchangeRates.Bs || 36.5;
 
   return (
     <div className="flex flex-col h-full space-y-2">
       {/* Search & Categories Bar */}
       <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-gray-200 shrink-0">
         {/* Search input */}
-        <div className="relative flex-1 min-w-[160px]">
+        <div className="relative flex-1 min-w-[150px]">
           <IoSearch className="absolute left-2.5 top-2.5 text-gray-400 text-xs" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar por texto (ej. Doble Bacon, Refresco)..."
+            placeholder="Buscar hamburguesa, bebida o ingrediente..."
             className="w-full pl-7 pr-7 py-1.5 rounded-lg bg-gray-50 border border-gray-300 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 font-semibold"
           />
           {searchQuery && (
@@ -68,9 +74,9 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
               key={cat}
               type="button"
               onClick={() => onSelectCategory(cat)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-black whitespace-nowrap transition-all ${
                 selectedCategory === cat
-                  ? 'bg-yellow-400 text-black border border-yellow-500 shadow-sm'
+                  ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-transparent'
               }`}
             >
@@ -87,41 +93,57 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
             <p>No se encontraron productos para "{searchQuery}"</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {filteredProducts.map((product) => {
               const isBurger = product.category === 'Hamburguesas';
               const isDrink = product.category === 'Bebidas';
+              const priceUSD = product.price;
+              const priceCOP = Math.round(priceUSD * copRate);
+              const priceBs = (priceUSD * bsRate).toFixed(2);
 
               return (
                 <button
                   key={product.id}
                   type="button"
                   onClick={() => onSelectProduct(product)}
-                  className="p-2.5 rounded-xl bg-white hover:bg-yellow-50/80 border border-gray-200 hover:border-yellow-400 text-left transition-all shadow-sm hover:shadow flex flex-col justify-between group active:scale-[0.98] min-h-[85px]"
+                  className="p-2.5 rounded-xl bg-white hover:bg-yellow-50/90 border border-gray-200 hover:border-yellow-500 text-left transition-all shadow-xs hover:shadow-sm flex flex-col justify-between group active:scale-[0.98]"
                 >
-                  <div>
+                  <div className="space-y-1">
                     <div className="flex items-start justify-between gap-1">
-                      <h4 className="font-black text-xs text-gray-900 group-hover:text-black leading-snug line-clamp-2">
+                      <h4 className="font-black text-xs text-gray-900 group-hover:text-black leading-tight">
                         {product.name}
                       </h4>
-                      <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase shrink-0">
-                        {isBurger ? '🍔' : isDrink ? '🥤' : '🍟'}
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-yellow-100 text-black border border-yellow-300 uppercase shrink-0">
+                        {isBurger ? '🍔 BURGER' : isDrink ? '🥤 BEBIDA' : '🍟 EXTRA'}
                       </span>
                     </div>
 
-                    {product.description && (
-                      <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5 font-normal">
+                    {/* Ingredientes base del producto en texto */}
+                    {product.baseIngredients && product.baseIngredients.length > 0 ? (
+                      <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug font-medium">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase mr-1">Trae:</span>
+                        {product.baseIngredients.join(', ')}
+                      </p>
+                    ) : product.description ? (
+                      <p className="text-[11px] text-gray-500 line-clamp-1 font-normal">
                         {product.description}
                       </p>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-100">
-                    <span className="text-xs font-black text-black bg-yellow-400/30 px-1.5 py-0.5 rounded border border-yellow-400/60">
-                      ${product.price.toFixed(2)}
+                  {/* Precios en las 3 monedas según la tasa vigente */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-1.5 border-t border-gray-100 text-[10px]">
+                    <span className="font-black text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500">
+                      ${priceUSD.toFixed(2)} USD
                     </span>
-                    <span className="text-[10px] font-bold text-yellow-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                      + Agregar
+                    <span className="font-bold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                      ${priceCOP.toLocaleString()} COP
+                    </span>
+                    <span className="font-bold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                      {priceBs} Bs
+                    </span>
+                    <span className="ml-auto font-black text-yellow-600 group-hover:text-yellow-700 text-xs">
+                      + Pedir
                     </span>
                   </div>
                 </button>

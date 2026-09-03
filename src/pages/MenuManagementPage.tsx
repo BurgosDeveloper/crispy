@@ -357,50 +357,45 @@ export const MenuManagementPage: React.FC = () => {
                 ADMINISTRADOR ({isMorningShift ? 'TURNO MAÑANA' : 'TURNO NOCHE'})
               </span>
             </div>
-            <p className="text-xs text-slate-700/70 mt-1">
-              {isMorningShift
-                ? 'Agrega y administra platos, almuerzos, bebidas, contornos y configuración de mesas del restaurante.'
-                : 'Agrega y administra pizzas, bebidas, ingredientes y configuración de mesas del restaurante.'}
+            <p className="text-xs text-gray-500 font-semibold mt-1">
+              Agrega y administra hamburguesas, bebidas, ingredientes adicionales y configuración de mesas.
             </p>
           </div>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white border border-gray-200 overflow-x-auto custom-scrollbar shadow-xs">
           <button
             onClick={() => setActiveTab('pizzas')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'pizzas' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'pizzas' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
-            {isMorningShift ? <IoRestaurantOutline /> : <IoPizza />}
-            <span>{isMorningShift ? 'PLATOS' : 'PIZZAS'} ({pizzas.length})</span>
+            <span>🍔 HAMBURGUESAS ({pizzas.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('bebidas')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'bebidas' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'bebidas' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
-            <IoBeer />
-            <span>BEBIDAS ({bebidas.length})</span>
+            <span>🥤 BEBIDAS ({bebidas.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('ingredientes')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'ingredientes' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'ingredientes' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
-            <IoSparkles />
-            <span>{isMorningShift ? 'CONTORNOS' : 'INGREDIENTES'} ({shiftIngredients.length})</span>
+            <span>🍟 INGREDIENTES & EXTRAS ({shiftIngredients.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('mesas')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'mesas' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'mesas' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
             <IoLayersOutline />
@@ -409,8 +404,8 @@ export const MenuManagementPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('seguridad')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'seguridad' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'seguridad' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
             <IoLockClosed />
@@ -419,8 +414,8 @@ export const MenuManagementPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('impresoras')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'impresoras' ? 'bg-emerald-600 text-slate-900 shadow-lg' : 'text-slate-500 hover:text-slate-900'
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'impresoras' ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs' : 'text-gray-600 hover:text-black'
             }`}
           >
             <IoPrintOutline />
@@ -429,84 +424,73 @@ export const MenuManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* TAB 1: PIZZAS O PLATOS */}
+      {/* TAB 1: HAMBURGUESAS */}
       {activeTab === 'pizzas' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              {isMorningShift ? <IoRestaurantOutline className="text-emerald-600 text-xl" /> : <IoPizza className="text-emerald-600 text-xl" />}
-              <span>{isMorningShift ? 'CATÁLOGO DE PLATOS Y ALMUERZOS' : 'CATÁLOGO DE PIZZAS'}</span>
+            <h2 className="text-lg font-black text-black flex items-center gap-2">
+              <span className="text-xl">🍔</span>
+              <span>CATÁLOGO DE HAMBURGUESAS & COMBOS</span>
             </h2>
 
             <button
               onClick={() => {
                 setEditingProductId(null);
                 setPizzaName('');
-                setDishCategory(isMorningShift ? 'Platos' : 'Pizzas');
+                setDishCategory('Hamburguesas');
                 setPizzaPrice('');
                 setPizzaSmallPrice('');
                 setPizzaDesc('');
                 setSelectedBaseIngredients([]);
                 setIsAddPizzaOpen(true);
               }}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-black text-xs transition-all flex items-center gap-1.5 shadow-lg"
+              className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs transition-all flex items-center gap-1.5 border border-yellow-500 shadow-xs"
             >
               <IoAdd className="text-lg" />
-              <span>{isMorningShift ? 'NUEVO PLATO' : 'NUEVA PIZZA'}</span>
+              <span>NUEVA HAMBURGUESA</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {pizzas.map((p) => (
-              <div key={p.id} className="p-5 rounded-3xl bg-gradient-to-br from-white to-[#070707] border border-slate-200 shadow-2xl flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="relative h-44 rounded-2xl overflow-hidden border border-slate-200">
-                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                    <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-md bg-emerald-600 text-slate-900 text-[10px] font-black uppercase">
-                      {p.badge || (isMorningShift ? (p.category || 'PLATO') : 'PIZZA')}
+              <div key={p.id} className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-yellow-400 shadow-xs flex flex-col justify-between space-y-3 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-base font-black text-black">{p.name}</h3>
+                    <span className="px-2 py-0.5 rounded-md bg-yellow-100 text-black border border-yellow-300 text-[10px] font-black uppercase shrink-0">
+                      {p.category || 'HAMBURGUESA'}
                     </span>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">{p.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">{p.description}</p>
-                    
-                    {p.baseIngredients && p.baseIngredients.length > 0 && (
-                      <div className="mt-3">
-                        <span className="text-[10px] font-bold text-slate-400 block mb-1">
-                          {isMorningShift ? 'Acompañantes Base:' : 'Ingredientes Base:'}
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {p.baseIngredients.map((ing, idx) => (
-                            <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-emerald-800 font-medium">
-                              ✓ {ing}
-                            </span>
-                          ))}
-                        </div>
+                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{p.description}</p>
+                  
+                  {p.baseIngredients && p.baseIngredients.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 block mb-1">
+                        Ingredientes Base:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {p.baseIngredients.map((ing, idx) => (
+                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-800 font-bold">
+                            ✓ {ing}
+                          </span>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-                  {isMorningShift ? (
-                    <div className="flex flex-col">
-                      <span className="text-xl font-black text-emerald-700">${p.price.toFixed(2)} USD</span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">{p.category || 'Plato'}</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col">
-                      <span className="text-base font-black text-emerald-700">${p.price.toFixed(2)} USD (Grande)</span>
-                      <span className="text-[10px] font-bold text-amber-700">Pequeña: ${(p.priceSmall ?? (p.price - 4)).toFixed(2)} USD</span>
                     </div>
                   )}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <span className="text-lg font-black text-black bg-yellow-400 px-2 py-0.5 rounded border border-yellow-500">
+                    ${p.price.toFixed(2)} USD
+                  </span>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleStartEditPizza(p)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500 hover:text-slate-900 border border-emerald-500/30 transition-all text-xs font-bold flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-800 hover:bg-yellow-400 hover:text-black border border-gray-300 transition-all text-xs font-bold flex items-center gap-1"
                     >
                       ✏️ Editar
                     </button>
-                    <button onClick={() => deleteProduct(p.id)} className="p-2 rounded-xl bg-red-500/20 text-red-600 hover:bg-red-500 hover:text-slate-900 border border-red-500/30 transition-all">
+                    <button onClick={() => deleteProduct(p.id)} className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 transition-all">
                       <IoTrash size={16} />
                     </button>
                   </div>
