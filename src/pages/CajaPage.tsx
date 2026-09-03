@@ -848,9 +848,9 @@ export const CajaPage: React.FC = () => {
       {/* SUB-TAB HISTÓRICO DE COBROS DEL DÍA */}
       {activeSubTab === 'historico' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-[#0B2A1A]/40 border border-emerald-500/20">
-            <h2 className="text-xl font-black text-white flex items-center gap-2">
-              <IoTimeOutline className="text-emerald-400 text-2xl" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-xs">
+            <h2 className="text-lg font-black text-black flex items-center gap-2">
+              <IoTimeOutline className="text-yellow-600 text-xl" />
               <span>HISTÓRICO DE COBROS Y ENTREGAS DEL DÍA</span>
             </h2>
 
@@ -860,13 +860,13 @@ export const CajaPage: React.FC = () => {
                 placeholder="🔍 Buscar comanda o cliente..."
                 value={historicoSearch}
                 onChange={(e) => setHistoricoSearch(e.target.value)}
-                className="px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-bold w-full sm:w-64 focus:border-emerald-400 outline-none"
+                className="px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-xs font-semibold focus:border-yellow-400 outline-none w-full sm:w-64"
               />
 
               <select
                 value={historicoMethodFilter}
                 onChange={(e) => setHistoricoMethodFilter(e.target.value as any)}
-                className="px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-bold focus:border-emerald-400 outline-none"
+                className="px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-xs font-semibold focus:border-yellow-400 outline-none"
               >
                 <option value="todos">Todos los Métodos</option>
                 {HISTORIC_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}
@@ -887,9 +887,9 @@ export const CajaPage: React.FC = () => {
 
             if (filteredHistoric.length === 0) {
               return (
-                <div className="p-16 text-center rounded-3xl bg-white/[0.02] border border-white/10 space-y-3">
-                  <IoCheckmarkDone className="text-5xl text-emerald-400 mx-auto" />
-                  <p className="text-sm text-gray-400 font-bold">No se encontraron comandas cobradas en este criterio.</p>
+                <div className="p-12 text-center rounded-2xl bg-white border border-gray-200 shadow-xs space-y-2">
+                  <IoCheckmarkDone className="text-4xl text-yellow-500 mx-auto" />
+                  <p className="text-xs text-gray-500 font-bold">No se encontraron comandas cobradas en este criterio.</p>
                 </div>
               );
             }
@@ -903,43 +903,43 @@ export const CajaPage: React.FC = () => {
 
             return (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {paginatedHistoric.map((ord) => (
                     <div 
                       key={ord.id} 
                       onClick={() => setHistoricDetailOrder(ord)}
-                      className="p-6 rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-[#0B2A1A]/80 to-[#070707] shadow-2xl space-y-4 cursor-pointer hover:border-emerald-400 hover:scale-[1.02] transition-all"
+                      className="p-5 rounded-2xl border border-gray-200 bg-white shadow-xs space-y-3 cursor-pointer hover:border-yellow-400 hover:shadow-sm transition-all"
                     >
-                      <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl font-black text-white">{ord.orderNumber}</span>
-                            <span className="text-xs px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black uppercase">
+                            <span className="text-xl font-black text-black">{ord.orderNumber}</span>
+                            <span className="text-xs px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-800 border border-gray-200 font-black uppercase">
                               {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : (ord.type || 'mesa').toUpperCase()}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-400 font-bold mt-1 block">👤 Cliente: {ord.customerName || 'General'}</span>
+                          <span className="text-xs text-gray-500 font-semibold mt-1 block">👤 Cliente: {ord.customerName || 'General'}</span>
                         </div>
                         <div className="text-right">
-                          <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-emerald-500 text-black border border-emerald-400 shadow-lg">
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase bg-green-100 text-green-900 border border-green-300">
                             💳 {ord.paymentHistory?.map((payment) => payment.paymentMethod).filter((method, index, methods) => methods.indexOf(method) === index).join(' + ') || ord.paymentMethod || 'PAGADO'}
                           </span>
-                          <span className="text-xl font-black text-emerald-400 block mt-1">${ord.totalUSD.toFixed(2)} USD</span>
+                          <span className="text-lg font-black text-black block mt-1 bg-yellow-400 px-2 py-0.5 rounded border border-yellow-500 text-center">${ord.totalUSD.toFixed(2)} USD</span>
                         </div>
                       </div>
 
                       {/* Items List */}
-                      <div className="space-y-2 bg-black/40 p-4 rounded-2xl border border-white/5">
+                      <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100 text-xs font-semibold text-gray-900">
                         {(ord.items || []).map((it) => (
-                          <div key={it.id} className="text-xs font-bold text-white flex justify-between border-b border-white/5 pb-1.5 last:border-0">
-                            <span>• {it.quantity}x {it.productName} {it.size ? `(${it.size})` : ''}</span>
-                            <span className="text-emerald-400">${(it.price * it.quantity).toFixed(2)}</span>
+                          <div key={it.id} className="text-xs font-bold text-gray-800 flex justify-between border-b border-gray-200/60 pb-1 last:border-0">
+                            <span>• {it.quantity}x {it.productName}</span>
+                            <span className="text-black font-black">${(it.price * it.quantity).toFixed(2)}</span>
                           </div>
                         ))}
                         {ord.type === 'delivery' && (ord.deliveryFeeUSD || 0) > 0 && (
-                          <div className="text-xs font-bold text-white flex justify-between border-t border-white/10 pt-1.5">
+                          <div className="text-xs font-bold text-gray-800 flex justify-between border-t border-gray-200 pt-1">
                             <span>• Servicio delivery</span>
-                            <span className="text-emerald-400">${ord.deliveryFeeUSD!.toFixed(2)}</span>
+                            <span className="text-black font-black">${ord.deliveryFeeUSD!.toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -957,10 +957,10 @@ export const CajaPage: React.FC = () => {
                               }
                             );
                           }}
-                          className="w-full rounded-xl border border-amber-400/50 bg-amber-400/15 px-3 py-2.5 text-xs font-black text-amber-200 hover:bg-amber-400 hover:text-black flex items-center justify-center gap-1.5"
+                          className="w-full rounded-xl border border-yellow-400 bg-yellow-50 hover:bg-yellow-400 px-3 py-2 text-xs font-black text-black transition-all flex items-center justify-center gap-1.5"
                         >
                           <span>REACTIVAR COMANDA</span>
-                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-400 text-xs" />}
+                          {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
                         </button>
                       )}
                     </div>
@@ -969,16 +969,16 @@ export const CajaPage: React.FC = () => {
 
                 {/* Controles de Paginación */}
                 {totalHistoricPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-black/40 border border-white/10 text-xs">
-                    <span className="text-gray-400 font-bold">
-                      Página <strong className="text-white">{currentPage}</strong> de <strong className="text-white">{totalHistoricPages}</strong> ({filteredHistoric.length} comandas cobradas)
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-gray-200 text-xs shadow-xs">
+                    <span className="text-gray-600 font-medium">
+                      Página <strong className="text-black">{currentPage}</strong> de <strong className="text-black">{totalHistoricPages}</strong> ({filteredHistoric.length} comandas cobradas)
                     </span>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         disabled={currentPage <= 1}
                         onClick={() => setHistoricoPage((prev) => Math.max(1, prev - 1))}
-                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-800 border border-gray-300 font-bold transition-all"
                       >
                         ◀ Anterior
                       </button>
@@ -986,7 +986,7 @@ export const CajaPage: React.FC = () => {
                         type="button"
                         disabled={currentPage >= totalHistoricPages}
                         onClick={() => setHistoricoPage((prev) => Math.min(totalHistoricPages, prev + 1))}
-                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-800 border border-gray-300 font-bold transition-all"
                       >
                         Siguiente ▶
                       </button>
@@ -1002,11 +1002,11 @@ export const CajaPage: React.FC = () => {
       {/* SUB-TAB 2: CAJA CHICA & CONTROL DE FLUJO */}
       {activeSubTab === 'cajachica' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/30 shadow-xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold block">APERTURA EN CAJA (USD / COP)</span>
-              <div className="text-2xl font-black text-white">${filteredApertura.usdCash.toFixed(2)} USD</div>
-              <div className="text-xs text-emerald-400 font-bold">${filteredApertura.copCash.toLocaleString()} COP</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-2">
+              <span className="text-xs text-gray-500 font-bold block uppercase">APERTURA EN CAJA (USD / COP)</span>
+              <div className="text-2xl font-black text-black">${filteredApertura.usdCash.toFixed(2)} USD</div>
+              <div className="text-xs text-gray-700 font-bold">${filteredApertura.copCash.toLocaleString()} COP</div>
               {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
                 <button
                   onClick={() => {
@@ -1016,29 +1016,29 @@ export const CajaPage: React.FC = () => {
                       () => handleOpenAperturaModal()
                     );
                   }}
-                  className="mt-2 text-xs text-emerald-300 hover:underline font-bold flex items-center gap-1"
+                  className="mt-2 text-xs text-yellow-600 hover:text-yellow-700 font-black flex items-center gap-1 hover:underline"
                 >
                   <span>+ Modificar Apertura</span>
-                  {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-400 text-xs" />}
+                  {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
                 </button>
               )}
             </div>
 
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/30 shadow-xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold block">INGRESOS TOTALES</span>
-              <div className="text-2xl font-black text-emerald-400">+${totalIngresosUSD.toFixed(2)} USD</div>
-              <div className="text-xs text-emerald-300 font-bold">+{totalIngresosCOP.toLocaleString()} COP | +{totalIngresosBs.toLocaleString()} Bs</div>
-              <div className="text-xs text-gray-400">Cobros e ingresos manuales por método</div>
+            <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-2">
+              <span className="text-xs text-gray-500 font-bold block uppercase">INGRESOS TOTALES</span>
+              <div className="text-2xl font-black text-black">+${totalIngresosUSD.toFixed(2)} USD</div>
+              <div className="text-xs text-gray-700 font-bold">+{totalIngresosCOP.toLocaleString()} COP | +{totalIngresosBs.toLocaleString()} Bs</div>
+              <div className="text-xs text-gray-500 font-medium">Cobros e ingresos manuales por método</div>
             </div>
 
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/30 shadow-xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold block">SALDO DISPONIBLE EN EFECTIVO</span>
-              <div className="text-3xl font-black text-emerald-300">${saldoEfectivoUSD.toFixed(2)} USD</div>
-              <div className="text-xs text-emerald-300 font-bold">{saldoEfectivoCOP.toLocaleString()} COP</div>
-              <div className="text-[10px] text-gray-400">Transferencias, tarjetas y Bs permanecen en el movimiento contable, no en el arqueo físico.</div>
+            <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-2">
+              <span className="text-xs text-gray-500 font-bold block uppercase">SALDO DISPONIBLE EN EFECTIVO</span>
+              <div className="text-3xl font-black text-black bg-yellow-100 px-2 py-0.5 rounded border border-yellow-300 inline-block">${saldoEfectivoUSD.toFixed(2)} USD</div>
+              <div className="text-xs text-gray-700 font-bold">{saldoEfectivoCOP.toLocaleString()} COP</div>
+              <div className="text-[10px] text-gray-500 leading-tight">Transferencias, tarjetas y Bs permanecen en el movimiento contable, no en el arqueo físico.</div>
               <button
                 onClick={() => setIsManualTxOpen(true)}
-                className="mt-2 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold hover:bg-amber-500/30 transition-all"
+                className="mt-2 px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 text-xs font-black shadow-xs transition-all"
               >
                 - Registrar Vuelto / Egreso
               </button>
@@ -1046,21 +1046,21 @@ export const CajaPage: React.FC = () => {
           </div>
 
           {/* Historial de Transacciones */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-black text-white">MOVIMIENTOS DE CAJA CHICA</h3>
-            <div className="overflow-x-auto rounded-3xl border border-white/10 bg-black/40">
-              <table className="w-full min-w-[860px] text-left text-xs text-gray-300">
-                <thead className="bg-white/[0.04] text-white uppercase text-[10px] font-black border-b border-white/10">
+          <div className="space-y-3">
+            <h3 className="text-base font-black text-black uppercase tracking-wide">MOVIMIENTOS DE CAJA CHICA</h3>
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-xs">
+              <table className="w-full min-w-[860px] text-left text-xs text-gray-800">
+                <thead className="bg-gray-100 text-gray-900 uppercase text-[10px] font-black border-b border-gray-200">
                   <tr>
-                    <th className="p-4">Fecha / Hora</th>
-                    <th className="p-4">Tipo</th>
-                    <th className="p-4">Moneda</th>
-                    <th className="p-4">Método de pago</th>
-                    <th className="p-4">Monto</th>
-                    <th className="p-4">Referencia</th>
+                    <th className="p-3.5">Fecha / Hora</th>
+                    <th className="p-3.5">Tipo</th>
+                    <th className="p-3.5">Moneda</th>
+                    <th className="p-3.5">Método de pago</th>
+                    <th className="p-3.5">Monto</th>
+                    <th className="p-3.5">Referencia</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-gray-100">
                   {(() => {
                     const totalCajaTxPages = Math.max(1, Math.ceil(filteredCajaTransactions.length / CAJA_TX_PAGE_SIZE));
                     const currentTxPage = Math.min(cajaTxPage, totalCajaTxPages);
@@ -1072,7 +1072,7 @@ export const CajaPage: React.FC = () => {
                     if (paginatedTx.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-gray-500 font-bold">
+                          <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">
                             No hay movimientos de caja chica registrados en este turno.
                           </td>
                         </tr>
@@ -1087,19 +1087,19 @@ export const CajaPage: React.FC = () => {
                       ].filter(Boolean).join(' | ');
 
                       return (
-                        <tr key={tx.id} className="hover:bg-white/[0.02]">
-                          <td className="p-4 font-mono text-gray-400">{new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                          <td className="p-4">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${tx.type === 'ingreso' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                        <tr key={tx.id} className="hover:bg-gray-50">
+                          <td className="p-3.5 font-mono text-gray-600">{new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+                          <td className="p-3.5">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${tx.type === 'ingreso' ? 'bg-green-100 text-green-900 border-green-300' : 'bg-amber-100 text-amber-900 border-amber-300'}`}>
                               {tx.type}
                             </span>
                           </td>
-                          <td className="p-4 font-bold">{tx.currency}</td>
-                          <td className="p-4 font-semibold">{tx.paymentMethod}</td>
-                          <td className="p-4 font-black text-white">{amounts || '$0.00 USD'}</td>
-                          <td className="p-4">
-                            <div className="font-bold">{tx.orderReference}</div>
-                            <div className="mt-0.5 text-[10px]">{tx.description}</div>
+                          <td className="p-3.5 font-bold">{tx.currency}</td>
+                          <td className="p-3.5 font-semibold">{tx.paymentMethod}</td>
+                          <td className="p-3.5 font-black text-black">{amounts || '$0.00 USD'}</td>
+                          <td className="p-3.5">
+                            <div className="font-bold text-gray-900">{tx.orderReference}</div>
+                            <div className="mt-0.5 text-[10px] text-gray-500">{tx.description}</div>
                           </td>
                         </tr>
                       );
@@ -1115,16 +1115,16 @@ export const CajaPage: React.FC = () => {
                 if (totalCajaTxPages <= 1) return null;
 
                 return (
-                  <div className="flex items-center justify-between p-3.5 border-t border-white/10 text-xs bg-black/30">
-                    <span className="text-gray-400 font-bold">
-                      Página <strong className="text-white">{currentTxPage}</strong> de <strong className="text-white">{totalCajaTxPages}</strong> ({filteredCajaTransactions.length} movimientos)
+                  <div className="flex items-center justify-between p-3 border-t border-gray-200 text-xs bg-gray-50">
+                    <span className="text-gray-600 font-medium">
+                      Página <strong className="text-black">{currentTxPage}</strong> de <strong className="text-black">{totalCajaTxPages}</strong> ({filteredCajaTransactions.length} movimientos)
                     </span>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         disabled={currentTxPage <= 1}
                         onClick={() => setCajaTxPage((prev) => Math.max(1, prev - 1))}
-                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold transition-all"
+                        className="px-3 py-1 rounded-lg bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-800 border border-gray-300 font-bold transition-all"
                       >
                         ◀ Anterior
                       </button>
@@ -1132,7 +1132,7 @@ export const CajaPage: React.FC = () => {
                         type="button"
                         disabled={currentTxPage >= totalCajaTxPages}
                         onClick={() => setCajaTxPage((prev) => Math.min(totalCajaTxPages, prev + 1))}
-                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold transition-all"
+                        className="px-3 py-1 rounded-lg bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-800 border border-gray-300 font-bold transition-all"
                       >
                         Siguiente ▶
                       </button>
@@ -1147,14 +1147,14 @@ export const CajaPage: React.FC = () => {
 
       {/* SUB-TAB 3: REPORTES DE VENTAS & ARQUEO DE CIERRE DE CAJA */}
       {activeSubTab === 'reportes' && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-xl font-black text-white flex items-center gap-2">
-                <IoBarChartOutline className="text-emerald-400" />
+              <h2 className="text-lg font-black text-black flex items-center gap-2">
+                <IoBarChartOutline className="text-yellow-600 text-xl" />
                 <span>REPORTE DIARIO DE VENTAS & ARQUEO DE CAJA</span>
               </h2>
-              <p className="text-xs text-gray-400 mt-1">Genera reportes de cierre de turno y cuadre de dinero.</p>
+              <p className="text-xs text-gray-500 font-semibold mt-0.5">Genera reportes de cierre de turno y cuadre de dinero.</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -1167,7 +1167,7 @@ export const CajaPage: React.FC = () => {
                     'Ingrese el PIN de seguridad de 4 dígitos para realizar el arqueo y cierre:'
                   );
                 }}
-                className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center gap-2 shadow-xl"
+                className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs transition-all"
               >
                 <IoLockClosedOutline className="text-base" />
                 <span>ARQUEO DIARIO DE EFECTIVO</span>
@@ -1176,9 +1176,9 @@ export const CajaPage: React.FC = () => {
           </div>
 
           {/* Panel de Reporte Contable por Intervalo */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0B2A1A]/90 via-[#070707] to-[#0B2A1A]/50 border border-amber-500/30 space-y-5">
-              <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                <IoBarChartOutline className="text-base" />
+          <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-4">
+              <h3 className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
+                <IoBarChartOutline className="text-base text-yellow-600" />
                 <span>REPORTE CONTABLE POR INTERVALO DE FECHAS</span>
               </h3>
 
@@ -1194,7 +1194,7 @@ export const CajaPage: React.FC = () => {
                     setIntervaloTo(`${year}-${month}-${day}T23:59`);
                     setReporteError('');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all border border-white/15"
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all border border-gray-200"
                 >
                   📅 Hoy Completo
                 </button>
@@ -1221,7 +1221,7 @@ export const CajaPage: React.FC = () => {
                     setIntervaloTo(`${year}-${month}-${day}T${curHour}:${curMin}`);
                     setReporteError('');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[11px] font-bold transition-all border border-emerald-500/30"
+                  className="px-3 py-1.5 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-black text-xs font-black transition-all border border-yellow-300"
                 >
                   🌅 Turno Actual
                 </button>
@@ -1244,7 +1244,7 @@ export const CajaPage: React.FC = () => {
                     setIntervaloTo(`${tYear}-${tMonth}-${tDay}T${tHour}:${tMin}`);
                     setReporteError('');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all border border-white/15"
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all border border-gray-200"
                 >
                   🕒 Últimas 4 Horas
                 </button>
@@ -1259,7 +1259,7 @@ export const CajaPage: React.FC = () => {
                     setIntervaloTo(`${year}-${month}-${day}T23:59`);
                     setReporteError('');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all border border-white/15"
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all border border-gray-200"
                 >
                   ⏪ Ayer
                 </button>
@@ -1267,21 +1267,21 @@ export const CajaPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Fecha/Hora Inicio</label>
+                  <label className="block text-[10px] font-black text-gray-600 uppercase mb-1">Fecha/Hora Inicio</label>
                   <input
                     type="datetime-local"
                     value={intervaloFrom}
                     onChange={(e) => { setIntervaloFrom(e.target.value); setReporteError(''); }}
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/80 border border-white/20 text-white text-xs outline-none focus:border-amber-500 font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-xs outline-none focus:border-yellow-400 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Fecha/Hora Fin</label>
+                  <label className="block text-[10px] font-black text-gray-600 uppercase mb-1">Fecha/Hora Fin</label>
                   <input
                     type="datetime-local"
                     value={intervaloTo}
                     onChange={(e) => { setIntervaloTo(e.target.value); setReporteError(''); }}
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/80 border border-white/20 text-white text-xs outline-none focus:border-amber-500 font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-xs outline-none focus:border-yellow-400 font-semibold"
                   />
                 </div>
                 <button
@@ -1313,7 +1313,7 @@ export const CajaPage: React.FC = () => {
                     }
                   }}
                   disabled={isLoadingReporte}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs flex items-center justify-center gap-2 border border-yellow-500 shadow-xs transition-all"
                 >
                   {isLoadingReporte ? (
                     <span className="animate-pulse">⏳ CARGANDO...</span>
@@ -1324,7 +1324,7 @@ export const CajaPage: React.FC = () => {
                 {reporteIntervaloData && (
                   <button
                     onClick={() => exportToExcel(reporteIntervaloData)}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xs transition-all"
                   >
                     <IoDocumentTextOutline /> <span>EXPORTAR EXCEL (.xlsx)</span>
                   </button>
@@ -1332,14 +1332,14 @@ export const CajaPage: React.FC = () => {
               </div>
 
               {reporteError && (
-                <div className="text-red-400 text-xs font-bold bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                <div className="text-red-700 text-xs font-bold bg-red-50 border border-red-200 rounded-xl p-3">
                   ⚠️ {reporteError}
                 </div>
               )}
 
               {reporteIntervaloData && (
-                <div className="border-t border-white/10 pt-5 space-y-3">
-                  <p className="text-xs text-gray-300">El reporte fue generado. Haz clic para abrirlo y podrás revisarlo o imprimirlo según desees:</p>
+                <div className="border-t border-gray-200 pt-4 space-y-3">
+                  <p className="text-xs text-gray-600 font-medium">El reporte fue generado. Haz clic para abrirlo y podrás revisarlo o imprimirlo según desees:</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     <button
                       onClick={() => {
@@ -1359,19 +1359,19 @@ export const CajaPage: React.FC = () => {
                           generator: () => reportService.generateReporteContable(dataForReport),
                         });
                       }}
-                      className="px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg"
+                      className="px-4 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-2 border border-yellow-500 shadow-xs"
                     >
                       <IoDocumentTextOutline /> REPORTE CONTABLE
                     </button>
                     <button
                       onClick={() => setPendingReportChoice({
                         type: 'pizzas',
-                        title: 'Pizzas Vendidas e Ítems Facturados',
+                        title: 'Hamburguesas Vendidas e Ítems Facturados',
                         generator: () => reportService.generatePizzasSoldIntervalReport(reporteIntervaloData),
                       })}
-                      className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs flex items-center justify-center gap-2"
+                      className="px-4 py-3 rounded-xl bg-white hover:bg-yellow-50 text-gray-900 border border-gray-300 hover:border-yellow-400 font-black text-xs flex items-center justify-center gap-2 shadow-xs"
                     >
-                      <IoPizza /> PIZZAS
+                      <span>🍔 HAMBURGUESAS</span>
                     </button>
                     <button
                       onClick={() => setPendingReportChoice({
@@ -1379,7 +1379,7 @@ export const CajaPage: React.FC = () => {
                         title: 'Ingresos y Cobros por Método',
                         generator: () => reportService.generateIncomeIntervalReport(reporteIntervaloData),
                       })}
-                      className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs flex items-center justify-center gap-2"
+                      className="px-4 py-3 rounded-xl bg-white hover:bg-yellow-50 text-gray-900 border border-gray-300 hover:border-yellow-400 font-black text-xs flex items-center justify-center gap-2 shadow-xs"
                     >
                       <IoTrendingUp /> INGRESOS
                     </button>
@@ -1389,7 +1389,7 @@ export const CajaPage: React.FC = () => {
                         title: 'Vueltos y Egresos de Caja Chica',
                         generator: () => reportService.generateExpensesIntervalReport(reporteIntervaloData),
                       })}
-                      className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs flex items-center justify-center gap-2"
+                      className="px-4 py-3 rounded-xl bg-white hover:bg-yellow-50 text-gray-900 border border-gray-300 hover:border-yellow-400 font-black text-xs flex items-center justify-center gap-2 shadow-xs"
                     >
                       <IoCashOutline /> VUELTOS
                     </button>
@@ -1399,7 +1399,7 @@ export const CajaPage: React.FC = () => {
                         title: 'Tiempos y Comandas de Cocina',
                         generator: () => reportService.generateKitchenTimesIntervalReport(reporteIntervaloData),
                       })}
-                      className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs flex items-center justify-center gap-2"
+                      className="px-4 py-3 rounded-xl bg-white hover:bg-yellow-50 text-gray-900 border border-gray-300 hover:border-yellow-400 font-black text-xs flex items-center justify-center gap-2 shadow-xs"
                     >
                       <IoTimeOutline /> COCINA
                     </button>
@@ -1434,28 +1434,28 @@ export const CajaPage: React.FC = () => {
 
       {/* MODAL APERTURA CAJA CHICA */}
       {isAperturaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-6">
-            <h3 className="text-xl font-black text-white border-b border-white/10 pb-3">Apertura de Saldo Inicial</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl space-y-5 text-black">
+            <h3 className="text-lg font-black text-black border-b border-gray-200 pb-3">Apertura de Saldo Inicial</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Monto Inicial USD (Efectivo):</label>
+                <label className="text-xs font-bold text-gray-600 block mb-1">Monto Inicial USD (Efectivo):</label>
                 <input
                   type="number"
                   value={initUSD}
                   onChange={(e) => setInitUSD(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Monto Inicial COP (Efectivo):</label>
+                <label className="text-xs font-bold text-gray-600 block mb-1">Monto Inicial COP (Efectivo):</label>
                 <input
                   type="number"
                   value={initCOP}
                   onChange={(e) => setInitCOP(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
                 />
               </div>
             </div>
@@ -1463,13 +1463,13 @@ export const CajaPage: React.FC = () => {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setIsAperturaModalOpen(false)}
-                className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs border border-gray-300 transition-all"
               >
                 CANCELAR
               </button>
               <button
                 onClick={handleAperturaSubmit}
-                className="flex-1 py-3 rounded-xl bg-emerald-500 text-black font-black text-xs hover:bg-emerald-400 shadow-lg"
+                className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 shadow-xs transition-all"
               >
                 GUARDAR APERTURA
               </button>
@@ -1480,16 +1480,16 @@ export const CajaPage: React.FC = () => {
 
       {/* MODAL DE ARQUEO DIARIO DE CAJA */}
       {isCierreModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="relative w-full max-w-lg bg-gradient-to-br from-[#062416] via-[#0b1b14] to-[#04100b] border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <IoLockClosedOutline className="text-amber-400 text-xl" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-lg bg-white border border-gray-200 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto text-black">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+              <h3 className="text-lg font-black text-black flex items-center gap-2">
+                <IoLockClosedOutline className="text-yellow-600 text-xl" />
                 <span>ARQUEO DIARIO Y CIERRE DE TURNO</span>
               </h3>
               <button
                 onClick={() => { setIsCierreModalOpen(false); setCierreError(''); }}
-                className="p-1 rounded-lg text-gray-400 hover:text-white"
+                className="p-1 rounded-lg text-gray-400 hover:text-black font-black"
               >
                 ✕
               </button>
@@ -1500,7 +1500,7 @@ export const CajaPage: React.FC = () => {
                 {/* Conteo Físico USD */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-200">
+                    <label className="text-xs font-bold text-gray-700">
                       Efectivo Contado en Físico (USD):
                     </label>
                   </div>
@@ -1511,16 +1511,16 @@ export const CajaPage: React.FC = () => {
                     placeholder="0.00"
                     value={cierreActualUSD}
                     onChange={(e) => { setCierreActualUSD(e.target.value); setCierreError(''); }}
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-sm font-bold outline-none focus:border-amber-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
                   />
                   {cierreActualUSD !== '' && (() => {
                     const diffUSD = (parseFloat(cierreActualUSD) || 0) - saldoEfectivoUSD;
                     const isExact = Math.abs(diffUSD) < 0.01;
                     return (
-                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                        isExact ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        diffUSD > 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                        'bg-red-500/15 text-red-300 border border-red-500/30'
+                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between border ${
+                        isExact ? 'bg-green-50 text-green-800 border-green-200' :
+                        diffUSD > 0 ? 'bg-green-50 text-green-800 border-green-200' :
+                        'bg-red-50 text-red-800 border-red-200'
                       }`}>
                         <span>{isExact ? '✅ Cuadra Exacto' : diffUSD > 0 ? '🟢 Sobrante en USD' : '🔴 Faltante en USD'}:</span>
                         <span className="font-mono">{diffUSD >= 0 ? '+' : ''}${diffUSD.toFixed(2)} USD</span>
@@ -1532,7 +1532,7 @@ export const CajaPage: React.FC = () => {
                 {/* Conteo Físico COP */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-200">
+                    <label className="text-xs font-bold text-gray-700">
                       Efectivo Contado en Físico (COP):
                     </label>
                   </div>
@@ -1543,16 +1543,16 @@ export const CajaPage: React.FC = () => {
                     placeholder="0"
                     value={cierreActualCOP}
                     onChange={(e) => { setCierreActualCOP(e.target.value); setCierreError(''); }}
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 text-white text-sm font-bold outline-none focus:border-amber-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
                   />
                   {cierreActualCOP !== '' && (() => {
                     const diffCOP = (parseFloat(cierreActualCOP) || 0) - saldoEfectivoCOP;
                     const isExact = Math.abs(diffCOP) < 1;
                     return (
-                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                        isExact ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        diffCOP > 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                        'bg-red-500/15 text-red-300 border border-red-500/30'
+                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between border ${
+                        isExact ? 'bg-green-50 text-green-800 border-green-200' :
+                        diffCOP > 0 ? 'bg-green-50 text-green-800 border-green-200' :
+                        'bg-red-50 text-red-800 border-red-200'
                       }`}>
                         <span>{isExact ? '✅ Cuadra Exacto' : diffCOP > 0 ? '🟢 Sobrante en COP' : '🔴 Faltante en COP'}:</span>
                         <span className="font-mono">{diffCOP >= 0 ? '+' : ''}{Math.round(diffCOP).toLocaleString()} COP</span>
@@ -1563,30 +1563,30 @@ export const CajaPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Notas de Cierre / Observaciones (Opcional):</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Notas de Cierre / Observaciones (Opcional):</label>
                 <input
                   type="text"
                   placeholder="Ej: Cierre de turno finalizado con normalidad"
                   value={cierreNotes}
                   onChange={(e) => setCierreNotes(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-amber-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm outline-none focus:border-yellow-400"
                 />
               </div>
 
-              {cierreError && <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs font-bold text-red-200">{cierreError}</div>}
+              {cierreError && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{cierreError}</div>}
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => { setIsCierreModalOpen(false); setCierreError(''); }}
-                className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-xs hover:bg-white/15"
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs border border-gray-300 transition-all"
               >
                 CANCELAR
               </button>
               <button
                 onClick={handleCierreSubmit}
                 disabled={isSubmittingCierre || cierreActualUSD === '' || cierreActualCOP === ''}
-                className="flex-1 py-3 rounded-xl bg-amber-500 text-black font-black text-xs hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50 shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs border border-yellow-500 shadow-xs flex items-center justify-center gap-2 transition-all"
               >
                 <IoLockClosedOutline className="text-base" />
                 <span>{isSubmittingCierre ? 'CONFIRMANDO Y PURGANDO...' : 'CONFIRMAR ARQUEO Y CIERRE'}</span>
@@ -1597,18 +1597,19 @@ export const CajaPage: React.FC = () => {
       )}
 
       {/* MODAL MOVIMIENTO MANUAL EGRESO / VUELTO */}
+      {/* MODAL MOVIMIENTO MANUAL EGRESO / VUELTO */}
       {isManualTxOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-6">
-            <h3 className="text-xl font-black text-white border-b border-white/10 pb-3">Registrar Movimiento Manual</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl space-y-5 text-black">
+            <h3 className="text-lg font-black text-black border-b border-gray-200 pb-3">Registrar Movimiento Manual</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Tipo de Movimiento:</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Tipo de Movimiento:</label>
                 <select
                   value={manualType}
                   onChange={(e) => setManualType(e.target.value as 'ingreso' | 'egreso')}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-semibold outline-none focus:border-yellow-400"
                 >
                   <option value="egreso">Egreso / Vuelto / Gasto</option>
                   <option value="ingreso">Ingreso Manual</option>
@@ -1617,7 +1618,7 @@ export const CajaPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-300 block mb-1">Moneda:</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Moneda:</label>
                   <select
                     value={manualCurrency}
                     onChange={(e) => {
@@ -1625,7 +1626,7 @@ export const CajaPage: React.FC = () => {
                       setManualCurrency(currency);
                       setManualPaymentMethod(currency === 'USD' ? 'Efectivo USD' : currency === 'COP' ? 'Efectivo COP' : 'Pago Móvil');
                     }}
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-semibold outline-none focus:border-yellow-400"
                   >
                     <option value="USD">USD</option>
                     <option value="COP">COP</option>
@@ -1634,11 +1635,11 @@ export const CajaPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-300 block mb-1">Método de pago:</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Método de pago:</label>
                   <select
                     value={manualPaymentMethod}
                     onChange={(e) => setManualPaymentMethod(e.target.value as PaymentMethod)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-semibold outline-none focus:border-yellow-400"
                   >
                     {(manualCurrency === 'USD' ? ['Efectivo USD', 'Zelle', 'Binance'] : manualCurrency === 'COP' ? ['Efectivo COP', 'Bancolombia', 'Nequi'] : ['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito']).map((method) => (
                       <option key={method} value={method}>{method}</option>
@@ -1648,24 +1649,24 @@ export const CajaPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Monto {manualCurrency}:</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Monto {manualCurrency}:</label>
                 <input
                   type="number"
                   placeholder={manualCurrency === 'USD' ? 'Ej: 5.00' : manualCurrency === 'COP' ? 'Ej: 20000' : 'Ej: 100'}
                   value={manualAmountUSD}
                   onChange={(e) => setManualAmountUSD(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1">Motivo / Descripción:</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Motivo / Descripción:</label>
                 <input
                   type="text"
                   placeholder="Ej: Vuelto entregado por pago en Divisas"
                   value={manualDesc}
                   onChange={(e) => setManualDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm outline-none focus:border-yellow-400"
                 />
               </div>
             </div>
@@ -1673,16 +1674,16 @@ export const CajaPage: React.FC = () => {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setIsManualTxOpen(false)}
-                className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs border border-gray-300 transition-all"
               >
                 CANCELAR
               </button>
               <button
                 onClick={handleManualTxSubmit}
-                className={`flex-1 py-3 rounded-xl font-black text-xs shadow-lg ${
+                className={`flex-1 py-2.5 rounded-xl font-black text-xs border transition-all ${
                   manualType === 'egreso'
-                    ? 'bg-red-500 text-white hover:bg-red-400'
-                    : 'bg-emerald-500 text-black hover:bg-emerald-400'
+                    ? 'bg-red-500 text-white border-red-600 hover:bg-red-600 shadow-xs'
+                    : 'bg-yellow-400 text-black border-yellow-500 hover:bg-yellow-500 shadow-xs'
                 }`}
               >
                 {manualType === 'egreso' ? 'REGISTRAR EGRESO' : 'REGISTRAR INGRESO'}
@@ -1694,34 +1695,34 @@ export const CajaPage: React.FC = () => {
 
       {/* MODAL DETALLE DE COMANDA HISTÓRICA */}
       {historicDetailOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar text-black">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
               <div>
-                <span className="text-[10px] font-black text-emerald-400 uppercase">Detalle Histórico</span>
-                <h3 className="text-xl font-black text-white">{historicDetailOrder.orderNumber}</h3>
+                <span className="text-[10px] font-black text-yellow-600 uppercase">Detalle Histórico</span>
+                <h3 className="text-xl font-black text-black">{historicDetailOrder.orderNumber}</h3>
               </div>
-              <button onClick={() => setHistoricDetailOrder(null)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setHistoricDetailOrder(null)} className="text-gray-400 hover:text-black">
                 <IoCloseCircle size={24} />
               </button>
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-2">
               {historicDetailOrder.items.map((it) => (
-                <div key={it.id} className="p-3 rounded-xl bg-black/60 border border-white/10">
-                  <div className="flex justify-between items-center text-sm font-bold text-white">
+                <div key={it.id} className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <div className="flex justify-between items-center text-xs font-bold text-black">
                     <span>{it.quantity}x {it.productName}</span>
-                    <span className="text-emerald-400">${(it.price * it.quantity).toFixed(2)}</span>
+                    <span className="text-black font-black">${(it.price * it.quantity).toFixed(2)}</span>
                   </div>
                   {it.extras && it.extras.length > 0 && (
-                    <div className="text-[10px] text-gray-400 mt-1">Extras: {it.extras.map(e => e.name).join(', ')}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">Extras: {it.extras.map(e => e.name).join(', ')}</div>
                   )}
                 </div>
               ))}
               {historicDetailOrder.type === 'delivery' && (historicDetailOrder.deliveryFeeUSD || 0) > 0 && (
-                <div className="p-3 rounded-xl bg-black/60 border border-white/10 flex justify-between items-center text-sm font-bold text-white">
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 flex justify-between items-center text-xs font-bold text-black">
                   <span>Servicio delivery</span>
-                  <span className="text-emerald-400">${historicDetailOrder.deliveryFeeUSD!.toFixed(2)}</span>
+                  <span className="text-black font-black">${historicDetailOrder.deliveryFeeUSD!.toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -1740,63 +1741,63 @@ export const CajaPage: React.FC = () => {
               }, 0);
 
               return (
-                <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 space-y-2">
-                  <div className="flex justify-between text-xs text-gray-300">
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+                  <div className="flex justify-between text-xs text-gray-700">
                     <span>Total Cobrado:</span>
-                    <span className="font-black text-emerald-400 text-sm">${historicDetailOrder.totalUSD.toFixed(2)} USD</span>
+                    <span className="font-black text-black text-sm bg-yellow-400 px-2 py-0.5 rounded border border-yellow-500">${historicDetailOrder.totalUSD.toFixed(2)} USD</span>
                   </div>
 
-                  <div className="pt-2 border-t border-white/10 space-y-1">
+                  <div className="pt-2 border-t border-gray-200 space-y-1">
                     {totalGivenUSD > 0 && (
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-400">Vuelto Entregado (USD):</span>
-                        <span className="font-bold text-amber-300">${totalGivenUSD.toFixed(2)} USD</span>
+                        <span className="text-gray-500">Vuelto Entregado (USD):</span>
+                        <span className="font-bold text-black">${totalGivenUSD.toFixed(2)} USD</span>
                       </div>
                     )}
                     {totalGivenCOP > 0 && (
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-400">Vuelto Entregado (COP):</span>
-                        <span className="font-bold text-amber-300">${totalGivenCOP.toLocaleString()} COP</span>
+                        <span className="text-gray-500">Vuelto Entregado (COP):</span>
+                        <span className="font-bold text-black">${totalGivenCOP.toLocaleString()} COP</span>
                       </div>
                     )}
                     {totalGivenBs > 0 && (
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-400">Vuelto Entregado (Bs):</span>
-                        <span className="font-bold text-amber-300">{totalGivenBs.toFixed(2)} Bs</span>
+                        <span className="text-gray-500">Vuelto Entregado (Bs):</span>
+                        <span className="font-bold text-black">{totalGivenBs.toFixed(2)} Bs</span>
                       </div>
                     )}
                     {totalGivenUSD === 0 && totalGivenCOP === 0 && totalGivenBs === 0 && (
-                      <div className="flex justify-between text-xs text-gray-400">
+                      <div className="flex justify-between text-xs text-gray-500">
                         <span>Vuelto Entregado:</span>
-                        <span className="font-bold text-white">$0.00 USD</span>
+                        <span className="font-bold text-gray-800">$0.00 USD</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-xs pt-1.5 border-t border-white/10 font-black">
-                      <span className="text-emerald-300">Total Vueltos Dados (USD Equiv.):</span>
-                      <span className="text-amber-400">${grandTotalChangeUSD.toFixed(2)} USD</span>
+                    <div className="flex justify-between text-xs pt-1.5 border-t border-gray-200 font-black">
+                      <span className="text-gray-700">Total Vueltos Dados (USD Equiv.):</span>
+                      <span className="text-black">${grandTotalChangeUSD.toFixed(2)} USD</span>
                     </div>
                   </div>
 
                   {history.length > 0 ? (
-                    <div className="mt-3 pt-2 border-t border-white/10 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
-                      <div className="text-[10px] font-black text-blue-300 uppercase tracking-wider">
+                    <div className="mt-2 pt-2 border-t border-gray-200 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                      <div className="text-[10px] font-black text-gray-700 uppercase tracking-wider">
                         💳 Desglose de Pagos ({history.length} pago{history.length > 1 ? 's' : ''}):
                       </div>
                       {history.map((p, idx) => (
-                        <div key={p.id || idx} className="flex justify-between items-center text-xs p-2 rounded-xl bg-black/50 border border-white/10">
+                        <div key={p.id || idx} className="flex justify-between items-center text-xs p-2 rounded-lg bg-white border border-gray-200">
                           <div>
-                            <span className="font-bold text-white block">#{idx + 1} {p.payerName || 'Cliente General'}</span>
-                            <span className="text-[10px] text-blue-300 font-semibold">{p.paymentMethod}</span>
-                            {paymentMovementLabels(p).length > 0 && <span className="text-[10px] text-gray-400 block mt-0.5">{paymentMovementLabels(p).join(' | ')}</span>}
+                            <span className="font-bold text-black block">#{idx + 1} {p.payerName || 'Cliente General'}</span>
+                            <span className="text-[10px] text-gray-600 font-semibold">{p.paymentMethod}</span>
+                            {paymentMovementLabels(p).length > 0 && <span className="text-[10px] text-gray-500 block mt-0.5">{paymentMovementLabels(p).join(' | ')}</span>}
                           </div>
-                          <span className="font-black text-emerald-400">${(p.amountPaidUSD || 0).toFixed(2)} USD</span>
+                          <span className="font-black text-black">${(p.amountPaidUSD || 0).toFixed(2)} USD</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="flex justify-between text-xs text-gray-300 pt-1 border-t border-white/10">
+                    <div className="flex justify-between text-xs text-gray-700 pt-1 border-t border-gray-200">
                       <span>Método de Pago:</span>
-                      <span className="font-bold text-white">{historicDetailOrder.paymentMethod || 'Efectivo USD'}</span>
+                      <span className="font-bold text-black">{historicDetailOrder.paymentMethod || 'Efectivo USD'}</span>
                     </div>
                   )}
                 </div>
@@ -1805,7 +1806,7 @@ export const CajaPage: React.FC = () => {
             
             <button
               onClick={() => setHistoricDetailOrder(null)}
-              className="w-full py-3 rounded-xl bg-white/10 text-white font-bold text-xs hover:bg-white/20"
+              className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs border border-gray-300 transition-all"
             >
               CERRAR
             </button>
@@ -1891,19 +1892,19 @@ export const CajaPage: React.FC = () => {
 
       {/* Modal de Confirmación de Impresión de Reporte */}
       {pendingReportChoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-gradient-to-br from-[#0B2A1A] to-[#070707] border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl font-black">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl space-y-4 text-black">
+            <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-yellow-100 border border-yellow-300 flex items-center justify-center text-black text-xl font-black">
                 <IoPrintOutline />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">¿Imprimir en Térmica?</h3>
-                <p className="text-xs text-gray-300 font-bold">{pendingReportChoice.title}</p>
+                <h3 className="text-base font-black text-black">¿Imprimir en Térmica?</h3>
+                <p className="text-xs text-gray-500 font-semibold">{pendingReportChoice.title}</p>
               </div>
             </div>
 
-            <p className="text-xs text-gray-300">
+            <p className="text-xs text-gray-600 font-medium">
               ¿Deseas imprimir una copia física de este reporte en la impresora térmica además de abrir el PDF en pantalla?
             </p>
 
@@ -1914,7 +1915,7 @@ export const CajaPage: React.FC = () => {
                   setPendingReportChoice(null);
                   choice.generator();
                 }}
-                className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white font-black text-xs flex items-center justify-center gap-2 transition-all border border-white/10"
+                className="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs flex items-center justify-center gap-2 transition-all border border-gray-300"
               >
                 <span>❌ NO, SOLO ABRIR PDF</span>
               </button>
@@ -1924,7 +1925,7 @@ export const CajaPage: React.FC = () => {
                   setPendingReportChoice(null);
                   setPrinterSelectReport(choice);
                 }}
-                className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-all"
+                className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-2 border border-yellow-500 shadow-xs transition-all"
               >
                 <IoPrintOutline className="text-base" />
                 <span>🖨️ SÍ, IMPRIMIR</span>
