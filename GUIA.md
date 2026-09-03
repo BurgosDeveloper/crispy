@@ -504,6 +504,14 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
     - **Pesos COP al Millar Comercial Superior**: Dado que en el comercio diario y transacciones en efectivo no circulan denominaciones inferiores a $1.000 COP, los montos en pesos se redondean al millar comercial superior (`Math.ceil(monto / 1000) * 1000`).
     - **Bolívares (Bs)**: Se redondean estrictamente a dos decimales contables (`Math.round(monto * 100) / 100`).
     - **Consistencia Descentralizada**: Implementado en `src/utils/currencyRounding.ts` y `server/helpers/currencyRounding.js`, sincronizando los cálculos en pre-cuentas de clientes, modales de armado, cajas y tickets ESC/POS.
+13. **Catálogo Oficial del Menú Real de Crispy Burger y Cero Imágenes en Bebidas**:
+    - **Cero Imágenes en Bebidas y Productos**: Se eliminaron definitivamente las imágenes de refrescos y latas en el panel de administración (`MenuManagementPage`) y en todas las pantallas operativas. Las bebidas ahora se presentan en tarjetas de texto compactas, planas y homogéneas con su tipo (`REFRESCO`, `TÉ`, `CERVEZA`, `AGUA`, `JUGO`), descripción y precio en dólares.
+    - **Menú Real Cargado en PostgreSQL**: Se configuró y pobló la base de datos con la carta oficial de Crispy Burger:
+      - **11 Hamburguesas y Platos**: Bistro ($7.00), Crispys ($7.00), Chicken Grill ($7.00), Mr Pork ($7.00), Street ($7.00), Nuggets ($7.00), Super Smash ($7.00), Tasty ($7.00), Mixtura ($9.00), House ($9.00) y 3.0 ($10.00).
+      - **7 Bebidas**: Refresco 350ml ($1.00), Nestea ($1.00), Cerveza ($1.00), Refresco 2Lt ($2.50), Agua Mineral ($1.00), Granizado ($1.50) y Lata ($1.50).
+      - **5 Adicionales**: Tocineta ($1.00), Queso Cheddar ($1.00), Proteína ($3.00), Ración Papas ($2.00) y Servicio Adicional de Papas Fritas ($2.00).
+      - **5 Toppings ¡GRATIS!**: Jalapeños Picantes ($0.00), Cebolla Caramelizada ($0.00), Sweet Relish ($0.00), Maíz ($0.00) y Pepinillos ($0.00).
+      - **Script SQL para pgAdmin**: Disponible en `server/crispy_menu_real.sql` para su ejecución directa en producción.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 
