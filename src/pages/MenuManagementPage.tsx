@@ -505,46 +505,47 @@ export const MenuManagementPage: React.FC = () => {
       {activeTab === 'bebidas' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <IoBeer className="text-emerald-600 text-xl" />
+            <h2 className="text-lg font-black text-black flex items-center gap-2">
+              <IoBeer className="text-yellow-600 text-xl" />
               <span>BEBIDAS & REFRESCOS</span>
             </h2>
 
             <button
               onClick={() => setIsAddDrinkOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-black text-xs transition-all flex items-center gap-1.5 shadow-lg"
+              className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs transition-all flex items-center gap-1.5 border border-yellow-500 shadow-xs cursor-pointer"
             >
               <IoAdd className="text-lg" />
               <span>NUEVA BEBIDA</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {bebidas.map((p) => (
-              <div key={p.id} className="p-5 rounded-3xl bg-gradient-to-br from-white to-[#070707] border border-slate-200 shadow-2xl flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="relative h-40 rounded-2xl overflow-hidden border border-slate-200">
-                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                    <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-md bg-white/80 border border-slate-300 text-sky-700 text-[10px] font-black uppercase">
+              <div key={p.id} className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-yellow-400 shadow-xs flex flex-col justify-between space-y-3 transition-all">
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-base font-black text-black">{p.name}</h3>
+                    <span className="px-2 py-0.5 rounded-md bg-yellow-100 text-black border border-yellow-300 text-[10px] font-black uppercase shrink-0">
                       {p.drinkType?.toUpperCase() || 'BEBIDA'}
                     </span>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">{p.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{p.description}</p>
-                  </div>
+                  {p.description && (
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{p.description}</p>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-                  <span className="text-xl font-black text-emerald-700">${p.price.toFixed(2)} USD</span>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <span className="text-lg font-black text-black bg-yellow-400 px-2 py-0.5 rounded border border-yellow-500">
+                    ${p.price.toFixed(2)} USD
+                  </span>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleStartEditDrink(p)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500 hover:text-slate-900 border border-emerald-500/30 transition-all text-xs font-bold flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-800 hover:bg-yellow-400 hover:text-black border border-gray-300 transition-all text-xs font-bold flex items-center gap-1 cursor-pointer"
                     >
                       ✏️ Editar
                     </button>
-                    <button onClick={() => deleteProduct(p.id)} className="p-2 rounded-xl bg-red-500/20 text-red-600 hover:bg-red-500 hover:text-slate-900 border border-red-500/30 transition-all">
+                    <button onClick={() => deleteProduct(p.id)} className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 transition-all cursor-pointer">
                       <IoTrash size={16} />
                     </button>
                   </div>
@@ -559,8 +560,8 @@ export const MenuManagementPage: React.FC = () => {
       {activeTab === 'ingredientes' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <IoSparkles className="text-emerald-600 text-xl" />
+            <h2 className="text-lg font-black text-black flex items-center gap-2">
+              <IoSparkles className="text-yellow-600 text-xl" />
               <span>{isMorningShift ? 'CATÁLOGO DE ACOMPAÑANTES Y CONTORNOS' : 'CATÁLOGO DE INGREDIENTES'}</span>
             </h2>
 
@@ -576,7 +577,7 @@ export const MenuManagementPage: React.FC = () => {
                 setIngIsExtra(true);
                 setIsAddIngOpen(true);
               }}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-black text-xs transition-all flex items-center gap-1.5 shadow-lg"
+              className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs transition-all flex items-center gap-1.5 border border-yellow-500 shadow-xs cursor-pointer"
             >
               <IoAdd className="text-lg" />
               <span>{isMorningShift ? 'NUEVO CONTORNO / ACOMPAÑANTE' : 'NUEVO INGREDIENTE'}</span>

@@ -5,25 +5,49 @@ import { roundCOP } from '../../utils/currencyRounding';
 import { IoClose, IoAdd, IoRemove, IoCheckmark, IoCloseCircle } from 'react-icons/io5';
 
 export const AVAILABLE_BURGER_PROTEINS = [
-  { id: 'res', name: 'Carne de Res', icon: '🥩' },
+  { id: 'novillo', name: 'Carne de Novillo', icon: '🥩' },
   { id: 'pollo_crispy', name: 'Pollo Crispy', icon: '🍗' },
-  { id: 'pollo_plancha', name: 'Pollo a la Plancha', icon: '🍳' },
-  { id: 'mixta', name: 'Carne Mixta', icon: '🥓' },
-  { id: 'smash', name: 'Carne Smash', icon: '🍔' },
+  { id: 'pollo_plancha', name: 'Pechuga a la Plancha', icon: '🍳' },
+  { id: 'chuleta', name: 'Chuleta Ahumada', icon: '🥓' },
+  { id: 'mechada', name: 'Carne Mechada', icon: '🍲' },
+  { id: 'smash', name: 'Smash de Carne', icon: '🍔' },
 ];
 
 const getInitialProteins = (burger: Product): string[] => {
   const nameLower = (burger.name || '').toLowerCase();
-  const isChicken = nameLower.includes('chicken') || nameLower.includes('pollo');
-  const defaultProtein = isChicken ? 'Pollo Crispy' : 'Carne de Res';
+  const descLower = (burger.description || '').toLowerCase();
 
-  if (nameLower.includes('triple') || nameLower.includes('3 carnes')) {
-    return [defaultProtein, defaultProtein, defaultProtein];
+  // 1. Triple (3.0): Novillo + Pollo Crispy + Chuleta
+  if (nameLower.includes('3.0') || nameLower.includes('triple')) {
+    return ['Carne de Novillo', 'Pollo Crispy', 'Chuleta Ahumada'];
   }
-  if (nameLower.includes('doble') || nameLower.includes('2 carnes')) {
-    return [defaultProtein, defaultProtein];
+  // 2. Dobles: Mixtura (Novillo + Pollo) o House (Pollo + Chuleta) o Smash (2 Smash)
+  if (nameLower.includes('mixtura')) {
+    return ['Carne de Novillo', 'Pollo Crispy'];
   }
-  return [defaultProtein];
+  if (nameLower.includes('house')) {
+    return ['Pollo Crispy', 'Chuleta Ahumada'];
+  }
+  if (nameLower.includes('super smash') || nameLower.includes('tasty')) {
+    return ['Smash de Carne', 'Smash de Carne'];
+  }
+  if (nameLower.includes('doble')) {
+    return ['Carne de Novillo', 'Carne de Novillo'];
+  }
+  // 3. Sencillas
+  if (nameLower.includes('mr pork') || descLower.includes('chuleta')) {
+    return ['Chuleta Ahumada'];
+  }
+  if (nameLower.includes('street') || descLower.includes('mechada')) {
+    return ['Carne Mechada'];
+  }
+  if (nameLower.includes('chicken grill') || descLower.includes('plancha')) {
+    return ['Pechuga a la Plancha'];
+  }
+  if (nameLower.includes('crispy') || descLower.includes('pollo')) {
+    return ['Pollo Crispy'];
+  }
+  return ['Carne de Novillo'];
 };
 
 interface BurgerBuilderModalProps {
