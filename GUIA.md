@@ -485,6 +485,12 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
      - **Triple (3 Carnes)**: Se permite cambiar 1 de las 3, 2 de las 3 o las 3 proteínas de manera totalmente independiente.
      - **Selector de carnes integrado**: Botones rápidos `[1 Carne] [2 Carnes] [3 Carnes]` en la cabecera de la sección para adaptar la hamburguesa al gusto del comensal.
    - **Persistencia y Visibilidad**: La selección se almacena en PostgreSQL (`order_items.proteins TEXT[]`), se propaga en tiempo real a cocina (`CocinaPage`), carritos de mesero, detalles de comanda y se imprime con claridad tanto en pre-cuentas como en tickets térmicos ESC/POS.
+8. **Vista Compacta de 50+ Comandas Colapsadas con Botón Ojo `👁️` (Tarea 4)**:
+   - **Cobertura Integral**: Disponible para los tres roles operativos (**Mesero**, **Caja** y **Admin**).
+   - **Alta Densidad Visual**: El botón alternador `[👁️ Modo Compacto (50+)]` organiza las comandas en una rejilla responsiva ultra-ágil (de 3 a 5 columnas según la resolución de pantalla), permitiendo ver hasta 50 o más comandas sin necesidad de realizar scrolls caóticos.
+   - **Tarjeta Compacta de Información Crítica**: Resume número de orden `#X`, cliente/mesa, hora de ingreso, total de ítems solicitados, badges de preparación (`⏳ En Cocina` / `🔥 Lista` / `📦 Entregada`) y pago (`💳 Pendiente` / `✅ Pagado` / `⚠️ Crédito`), monto en USD, COP y Bs, y botones de acción rápida (`💳 COBRAR`, `🧾 Pre-cuenta`, `➕ Adicionar`, `🔄 Mover Mesa`).
+   - **Botón Ojo `👁️` de Inspección Total**: Cada tarjeta compacta incluye el botón ojo `👁️` que despliega inmediatamente el modal `OrderDetailModal` con el desglose pormenorizado de productos, proteínas personalizadas, ingredientes retirados ("SIN"), extras, notas especiales y cobro directo.
+   - **Persistencia de Preferencia**: La elección de vista (`compact` vs `expanded`) se memoriza en el almacenamiento local del dispositivo del usuario.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 

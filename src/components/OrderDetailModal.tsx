@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
-import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline } from 'react-icons/io5';
+import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline, IoCashOutline } from 'react-icons/io5';
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -13,6 +13,7 @@ interface OrderDetailModalProps {
   selectedItemIds?: string[];
   onToggleSelectItem?: (itemId: string) => void;
   onConfirmItemSelection?: () => void;
+  onPayOrder?: (order: Order) => void;
 }
 
 export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
@@ -24,6 +25,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   selectedItemIds = [],
   onToggleSelectItem,
   onConfirmItemSelection,
+  onPayOrder,
 }) => {
   const { reprintKitchenOrder } = useApp();
   const [isReprinting, setIsReprinting] = useState(false);
@@ -324,6 +326,20 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <IoPrintOutline className="text-base" />
               <span>🧾 PRE-CUENTA CLIENTE</span>
             </button>
+
+            {onPayOrder && order.paymentStatus !== 'pagado' && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onPayOrder(order);
+                }}
+                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-1.5 border border-yellow-500 transition-all cursor-pointer shadow-xs"
+              >
+                <IoCashOutline className="text-base" />
+                <span>💳 COBRAR (${(order.totalUSD - (order.paidAmountUSD || 0)).toFixed(2)} USD)</span>
+              </button>
+            )}
 
             <button
               type="button"

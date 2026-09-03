@@ -64,6 +64,9 @@ export const MeseroPage: React.FC = () => {
   const [tableChangeOrder, setTableChangeOrder] = useState<Order | null>(null);
   const [orderAppendModalOrder, setOrderAppendModalOrder] = useState<Order | null>(null);
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
+  const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
+    return localStorage.getItem('crispy_mesero_view_mode') !== 'expanded';
+  });
 
   // Catalog Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
@@ -266,20 +269,148 @@ export const MeseroPage: React.FC = () => {
       {/* SUB-TAB 2: MIS COMANDAS (MONITOR MESERO) */}
       {activeSubTab === 'comandas' && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden space-y-2">
-          <div className="flex items-center justify-between pb-1 border-b border-gray-200 shrink-0">
+          <div className="flex flex-wrap items-center justify-between pb-1 border-b border-gray-200 shrink-0 gap-2">
             <h2 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
               <IoReaderOutline className="text-yellow-600 text-sm" />
               <span>ESTADO DE COMANDAS ACTIVAS</span>
             </h2>
-            <span className="text-[11px] text-gray-500 font-bold">
-              Total: {orders.filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada').length}
-            </span>
+            <div className="flex items-center gap-2">
+              {/* Selector de Modo de Vista (Tarea 4) */}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isCompactComandasView;
+                  setIsCompactComandasView(next);
+                  localStorage.setItem('crispy_mesero_view_mode', next ? 'compact' : 'expanded');
+                }}
+                className={`px-2.5 py-1 rounded-lg font-black text-[11px] flex items-center gap-1 border transition-all cursor-pointer shadow-xs ${
+                  isCompactComandasView
+                    ? 'bg-yellow-400 text-black border-yellow-500 hover:bg-yellow-500'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                }`}
+                title="Alternar vista compacta (50+ comandas) vs vista extendida"
+              >
+                <span>👁️</span>
+                <span>{isCompactComandasView ? 'Modo Compacto (50+)' : 'Modo Extendido'}</span>
+              </button>
+              <span className="text-[11px] text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                Total: {orders.filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada').length}
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-1">
             {orders.filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada').length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-xs font-bold">
                 No hay comandas activas en este momento.
+              </div>
+            ) : isCompactComandasView ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                {orders
+                  .filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada')
+                  .map((ord) => {
+                    const isReady = ord.status === 'preparada';
+                    const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
+                    const itemsSummary = (ord.items || []).map((i) => `${i.quantity}x ${i.productName}`).join(', ');
+
+                    return (
+                      <div
+                        key={ord.id}
+                        className={`p-2 rounded-xl border flex flex-col justify-between shadow-xs transition-all ${
+                          isReady
+                            ? 'bg-yellow-200/80 border-yellow-500 ring-2 ring-yellow-400'
+                            : 'bg-white border-gray-200 hover:border-yellow-400'
+                        }`}
+                      >
+                        {/* Header */}
+                        <div>
+                          <div className="flex items-center justify-between gap-1 pb-1 border-b border-gray-100">
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="font-black text-xs text-black">#{ord.orderNumber}</span>
+                              <span className="text-[9px] font-extrabold text-black bg-yellow-400 px-1 py-0.2 rounded uppercase truncate">
+                                {ord.type === 'mesa' ? `M#${ord.tableNumber}` : ord.type}
+                              </span>
+                            </div>
+
+                            {/* Botón Ojo 👁️ */}
+                            <button
+                              type="button"
+                              onClick={() => setOrderDetailModalOrder(ord)}
+                              className="p-1 rounded bg-gray-100 hover:bg-yellow-400 text-gray-700 hover:text-black text-xs font-bold transition-all shadow-xs border border-gray-200 cursor-pointer"
+                              title="Ver detalles completos de la comanda"
+                            >
+                              👁️
+                            </button>
+                          </div>
+
+                          {/* Customer */}
+                          {ord.customerName && (
+                            <p className="text-[10px] text-gray-800 font-bold mt-1 truncate" title={ord.customerName}>
+                              👤 {ord.customerName}
+                            </p>
+                          )}
+
+                          {/* Items summary */}
+                          <div className="my-1 py-0.5 px-1 rounded bg-gray-50 border border-gray-100">
+                            <div className="text-[10px] font-black text-yellow-800">
+                              🍔 {itemsCount} {itemsCount === 1 ? 'ítem' : 'ítems'}
+                            </div>
+                            <p className="text-[9px] text-gray-500 font-medium truncate" title={itemsSummary}>
+                              {itemsSummary}
+                            </p>
+                          </div>
+
+                          {/* Status */}
+                          <div className="flex items-center justify-between text-[9px] font-black uppercase mb-1">
+                            <span
+                              className={`px-1.5 py-0.5 rounded ${
+                                isReady
+                                  ? 'bg-green-600 text-white animate-pulse'
+                                  : 'bg-yellow-400 text-black'
+                              }`}
+                            >
+                              {isReady ? '¡LISTA!' : 'EN PREP.'}
+                            </span>
+                            <span className="text-black font-black text-[11px]">
+                              ${ord.totalUSD.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="pt-1 border-t border-gray-100 flex items-center justify-between gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setOrderAppendModalOrder(ord)}
+                            className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all cursor-pointer text-center"
+                            title="Adicionar ítem"
+                          >
+                            + Ítem
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => reprintKitchenOrder(ord.id)}
+                            className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                            title="Reimprimir en cocina"
+                          >
+                            <IoPrintOutline />
+                          </button>
+
+                          {ord.type === 'mesa' && ord.status !== 'entregada' && (
+                            <button
+                              type="button"
+                              onClick={() => setTableChangeOrder(ord)}
+                              className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                              title="Cambiar mesa"
+                            >
+                              <IoSwapHorizontal />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
