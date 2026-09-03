@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
+import { reportService } from '../services/reportService';
 import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline } from 'react-icons/io5';
 
 interface OrderDetailModalProps {
@@ -63,24 +64,24 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const cleanOrderNumber = order.orderNumber.toString().replace(/^#+/, '');
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl border border-emerald-500/30 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header Elegante y Luminoso */}
-        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white p-5 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center font-black shadow-inner shrink-0 text-white">
-              <IoReceiptOutline size={26} />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header Plano Crispy */}
+        <div className="bg-white border-b border-gray-200 text-black p-4 sm:p-5 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-yellow-100 border border-yellow-300 flex items-center justify-center font-black shrink-0 text-black">
+              <IoReceiptOutline size={24} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black tracking-tight text-white">
+                <h3 className="text-lg sm:text-xl font-black tracking-tight text-black">
                   {isSelectableMode ? 'Seleccionar Productos a Cobrar' : `Comanda #${cleanOrderNumber}`}
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/20 border border-white/40 text-[11px] font-black uppercase text-white tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-full bg-yellow-400 border border-yellow-500 text-[11px] font-black uppercase text-black tracking-wider shadow-xs">
                   {order.type === 'mesa' ? `Mesa #${order.tableNumber}` : order.type}
                 </span>
               </div>
-              <p className="text-xs font-bold flex items-center gap-1.5 mt-1 text-emerald-100">
+              <p className="text-xs font-bold flex items-center gap-1.5 mt-0.5 text-gray-600">
                 <IoPersonOutline className="text-sm" />
                 <span>Cliente: {order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General')}</span>
               </p>
@@ -88,10 +89,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-white transition-all cursor-pointer shrink-0 shadow-sm"
+            className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-300 flex items-center justify-center text-gray-700 transition-all cursor-pointer shrink-0"
             title="Cerrar ventana"
           >
-            <IoClose size={24} />
+            <IoClose size={20} />
           </button>
         </div>
 
@@ -263,32 +264,32 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             </div>
           )}
 
-          {/* Resumen Financiero Claro y Limpio */}
-          <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 via-teal-50/60 to-white border-2 border-emerald-500/30 space-y-2.5 shadow-md">
-            <div className="flex justify-between text-xs font-bold text-slate-600">
+          {/* Resumen Financiero Claro y Limpio con 3 Monedas */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/40 border border-yellow-300 space-y-2.5 shadow-xs">
+            <div className="flex justify-between text-xs font-bold text-gray-600">
               <span>Subtotal Productos:</span>
-              <span className="text-slate-900 font-black">${((order.totalUSD || 0) - (order.deliveryFeeUSD || 0)).toFixed(2)} USD</span>
+              <span className="text-black font-black">${((order.totalUSD || 0) - (order.deliveryFeeUSD || 0)).toFixed(2)} USD</span>
             </div>
             {order.deliveryFeeUSD ? (
-              <div className="flex justify-between text-xs font-bold text-slate-600">
+              <div className="flex justify-between text-xs font-bold text-gray-600">
                 <span>Servicio Delivery:</span>
-                <span className="text-slate-900 font-black">+${order.deliveryFeeUSD.toFixed(2)} USD</span>
+                <span className="text-black font-black">+${order.deliveryFeeUSD.toFixed(2)} USD</span>
               </div>
             ) : null}
-            <div className="border-t border-emerald-200 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="border-t border-yellow-200 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
-                <span className="font-black text-xs uppercase text-slate-700 block">
+                <span className="font-black text-xs uppercase text-gray-600 block">
                   Total de la Comanda:
                 </span>
-                <div className="text-3xl font-black text-emerald-700 tracking-tight">
-                  ${totalUSD.toFixed(2)} <span className="text-xs font-black uppercase text-emerald-900 bg-emerald-200 px-1.5 py-0.5 rounded">USD</span>
+                <div className="text-3xl font-black text-black tracking-tight">
+                  ${totalUSD.toFixed(2)} <span className="text-xs font-black uppercase text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500 shadow-xs">USD</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-black text-sky-800 bg-sky-100 border border-sky-300 px-2.5 py-1 rounded-xl shadow-sm">
+                <span className="text-xs font-black text-gray-800 bg-white border border-gray-300 px-2.5 py-1 rounded-xl shadow-xs">
                   🇨🇴 {totalCOP.toLocaleString()} COP
                 </span>
-                <span className="text-xs font-black text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-xl shadow-sm">
+                <span className="text-xs font-black text-gray-800 bg-white border border-gray-300 px-2.5 py-1 rounded-xl shadow-xs">
                   🇻🇪 {totalBs} Bs
                 </span>
               </div>
@@ -297,26 +298,39 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-white border-t border-slate-200 flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-2">
+        <div className="p-4 bg-white border-t border-gray-200 flex flex-wrap justify-between items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs transition-all cursor-pointer shadow-sm"
+              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs transition-all cursor-pointer border border-gray-300 shadow-xs"
             >
               CERRAR
+            </button>
+
+            {/* BOTÓN PRE-CUENTA CLIENTE (Tarea 11) */}
+            <button
+              type="button"
+              onClick={() => {
+                reportService.generatePreCuentaTicket(order, exchangeRates);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-1.5 border border-yellow-500 transition-all cursor-pointer shadow-xs"
+              title="Emitir pre-cuenta con todos los productos y las 3 monedas para el cliente"
+            >
+              <IoPrintOutline className="text-base" />
+              <span>🧾 PRE-CUENTA CLIENTE</span>
             </button>
 
             <button
               type="button"
               onClick={handleReprint}
               disabled={isReprinting}
-              className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-900 hover:text-black font-black text-xs flex items-center gap-1.5 border border-emerald-300 transition-all cursor-pointer shadow-sm"
+              className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 hover:text-black font-black text-xs flex items-center gap-1.5 border border-gray-300 transition-all cursor-pointer shadow-xs"
             >
               <IoPrintOutline className="text-base" />
               <span>{isReprinting ? 'ENVIANDO...' : '🖨️ REIMPRIMIR COCINA'}</span>
             </button>
             {reprintMessage && (
-              <span className="text-xs font-bold text-emerald-700 animate-in fade-in">
+              <span className="text-xs font-bold text-green-700 animate-in fade-in">
                 {reprintMessage}
               </span>
             )}
@@ -329,7 +343,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 onClose();
               }}
               disabled={selectedItemIds.length === 0}
-              className="px-6 py-2.5 rounded-2xl font-black text-xs md:text-sm shadow-xl transition-all flex items-center gap-2 cursor-pointer bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white"
+              className="px-5 py-2 rounded-xl font-black text-xs md:text-sm shadow-xs transition-all flex items-center gap-2 cursor-pointer bg-yellow-400 hover:bg-yellow-500 border border-yellow-500 text-black disabled:opacity-50"
             >
               <IoCheckmarkCircleOutline className="text-xl" />
               <span>CONTINUAR CON COBRO (${selectedTotalUSD.toFixed(2)} USD)</span>

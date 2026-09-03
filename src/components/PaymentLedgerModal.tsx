@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   IoClose,
   IoEyeOutline,
@@ -9,6 +9,7 @@ import {
 } from 'react-icons/io5';
 import { useApp } from '../context/AppContext';
 import { Order, PaymentMethod } from '../data/mockData';
+import { reportService } from '../services/reportService';
 
 type Currency = 'USD' | 'COP' | 'Bs';
 type EntryType = 'payment' | 'change';
@@ -78,6 +79,12 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   const [creditNotesInput, setCreditNotesInput] = useState('');
   const [creditError, setCreditError] = useState('');
 
+  // Prompt de confirmación de impresión de recibo (Tarea 10)
+  const [showReceiptPrompt, setShowReceiptPrompt] = useState(false);
+
+  // Autofocus en monto (Tarea 14)
+  const amountInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!order) return;
     setPayerName(
@@ -92,6 +99,13 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     setError('');
     setIsCreditPromptOpen(false);
     setCreditError('');
+    setShowReceiptPrompt(false);
+
+    // Auto-enfocar campo de monto al abrir
+    setTimeout(() => {
+      amountInputRef.current?.focus();
+      amountInputRef.current?.select();
+    }, 120);
   }, [order, paymentScope?.payerName]);
 
   const history = order?.paymentHistory || [];
@@ -234,9 +248,10 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     setError('');
     try {
       await finalizeOrder(order.id);
-      onClose();
+      setShowReceiptPrompt(true);
     } catch (err: any) {
       setError(err?.message || 'Error al finalizar la comanda.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -409,11 +424,18 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               <div className="sm:col-span-3">
                 <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Monto:</label>
                 <input
+                  ref={amountInputRef}
                   type="number"
                   min="0"
                   step="0.01"
                   value={amountLocal}
                   onChange={(e) => setAmountLocal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleRegisterEntry();
+                    }
+                  }}
                   placeholder="0.00"
                   className="w-full px-3 py-1.5 rounded-lg border border-gray-300 bg-white font-black text-sm text-black focus:outline-none focus:ring-1 focus:ring-yellow-400"
                 />
@@ -669,6 +691,51 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 className="px-4 py-1.5 text-xs font-black bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 rounded-lg disabled:opacity-50"
               >
                 {isSubmitting ? 'Guardando...' : 'Confirmar Crédito'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Impresión de Recibo (Tarea 10: Preguntar Siempre Antes de Imprimir) */}
+      {showReceiptPrompt && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-5 shadow-2xl space-y-4 text-black animate-in fade-in">
+            <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-yellow-100 border border-yellow-300 flex items-center justify-center text-black text-xl font-black shrink-0">
+                <IoReceiptOutline />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-black">¿Imprimir Recibo de Venta?</h3>
+                <p className="text-[11px] text-gray-500 font-semibold">Comanda #{order.orderNumber}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 font-medium">
+              El cobro se ha registrado correctamente en el sistema. ¿Deseas generar e imprimir el recibo físico para el cliente?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReceiptPrompt(false);
+                  onClose();
+                }}
+                className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs border border-gray-300 transition-all text-center"
+              >
+                ❌ No Imprimir
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReceiptPrompt(false);
+                  reportService.generatePreCuentaTicket(order, exchangeRates);
+                  onClose();
+                }}
+                className="px-3 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 shadow-xs transition-all text-center"
+              >
+                🖨️ Sí, Imprimir
               </button>
             </div>
           </div>

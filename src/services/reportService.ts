@@ -959,6 +959,7 @@ export class ReportService {
     const totalUSD = order.totalUSD || 0;
     const totalCOP = Math.round(totalUSD * copRate);
     const totalBs = (totalUSD * bsRate).toFixed(2);
+    const cleanOrderNumber = (order.orderNumber || '').toString().replace(/^#+/, '');
 
     const itemsHtml = (order.items || []).map((it) => {
       const subtotal = it.price * it.quantity;
@@ -994,24 +995,24 @@ export class ReportService {
 
     const content = `
       <div class="header" style="text-align: center;">
-        <div class="logo-title">🍕 BASILICO PIZZERIA</div>
-        <div style="font-size: 11px; font-weight: 900; color: #047857; margin-top: 2px;">PRE-CUENTA / TICKET DE CONSUMO</div>
-        <div style="font-size: 8px; color: #6b7280; margin-top: 4px;">DOCUMENTO DE CONTROL INTERNO</div>
+        <div class="logo-title" style="font-size: 16px; font-weight: 900; color: #111827;">🍔 CRISPY BURGER POS</div>
+        <div style="font-size: 11px; font-weight: 900; color: #b45309; margin-top: 2px;">PRE-CUENTA / TICKET DE CONSUMO</div>
+        <div style="font-size: 8px; color: #6b7280; margin-top: 2px;">DOCUMENTO INFORMATIVO PARA EL CLIENTE</div>
       </div>
 
-      <div class="meta-card" style="font-size: 10px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; font-weight: 800;">
-          <span>COMANDA: #${order.orderNumber}</span>
-          <span>${order.type === 'mesa' ? `MESA #${order.tableNumber}` : order.type === 'delivery' ? 'DELIVERY' : 'PARA LLEVAR'}</span>
+      <div class="meta-card" style="font-size: 10px; margin: 8px 0; padding: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 800; color: #111827;">
+          <span>COMANDA: #${cleanOrderNumber}</span>
+          <span style="background: #fef08a; padding: 1px 6px; border-radius: 4px; border: 1px solid #facc15;">${order.type === 'mesa' ? `MESA #${order.tableNumber}` : order.type === 'delivery' ? 'DELIVERY' : 'PICKUP'}</span>
         </div>
-        <div style="margin-top: 3px;"><strong>Cliente:</strong> ${order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General')}</div>
+        <div style="margin-top: 4px;"><strong>Cliente:</strong> ${order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General')}</div>
         <div><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-VE')}</div>
       </div>
 
-      <div class="section-title">DETALLE DE CONSUMO</div>
+      <div class="section-title" style="font-size: 10px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-bottom: 4px;">DETALLE DE CONSUMO</div>
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="border-bottom: 1.5px solid #111827; font-size: 9px;">
+          <tr style="border-bottom: 1px solid #d1d5db; font-size: 9px; color: #4b5563;">
             <th style="text-align: left; padding-bottom: 3px;">DESCRIPCIÓN</th>
             <th style="text-align: right; padding-bottom: 3px;">TOTAL USD</th>
           </tr>
@@ -1027,24 +1028,25 @@ export class ReportService {
         </tbody>
       </table>
 
-      <div class="total-box" style="margin-top: 10px; padding: 8px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;">
-        <div style="font-size: 10px; font-weight: 800; color: #166534; margin-bottom: 4px; text-transform: uppercase;">TOTAL A PAGAR:</div>
-        <div style="font-size: 18px; font-weight: 900; color: #15803d; text-align: right; line-height: 1;">
-          $${totalUSD.toFixed(2)} <span style="font-size: 11px;">USD</span>
+      <!-- CAJA TOTALIZADORA CON LAS 3 MONEDAS SIMULTÁNEAS -->
+      <div class="total-box" style="margin-top: 10px; padding: 8px; background: #fffbeb; border: 1.5px solid #facc15; border-radius: 8px;">
+        <div style="font-size: 10px; font-weight: 900; color: #78350f; text-transform: uppercase;">TOTAL A PAGAR:</div>
+        <div style="font-size: 20px; font-weight: 900; color: #111827; text-align: right; line-height: 1.1;">
+          $${totalUSD.toFixed(2)} <span style="font-size: 11px; font-weight: 800;">USD</span>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-top: 6px; border-top: 1px dashed #86efac; pt-2;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #facc15;">
           <span style="color: #0369a1;">🇨🇴 COP: $${totalCOP.toLocaleString()}</span>
-          <span style="color: #b45309;">🇻🇪 Bs: ${totalBs}</span>
+          <span style="color: #111827;">🇻🇪 Bs: ${totalBs}</span>
         </div>
       </div>
 
       <div style="font-size: 8px; color: #6b7280; text-align: center; margin-top: 8px;">
-        Tasas de referencia: 1 USD = ${copRate.toLocaleString()} COP | ${bsRate.toFixed(2)} Bs
+        Tasas de cambio vigentes: 1 USD = ${copRate.toLocaleString()} COP | ${bsRate.toFixed(2)} Bs
       </div>
 
       <div class="footer" style="text-align: center; margin-top: 10px; border-top: 1px dashed #9ca3af; padding-top: 6px; font-size: 9px; font-weight: 800;">
         ¡GRACIAS POR SU PREFERENCIA!<br>
-        <span style="font-size: 8px; font-weight: 600; color: #6b7280;">BASILICO PIZZERIA</span>
+        <span style="font-size: 8px; font-weight: 700; color: #4b5563;">CRISPY BURGER POS</span>
       </div>
     `;
 

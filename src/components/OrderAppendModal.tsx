@@ -443,34 +443,34 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-        <div className="relative w-full max-w-7xl h-[96vh] bg-gradient-to-br from-[#061e13] via-[#082618] to-[#04100b] border border-emerald-500/40 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+        <div className="relative w-full max-w-7xl h-[96vh] bg-white border border-gray-300 rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-col overflow-hidden text-black">
           
           {/* HEADER PRINCIPAL */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3 flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 text-2xl font-black shadow-lg">
+              <div className="w-11 h-11 rounded-xl bg-yellow-100 border border-yellow-300 flex items-center justify-center text-black text-2xl font-black shadow-xs">
                 ➕
               </div>
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h3 className="text-xl font-black text-white tracking-tight">ADICIONAR PRODUCTOS A COMANDA</h3>
-                  <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm border border-emerald-500/40 shadow-sm">
-                    {order.orderNumber}
+                  <h3 className="text-xl font-black text-black tracking-tight">ADICIONAR PRODUCTOS A COMANDA</h3>
+                  <span className="px-3 py-1 rounded-xl bg-yellow-400 text-black font-black text-sm border border-yellow-500 shadow-xs">
+                    #{order.orderNumber}
                   </span>
-                  <span className="px-3 py-1 rounded-xl bg-white/10 text-gray-200 font-bold text-xs">
+                  <span className="px-3 py-1 rounded-xl bg-gray-100 text-gray-800 font-bold text-xs border border-gray-300">
                     {order.type === 'mesa' ? `Mesa #${order.tableNumber}` : (order.type || 'mesa').toUpperCase()}
                   </span>
                 </div>
-                <span className="text-xs text-gray-400 font-bold block mt-0.5">
-                  👤 Cliente: <strong className="text-gray-100">{order.customerName || 'General'}</strong>
+                <span className="text-xs text-gray-500 font-bold block mt-0.5">
+                  👤 Cliente: <strong className="text-black">{order.customerName || 'General'}</strong>
                 </span>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-black transition-colors"
             >
               <IoClose className="text-2xl" />
             </button>

@@ -455,12 +455,29 @@ En cumplimiento de los requerimientos visuales y de usabilidad de Crispy POS:
 8. **Retrocompatibilidad Visual**:
    - Mapeo automático de clases legadas (`.clay-btn`, `.clay-card`, `.glass-panel`) hacia el nuevo sistema plano amarillo/negro/blanco para preservar la armonía visual en cualquier vista residual.
 9. **Formas de Pago Multi-Moneda (Tres Columnas: Bolívares, Pesos y Dólares)**:
-   - Pantalla de cobro (`PaymentLedgerModal`) con visualización simultánea de 3 columnas para control contable de contado y vueltos:
-     - **Bolívares**: Total en bolívares, Subtotal pagado en bolívares, Vueltos en bolívares.
-     - **Pesos (COP)**: Total en pesos, Subtotal pagado en pesos, Vueltos en pesos.
-     - **Dólares (USD)**: Total en dólares, Subtotal pagado en dólares, Vueltos en dólares.
-   - Fila de captura ágil de transacciones con inputs planos: `[Monto] [Moneda (USD/COP/Bs)] [Tipo de Pago] [Checkbox: Vueltos] [Confirmar ✔ / Limpiar 🗑]`.
-   - Control estricto de finalización: el botón `FINALIZAR COBRO` solo se activa cuando la comanda está totalmente pagada y no hay vueltos pendientes por entregar.
+   - Pantalla de cobro (`PaymentLedgerModal`) con visualización simultánea de 3 columnas para control contable de contado y vueltos (USD, COP, Bs).
+   - Control estricto de finalización: el botón `FINALIZAR COBRO` solo se activa cuando la comanda está totalmente pagada y no hay vueltos pendientes.
+
+## Automatización Operativa y Experiencia Ágil Crispy Burger POS
+
+1. **Delivery con Nombre de Cliente Estrictamente Obligatorio (Tarea 7)**:
+   - Toda comanda de tipo `delivery` exige de forma obligatoria el nombre y dirección del cliente.
+   - Si el campo está vacío, tanto el frontend (en `/mesonero`) como la API en backend (`POST /api/orders`) rechazan la creación arrojando un error `400` y alertando al operador en pantalla.
+2. **Pre-cuenta de Mesa y Clientes en las 3 Monedas (Tarea 6 y 11)**:
+   - El ticket de pre-cuenta y la modal de comanda (`OrderDetailModal`) presentan de forma clara y unificada el desglose en las tres divisas vigentes: **USD ($)**, **COP (Pesos)** y **Bs (Bolívares)**.
+   - Desde cualquier comanda abierta, el botón `🧾 PRE-CUENTA CLIENTE` permite reimprimir o emitir el ticket de consumo detallado para entregárselo al comensal antes de cobrar.
+3. **Preguntar Siempre Antes de Imprimir Recibo de Venta (Tarea 10)**:
+   - Al finalizar el cobro de una comanda en `PaymentLedgerModal`, el sistema **NO** fuerza la impresión térmica automática para evitar gastos innecesarios de papel.
+   - Se despliega una ventana de confirmación clara: `¿Deseas imprimir recibo de venta? [🖨️ Sí, Imprimir] [❌ No Imprimir]`.
+4. **Reubicación y Cambio de Mesa en Tiempo Real (Tarea 8)**:
+   - La ventana de traslado de mesa (`ChangeTableModal`) se integra bajo el diseño Crispy y procesa el cambio de mesa de forma atómica en el servidor.
+   - La actualización se propaga de inmediato mediante WebSockets (`orders:sync` y `tables:sync`), liberando la mesa previa y ocupando la nueva mesa sin recargar la página.
+5. **Automatización de Formularios y Atajos de Teclado (Tarea 14)**:
+   - En el módulo de cobranza (`PaymentLedgerModal`), el campo de monto se auto-enfoca al abrir la ventana.
+   - Al presionar la tecla `Enter`, la transacción de pago se registra al instante sin necesidad de mover el cursor hacia el botón de confirmación.
+6. **Paleta de Identidad Visual Crispy (Tarea 15)**:
+   - Se removieron los remanentes visuales verde esmeralda y fondos oscuros heredados.
+   - El sistema unifica sus interfaces bajo el esquema oficial: **Blanco, Crema suave (`#FAF8F5`), Amarillo (`#FACC15`) y Negro**, con bordes limpios y tipografía de alto contraste legible a distancia.
 
 ## Cuentas a Crédito y Gestión de Deudas por Cobrar
 
