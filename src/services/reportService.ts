@@ -1,4 +1,4 @@
-// Report Service - Generador de Reportes Auditables en PDF e Impresión Profesional para Basilico Pizzeria
+// Report Service - Generador de Reportes Auditables en PDF e Impresión Profesional para Crispy Burger POS
 
 import { Order, CajaChicaTransaction, ExchangeRates } from '../data/mockData';
 import { ReporteIntervaloData } from './excelExportService';
@@ -17,7 +17,7 @@ export class ReportService {
       <html lang="es">
       <head>
         <meta charset="UTF-8">
-        <title>${title} - Basilico Pizzeria</title>
+        <title>${title} - Crispy Burger POS</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
           @page {
@@ -137,7 +137,7 @@ export class ReportService {
       <body>
         <div class="header">
           <div>
-            <div class="logo-title">BASILICO PIZZERIA</div>
+            <div class="logo-title">🍔 CRISPY BURGER</div>
             <div class="logo-sub">Sistema de Gestión & Auditoría de Ventas</div>
           </div>
           <div class="doc-meta">
@@ -243,21 +243,21 @@ export class ReportService {
     return `Desde ${this.reportDate(data.dateRange.from)} hasta ${this.reportDate(data.dateRange.to)}`;
   }
 
-  // 1. Reporte de Pizzas e Ítems Vendidos
-  generatePizzasSoldReport(orders: Order[], rates: ExchangeRates) {
+  // 1. Reporte de Hamburguesas e Ítems Vendidos
+  generateProductsSoldReport(orders: Order[], rates: ExchangeRates) {
     const paidOrders = orders.filter((o) => o.paymentStatus === 'pagado' || o.paymentStatus === 'credito');
     const tally: Record<string, { qty: number; revenueUSD: number; category: string }> = {};
 
     paidOrders.forEach((o) => {
       o.items.forEach((it) => {
-        const isPizza = (it.category || '').toLowerCase().includes('pizza') || it.productName.toLowerCase().includes('pizza') || !!it.size || !!it.isHalfHalf;
-        const sizeLabel = it.size ? ` (${it.size})` : '';
-        const displayName = `${it.productName}${sizeLabel}`;
+        const catLower = (it.category || '').toLowerCase();
+        const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || it.productName.toLowerCase().includes('burger') || it.productName.toLowerCase().includes('crispy');
+        const displayName = it.productName;
         if (!tally[displayName]) {
           tally[displayName] = {
             qty: 0,
             revenueUSD: 0,
-            category: isPizza ? 'Pizzas' : (it.category || 'Bebidas/Adicionales'),
+            category: isBurger ? 'Hamburguesas' : (it.category || 'Bebidas/Adicionales'),
           };
         }
         tally[displayName].qty += it.quantity;
@@ -266,7 +266,7 @@ export class ReportService {
     });
 
     const entries = Object.entries(tally).sort((a, b) => b[1].qty - a[1].qty);
-    const totalPizzas = entries.reduce((sum, e) => sum + e[1].qty, 0);
+    const totalItems = entries.reduce((sum, e) => sum + e[1].qty, 0);
     const totalRevenueUSD = entries.reduce((sum, e) => sum + e[1].revenueUSD, 0);
 
     const rows = entries
@@ -284,7 +284,7 @@ export class ReportService {
       .join('');
 
     const content = `
-      <div class="section-title">DESGLOSE DE ÍTEMS Y PIZZAS FACTURADAS</div>
+      <div class="section-title">DESGLOSE DE HAMBURGUESAS E ÍTEMS VENDIDOS</div>
       <table>
         <thead>
           <tr>
@@ -303,7 +303,7 @@ export class ReportService {
       <div class="total-box">
         <div>
           <div class="total-label">TOTAL UNIDADES VENDIDAS:</div>
-          <div style="font-size: 14px; font-weight: 800;">${totalPizzas} Unidades</div>
+          <div style="font-size: 14px; font-weight: 800;">${totalItems} Unidades</div>
         </div>
         <div style="text-align:right; margin-top:5px;">
           <div class="total-label">RECAUDACIÓN TOTAL PRODUCTOS:</div>
@@ -312,7 +312,12 @@ export class ReportService {
       </div>
     `;
 
-    this.openPrintWindow('Reporte_Ventas_Pizzas', content);
+    this.openPrintWindow('Reporte_Ventas_Hamburguesas', content);
+  }
+
+  // Alias para retrocompatibilidad
+  generatePizzasSoldReport(orders: Order[], rates: ExchangeRates) {
+    return this.generateProductsSoldReport(orders, rates);
   }
 
   // 2. Reporte de Ingresos y Cobros
@@ -467,14 +472,14 @@ export class ReportService {
     this.openPrintWindow('Reporte_Vueltos_y_Egresos', content);
   }
 
-  // 4. Reporte de Pizzas Vendidas por Intervalo
-  generatePizzasSoldIntervalReport(data: ReporteIntervaloData) {
+  // 4. Reporte de Hamburguesas e Ítems Vendidos por Intervalo
+  generateProductsSoldIntervalReport(data: ReporteIntervaloData) {
     const tally: Record<string, { category: string; name: string; quantity: number; totalUSD: number }> = {};
     data.items.forEach((item) => {
-      const isPizza = (item.category || '').toLowerCase().includes('pizza') || item.productName.toLowerCase().includes('pizza') || !!item.size || !!item.isHalfHalf;
-      const sizeLabel = item.size ? ` (${item.size})` : '';
-      const displayName = `${item.productName}${sizeLabel}`;
-      const category = isPizza ? 'Pizzas' : (item.category || 'Sin categoría');
+      const catLower = (item.category || '').toLowerCase();
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || item.productName.toLowerCase().includes('burger') || item.productName.toLowerCase().includes('crispy');
+      const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoría');
+      const displayName = item.productName;
       const key = `${category}|${displayName}`;
       if (!tally[key]) tally[key] = { category, name: displayName, quantity: 0, totalUSD: 0 };
       tally[key].quantity += item.quantity;
@@ -483,12 +488,17 @@ export class ReportService {
     const rows = Object.entries(tally).sort((a, b) => a[1].category.localeCompare(b[1].category) || a[0].localeCompare(b[0]))
       .map(([, item]) => `<tr><td>${this.escapeHtml(item.category)}</td><td><strong>${this.escapeHtml(item.name)}</strong></td><td style="text-align:right;">${item.quantity}</td><td style="text-align:right;">$${item.totalUSD.toFixed(2)}</td></tr>`).join('');
     const totalUnits = data.items.reduce((total, item) => total + item.quantity, 0);
-    this.openPrintWindow('Pizzas_Vendidas_Intervalo', `
-      <div class="section-title">PIZZAS VENDIDAS POR TIPO Y UNIDADES</div>
+    this.openPrintWindow('Hamburguesas_Vendidas_Intervalo', `
+      <div class="section-title">HAMBURGUESAS E ÍTEMS VENDIDOS POR TIPO Y UNIDADES</div>
       <p style="font-size:12px; color:#4b5563;">${this.intervalTitle(data)}</p>
       <table><thead><tr><th>Categoría</th><th>Ítem</th><th style="text-align:right;">Unidades</th><th style="text-align:right;">Total USD</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="text-align:center;">Sin ítems facturados en el intervalo.</td></tr>'}</tbody></table>
       <div class="total-box"><div><div class="total-label">UNIDADES FACTURADAS</div><strong>${totalUnits}</strong></div><div><div class="total-label">ÍTEMS DIFERENTES</div><strong>${Object.keys(tally).length}</strong></div></div>
     `);
+  }
+
+  // Alias para retrocompatibilidad
+  generatePizzasSoldIntervalReport(data: ReporteIntervaloData) {
+    return this.generateProductsSoldIntervalReport(data);
   }
 
   // 5. Reporte de Ingresos y Cobros por Intervalo
@@ -725,14 +735,14 @@ export class ReportService {
       `;
     }).join('');
 
-    // Ítems Facturados (incluyendo platos, pizzas con tamaño, bebidas, deliverys y adicionales)
+    // Ítems Facturados (incluyendo hamburguesas, bebidas, deliverys y adicionales)
     const itemMap: Record<string, { category: string; name: string; quantity: number }> = {};
     data.items.forEach((item) => {
       const category = item.category || 'General';
-      const isPizza = category.toLowerCase().includes('pizza') || item.productName.toLowerCase().includes('pizza') || !!item.size || !!item.isHalfHalf;
-      const effectiveCategory = isPizza ? 'Pizzas' : category;
-      const sizeLabel = item.size ? ` (${item.size})` : '';
-      const displayName = `${item.productName}${sizeLabel}`;
+      const catLower = category.toLowerCase();
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || item.productName.toLowerCase().includes('burger') || item.productName.toLowerCase().includes('crispy');
+      const effectiveCategory = isBurger ? 'Hamburguesas' : category;
+      const displayName = item.productName;
       const key = `${effectiveCategory}|${displayName}`;
       if (!itemMap[key]) itemMap[key] = { category: effectiveCategory, name: displayName, quantity: 0 };
       itemMap[key].quantity += item.quantity;

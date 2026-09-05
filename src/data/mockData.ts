@@ -15,6 +15,8 @@ export interface Product {
   image: string;
   badge?: string;
   baseIngredients?: string[];
+  proteinCount?: number;
+  defaultProteins?: string[];
   recipe: RecipeIngredient[];
   shift?: 'manana' | 'noche' | 'ambos';
 }
@@ -23,6 +25,7 @@ export interface Ingredient {
   id: string;
   name: string;
   priceUSD: number;
+  ingredientType?: 'proteina' | 'gratis' | 'adicional' | 'base';
   isBase?: boolean;
   isExtra?: boolean;
   priceGrandeCompleta?: number;
@@ -198,8 +201,11 @@ export interface ExchangeRates {
 export interface PrinterUnitConfig {
   name: string;
   enabled: boolean;
+  connectionType?: 'lan' | 'usb';
+  paperWidth?: '80mm' | '58mm';
   host: string;
   port: number;
+  usbDeviceName?: string;
   timeoutMs: number;
   copies: number;
 }
@@ -207,6 +213,19 @@ export interface PrinterUnitConfig {
 export interface DualPrintersConfig {
   cocina: PrinterUnitConfig;
   caja: PrinterUnitConfig;
+}
+
+export interface BurgerUnitConfig {
+  unitIndex: number;
+  proteins: string[];
+  removedIngredients: string[];
+  selectedFreeToppings: string[];
+  selectedPaidExtras: { name: string; price: number }[];
+  isTakeaway: boolean;
+  isCut: boolean;
+  cutPreference: 'Picada' | 'Entera';
+  notes: string;
+  subtotalUSD: number;
 }
 
 export const INITIAL_EXCHANGE_RATES: ExchangeRates = {

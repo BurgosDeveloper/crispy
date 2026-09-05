@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IoCheckmarkCircle, IoClose, IoPersonOutline, IoReceiptOutline } from 'react-icons/io5';
 import { Order } from '../data/mockData';
 import { roundCOP } from '../utils/currencyRounding';
@@ -53,20 +54,20 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
   const copRate = exchangeRates?.COP || 3950;
   const bsRate = exchangeRates?.Bs || 36.5;
 
-  return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-white text-gray-900 w-screen h-screen overflow-hidden animate-in fade-in select-none">
-      {/* 1. TOP HEADER - PANTALLA COMPLETA CRISPY */}
-      <header className="bg-slate-950 text-white px-6 py-4 flex items-center justify-between border-b-4 border-yellow-400 shrink-0 shadow-md">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex flex-col bg-white text-gray-900 w-full h-full max-h-screen overflow-hidden select-none">
+      {/* 1. TOP HEADER - CLARO OFICIAL CRISPY */}
+      <header className="bg-white text-gray-900 px-5 py-3 flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-3xl">👥</span>
+          <span className="text-2xl">👥</span>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-wide flex items-center gap-3">
               <span>COBRO DIVIDIDO POR PERSONA</span>
-              <span className="bg-yellow-400 text-black px-3 py-1 rounded-xl text-xs sm:text-sm font-black">
-                Comanda #{order.orderNumber}
+              <span className="bg-yellow-400 text-black px-2.5 py-0.5 rounded-lg text-xs sm:text-sm font-black">
+                Comanda #{order.orderNumber.replace(/^#+/, '')}
               </span>
             </h2>
-            <p className="text-xs sm:text-sm text-gray-300 mt-0.5">
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
               Selecciona qué productos consumió este comensal para cobrar su cuenta por separado
             </p>
           </div>
@@ -75,15 +76,15 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
         <button
           type="button"
           onClick={onCancel}
-          className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition-colors cursor-pointer"
+          className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-600 hover:text-black transition-colors cursor-pointer"
           title="Cancelar división"
         >
-          <IoClose className="text-3xl" />
+          <IoClose className="text-2xl" />
         </button>
       </header>
 
       {/* 2. BODY SCROLLABLE - AMPLIO Y ESPACIOSO */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 max-w-5xl mx-auto w-full">
+      <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-5xl mx-auto w-full">
         {/* INPUT DE NOMBRE DE LA PERSONA */}
         <div className="bg-stone-50 p-5 rounded-3xl border-2 border-gray-200 shadow-xs space-y-2">
           <label className="block text-sm sm:text-base font-black uppercase text-gray-800 tracking-wider flex items-center gap-2">
@@ -219,20 +220,20 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
         </div>
       </main>
 
-      {/* 3. FOOTER TOTALES Y BOTONES */}
-      <footer className="bg-slate-950 text-white px-6 py-5 border-t-4 border-yellow-400 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xl">
+      {/* 3. FOOTER TOTALES Y BOTONES - CLARO OFICIAL CRISPY */}
+      <footer className="bg-white text-gray-900 px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-lg">
         <div>
-          <span className="text-xs font-black uppercase tracking-wider text-gray-400 block">
+          <span className="text-xs font-black uppercase tracking-wider text-gray-500 block">
             Subtotal a cobrar a {normalizedPayerName || 'este comensal'}:
           </span>
           <div className="flex items-baseline gap-3 flex-wrap mt-0.5">
-            <span className="text-3xl sm:text-4xl font-black text-yellow-400">
+            <span className="text-2xl sm:text-3xl font-black text-black">
               ${selectedTotalUSD.toFixed(2)} USD
             </span>
-            <span className="text-base sm:text-lg font-black text-gray-300">
+            <span className="text-xs sm:text-sm font-bold text-gray-700">
               🇨🇴 {roundCOP(selectedTotalUSD * copRate).toLocaleString()} COP
             </span>
-            <span className="text-base sm:text-lg font-black text-gray-300">
+            <span className="text-xs sm:text-sm font-bold text-gray-700">
               🇻🇪 {(selectedTotalUSD * bsRate).toFixed(2)} Bs
             </span>
           </div>
@@ -242,7 +243,7 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-4 rounded-2xl text-sm sm:text-base font-black text-gray-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black text-gray-700 hover:bg-stone-100 hover:text-black transition-colors cursor-pointer"
           >
             CANCELAR
           </button>
@@ -250,13 +251,14 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
             type="button"
             onClick={() => onConfirm(normalizedPayerName, selectedItemIds)}
             disabled={!canContinue}
-            className="px-8 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-base sm:text-xl border-2 border-yellow-500 flex items-center gap-2 shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:bg-gray-700 disabled:border-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm sm:text-base border-2 border-yellow-500 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            <IoReceiptOutline className="text-2xl" />
+            <IoReceiptOutline className="text-xl" />
             <span>CONTINUAR AL COBRO</span>
           </button>
         </div>
       </footer>
-    </div>
+    </div>,
+    document.body
   );
 };

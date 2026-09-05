@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
-  IoPizza,
   IoArrowForward,
   IoRestaurant,
   IoFlame,
@@ -22,11 +21,11 @@ export const RoleSelectorPage: React.FC = () => {
       path: '/mesonero',
       title: 'Módulo Mesero',
       badgeTitle: 'Toma de Comandas',
-      subtitle: 'Tarjetas táctiles de Mesas, Delivery y PickUp. Menú modal intuitivo de pizzas, bebidas y postres.',
-      icon: <IoRestaurant className="text-4xl text-emerald-700" />,
+      subtitle: 'Tarjetas táctiles de Mesas, Delivery y PickUp. Menú modal de hamburguesas, bebidas y adicionales.',
+      icon: <IoRestaurant className="text-4xl text-yellow-600" />,
       highlights: [
         'Selección directa de Mesa, Delivery o PickUp',
-        'Modal de menú interactivo por categorías',
+        'Configurador táctil de hamburguesas con toppings',
         'Sincronización WebSocket en tiempo real',
       ],
     },
@@ -34,91 +33,101 @@ export const RoleSelectorPage: React.FC = () => {
       path: '/caja',
       title: 'Módulo Caja POS',
       badgeTitle: 'Facturación & Cobro',
-      subtitle: 'Comandas con estados duales (Cocina y Cobro), botón de entregado, Caja Chica contable y Asistente IA de Texto.',
-      icon: <IoCard className="text-4xl text-emerald-700" />,
+      subtitle: 'Comandas con estados duales (Cocina y Cobro), caja chica contable y desglose multimoneda.',
+      icon: <IoCard className="text-4xl text-yellow-600" />,
       badgeCount: unpaidCount,
       highlights: [
-        'Cobro multimoneda: Efectivo USD USD, COP, Bs, Binance',
-        'Apertura y flujo contable de Caja Chica',
-        'Asistente de consulta rápida por texto',
+        'Cobro multimoneda: USD, COP, Bs, Binance',
+        'Cálculo de vueltos exactos en las 3 monedas',
+        'Impresión térmica de recibos y auditoría',
       ],
     },
     {
       path: '/cocina',
       title: 'Módulo Cocina KDS',
       badgeTitle: 'Kitchen Display',
-      subtitle: 'Monitor visual de comandas sin cortes de texto, temporizador en tiempo real y confirmación sonora síncrona.',
-      icon: <IoFlame className="text-4xl text-amber-600" />,
+      subtitle: 'Monitor visual de comandas de hamburguesas sin cortes de texto, temporizador y alertas sonoras.',
+      icon: <IoFlame className="text-4xl text-yellow-600" />,
       badgeCount: pendingKdsCount,
       highlights: [
         'Alertas de sonido por nuevas comandas',
-        'Detallado completo con observaciones sin cortes',
+        'Detalle de ingredientes, adicionales y puntos de carne',
         'Notificación instantánea a Mesero y Caja al estar lista',
       ],
     },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center p-4 sm:p-8 bg-slate-50 text-slate-900">
-      {/* Title & Connection Status */}
+    <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center p-4 sm:p-8 bg-gray-50 text-gray-900">
+      {/* Title, Logo & Connection Status */}
       <div className="text-center max-w-2xl mb-10 space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-emerald-200 text-emerald-700 text-xs font-black uppercase tracking-widest shadow-lg">
-          <IoPizza className="text-lg" />
-          <span>BASILICO REALTIME SYSTEM</span>
+        <div className="flex justify-center mb-1">
+          <div className="w-24 h-24 rounded-3xl bg-white border-2 border-yellow-400 p-2 flex items-center justify-center shadow-lg transform hover:scale-105 transition-all overflow-hidden">
+            <img
+              src="/logo_default.png"
+              alt="Crispy Burger"
+              className="w-full h-full object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/icon.png'; }}
+            />
+          </div>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-400/20 border border-yellow-500/40 text-black text-xs font-black uppercase tracking-widest shadow-xs">
+          <span>CRISPY BURGER REALTIME POS</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-gray-900">
           Selecciona tu Módulo
         </h1>
 
-        <p className="text-sm text-slate-700/70">
+        <p className="text-sm text-gray-600">
           Sistema 100% en tiempo real para Mesero, Caja POS y Cocina KDS en red local LAN.
         </p>
 
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600">
-          <IoWifi className={isConnected ? 'text-emerald-700 animate-pulse' : 'text-amber-600'} />
-          <span>{isConnected ? 'Servidor WebSocket Activo (LAN)' : 'Esperando Servidor Backend...'}</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 shadow-xs">
+          <IoWifi className={isConnected ? 'text-green-600 animate-pulse' : 'text-amber-500'} />
+          <span className="font-bold">{isConnected ? 'Servidor WebSocket Activo (LAN)' : 'Esperando Servidor Backend...'}</span>
         </div>
       </div>
 
-      {/* Role Cards Grid (Claymorphism & Glassmorphism) */}
+      {/* Role Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
         {roleCards.map((card) => (
           <div
             key={card.path}
             onClick={() => navigate(card.path)}
-            className="group relative flex flex-col justify-between p-6 rounded-3xl bg-gradient-to-br from-white via-slate-50 to-slate-100 border border-emerald-200 hover:border-emerald-300/70 shadow-2xl hover:shadow-emerald-950/60 transition-all duration-300 transform hover:-translate-y-1.5 cursor-pointer backdrop-blur-xl"
+            className="group relative flex flex-col justify-between p-6 rounded-3xl bg-white border-2 border-gray-200 hover:border-yellow-400 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 cursor-pointer"
           >
             <div>
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-yellow-50 border border-yellow-200 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                   {card.icon}
                 </div>
                 {card.badgeCount !== undefined && card.badgeCount > 0 && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500 text-black shadow-lg animate-bounce">
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-yellow-400 text-black border border-yellow-500 shadow-md animate-bounce">
                     {card.badgeCount} ACTIVAS
                   </span>
                 )}
               </div>
 
-              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+              <span className="text-[10px] font-black text-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-yellow-100 border border-yellow-300">
                 {card.badgeTitle}
               </span>
 
-              <h2 className="text-2xl font-black text-slate-900 mt-2 group-hover:text-emerald-800 transition-colors">
+              <h2 className="text-2xl font-black text-gray-900 mt-2 group-hover:text-yellow-600 transition-colors">
                 {card.title}
               </h2>
 
-              <p className="text-xs text-slate-700/70 mt-2 leading-relaxed">
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                 {card.subtitle}
               </p>
 
               {/* Highlights */}
-              <ul className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+              <ul className="mt-4 space-y-2 border-t border-gray-100 pt-4">
                 {card.highlights.map((h, i) => (
-                  <li key={i} className="text-[11px] text-slate-600 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <li key={i} className="text-[11px] text-gray-600 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
                     <span>{h}</span>
                   </li>
                 ))}
@@ -126,7 +135,7 @@ export const RoleSelectorPage: React.FC = () => {
             </div>
 
             {/* Action Footer */}
-            <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between font-bold text-xs text-emerald-700 group-hover:text-emerald-800">
+            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between font-bold text-xs text-yellow-700 group-hover:text-yellow-800">
               <span>INGRESAR AL MÓDULO</span>
               <IoArrowForward className="text-base group-hover:translate-x-1 transition-transform" />
             </div>

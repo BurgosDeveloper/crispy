@@ -2,16 +2,22 @@
   "cocina": {
     "name": "Impresora Cocina / KDS",
     "enabled": true,
+    "connectionType": "lan",
+    "paperWidth": "80mm",
     "host": "192.168.10.105",
     "port": 9100,
+    "usbDeviceName": "",
     "timeoutMs": 5000,
     "copies": 1
   },
   "caja": {
     "name": "Impresora Caja / Mostrador",
     "enabled": true,
+    "connectionType": "usb",
+    "paperWidth": "58mm",
     "host": "192.168.10.105",
     "port": 9100,
+    "usbDeviceName": "POS-58",
     "timeoutMs": 5000,
     "copies": 1
   }

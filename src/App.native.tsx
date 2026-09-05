@@ -431,10 +431,8 @@ const NativeAppContent: React.FC = () => {
         </TouchableOpacity>
 
         <View style={styles.brandContainer}>
-          <View style={styles.logoBox}>
-            <Ionicons name="pizza-outline" size={20} color="#10b981" />
-          </View>
-          <Text style={styles.brandName}>BASILICO</Text>
+          <Image source={require('../assets/icon.png')} style={{ width: 26, height: 26, borderRadius: 6 }} resizeMode="contain" />
+          <Text style={styles.brandName}>CRISPY</Text>
           <View style={styles.badgeTag}>
             <Text style={styles.badgeTagText}>{isConnected ? 'EN VIVO' : 'OFFLINE'}</Text>
           </View>

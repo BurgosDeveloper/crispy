@@ -8,16 +8,30 @@ const port = 3001;
 const startupTimeoutMs = 15000;
 const retryDelayMs = 250;
 
-function killBasilicoProcesses() {
+function killOldPosInstances() {
   try {
-    const cmd = 'wmic process where "name=\'node.exe\'" get commandline,processid';
-    const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    const lines = out.split('\n');
-    for (const line of lines) {
+    const cmdNode = 'wmic process where "name=\'node.exe\'" get commandline,processid';
+    const outNode = execSync(cmdNode, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const nodeLines = outNode.split('\n');
+    for (const line of nodeLines) {
       if (line.toLowerCase().includes('basilico')) {
         const match = line.trim().match(/(\d+)$/);
-        if (match) {
+        if (match && Number(match[1]) !== process.pid) {
           try { execSync(`taskkill /F /PID ${match[1]}`, { stdio: 'ignore' }); } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const cmdTask = 'tasklist /v /fo csv';
+    const outTask = execSync(cmdTask, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const taskLines = outTask.split('\n');
+    for (const line of taskLines) {
+      if (/Crispy Burger POS|Basilico/i.test(line)) {
+        const match = line.match(/"([^"]+)","(\d+)"/);
+        if (match && match[2] && Number(match[2]) !== process.pid) {
+          try { execSync(`taskkill /F /PID ${match[2]}`, { stdio: 'ignore' }); } catch (e) {}
         }
       }
     }
@@ -108,13 +122,13 @@ async function waitForBackend() {
 }
 
 async function launch() {
-  killBasilicoProcesses();
+  killOldPosInstances();
   try {
     const connectionInfo = await getConnectionInfo();
     await openPos(connectionInfo.backendUrl);
     return;
   } catch (error) {
-    killBasilicoProcesses();
+    killOldPosInstances();
     startBackend();
   }
 

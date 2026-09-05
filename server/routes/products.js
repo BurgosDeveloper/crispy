@@ -16,19 +16,21 @@ module.exports = function(io) {
 
   router.post('/', requireRole('admin'), async (req, res) => {
     try {
-      const { id: inputId, name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients } = req.body;
+      const { id: inputId, name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients, proteinCount, defaultProteins } = req.body;
       const id = inputId || `prod-${Date.now()}`;
+      const finalProteinCount = proteinCount !== undefined && proteinCount !== null ? parseInt(proteinCount, 10) : 1;
+      const finalDefaultProteins = Array.isArray(defaultProteins) ? defaultProteins : [];
 
       if (inputId) {
         await query(
-          `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = 'ambos' WHERE id = $10`,
-          [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], inputId]
+          `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, protein_count = $10, default_proteins = $11, shift = 'ambos' WHERE id = $12`,
+          [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], finalProteinCount, finalDefaultProteins, inputId]
         );
       } else {
         await query(
-          `INSERT INTO products (id, name, category, drink_type, price, price_small, description, image, badge, base_ingredients, shift)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ambos')`,
-          [id, name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || []]
+          `INSERT INTO products (id, name, category, drink_type, price, price_small, description, image, badge, base_ingredients, protein_count, default_proteins, shift)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'ambos')`,
+          [id, name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], finalProteinCount, finalDefaultProteins]
         );
       }
 
@@ -44,11 +46,13 @@ module.exports = function(io) {
   router.put('/:id', requireRole('admin'), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients } = req.body;
+      const { name, category, drinkType, price, priceSmall, description, image, badge, baseIngredients, proteinCount, defaultProteins } = req.body;
+      const finalProteinCount = proteinCount !== undefined && proteinCount !== null ? parseInt(proteinCount, 10) : 1;
+      const finalDefaultProteins = Array.isArray(defaultProteins) ? defaultProteins : [];
 
       await query(
-        `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, shift = 'ambos' WHERE id = $10`,
-        [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], id]
+        `UPDATE products SET name = $1, category = $2, drink_type = $3, price = $4, price_small = $5, description = $6, image = $7, badge = $8, base_ingredients = $9, protein_count = $10, default_proteins = $11, shift = 'ambos' WHERE id = $12`,
+        [name, category || 'Hamburguesas', drinkType || null, price || 0, priceSmall || null, description || '', image || '', badge || null, baseIngredients || [], finalProteinCount, finalDefaultProteins, id]
       );
 
       const allProducts = await fetchAllProducts();

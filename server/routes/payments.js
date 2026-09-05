@@ -123,8 +123,18 @@ module.exports = function(io) {
           return res.status(409).json({ error: 'El monto a pagar para esta selección ya está cubierto. Registra únicamente el vuelto pendiente si aplica.' });
         }
 
-        // El monto imputado al pago (principal) es el mínimo entre lo entregado (amountUSD) y la deuda pendiente
-        amountPaidUSD = Math.min(amountUSD, scopePendingDebtUSD);
+        // El monto imputado al pago (principal) es el mínimo entre lo entregado (amountUSD) y la deuda pendiente.
+        // En COP, si el cliente paga el monto comercial redondeado, cubre la totalidad de la deuda.
+        if (currency === 'COP') {
+          const requiredCOP = Math.ceil((scopePendingDebtUSD * copRate) / 1000) * 1000;
+          if (localAmount >= requiredCOP) {
+            amountPaidUSD = scopePendingDebtUSD;
+          } else {
+            amountPaidUSD = Math.min(scopePendingDebtUSD, localAmount / copRate);
+          }
+        } else {
+          amountPaidUSD = Math.min(amountUSD, scopePendingDebtUSD);
+        }
         tendered = paymentAmounts(localAmount, currency);
       } else {
         if (amountUSD > pendingChangeUSD + 0.01) {
@@ -207,10 +217,10 @@ module.exports = function(io) {
       const totalUSD = Number(order.total_usd) || 0;
       const pendingDebtUSD = Math.max(0, totalUSD - totals.paidUSD);
       const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
-      if (pendingDebtUSD > 0.01 || pendingChangeUSD > 0.01) {
+      if (pendingDebtUSD > 0.05 || pendingChangeUSD > 0.05) {
         await client.query('ROLLBACK');
         return res.status(409).json({
-          error: pendingDebtUSD > 0.01 ? 'Aún falta pago por registrar.' : 'Aún hay vuelto pendiente por entregar.',
+          error: pendingDebtUSD > 0.05 ? 'Aún falta pago por registrar.' : 'Aún hay vuelto pendiente por entregar.',
           pendingDebtUSD,
           pendingChangeUSD,
         });

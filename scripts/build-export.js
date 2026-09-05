@@ -46,16 +46,20 @@ function convertPngToIco(pngBuffer) {
   return Buffer.concat([icoHeader, pngBuffer]);
 }
 
-// 1. Asegurar icono de Pizza en formato PNG y formato ICO válido de Windows
+// 1. Asegurar icono de Crispy Burger en formato PNG y formato ICO válido de Windows
 const srcIcon = path.join(assetsDir, 'icon.png');
-const exportPngIcon = path.join(exportDir, 'pizza_icon.png');
-const exportIcoIcon = path.join(exportDir, 'pizza_icon.ico');
+const exportPngIcon = path.join(exportDir, 'crispy_icon.png');
+const exportIcoIcon = path.join(exportDir, 'crispy_icon.ico');
+const legacyPngIcon = path.join(exportDir, 'pizza_icon.png');
+const legacyIcoIcon = path.join(exportDir, 'pizza_icon.ico');
 
 if (fs.existsSync(srcIcon)) {
   const pngBuffer = fs.readFileSync(srcIcon);
   fs.writeFileSync(exportPngIcon, pngBuffer);
+  fs.writeFileSync(legacyPngIcon, pngBuffer);
   const icoBuffer = convertPngToIco(pngBuffer);
   fs.writeFileSync(exportIcoIcon, icoBuffer);
+  fs.writeFileSync(legacyIcoIcon, icoBuffer);
 }
 
 // 2. Generar archivos ejecutables VBS y BAT que abren el POS con la IP LAN vigente.

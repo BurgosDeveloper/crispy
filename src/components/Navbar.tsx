@@ -8,7 +8,6 @@ import {
   IoCard,
   IoFlame,
   IoMenu,
-  IoWifi,
   IoLogOutOutline,
   IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
@@ -61,8 +60,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-yellow-400 border border-yellow-500 flex items-center justify-center shadow-sm group-hover:scale-105 transition-all">
-              <IoFastFood className="text-black text-lg" />
+            <div className="w-9 h-9 rounded-xl bg-yellow-400 border border-yellow-500 p-0.5 flex items-center justify-center shadow-sm group-hover:scale-105 transition-all overflow-hidden">
+              <img src="/logo_default.png" alt="Crispy Burger" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/icon.png'; }} />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

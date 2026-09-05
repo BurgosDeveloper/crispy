@@ -665,11 +665,63 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - Implementado en `server/helpers/sessionAuth.js` con comparación segura `crypto.timingSafeEqual` para blindar contra ataques de sincronización.
 2. **Ciclo de Sesión Efímero en Navegador (`sessionStorage`)**:
    - El token se almacena estrictamente en `window.sessionStorage` (`crispy_user_session`), limpiando residuos de `localStorage`.
-   - **Comportamiento requerido**: Al cerrar la ventana del sistema, apagar la computadora o cerrar el navegador, la sesión expira automáticamente. Al reabrir el sistema, nadie puede acceder a ninguna pantalla sin autenticarse primero.
-3. **Protección Integral de API y WebSockets**:
-   - Todo request HTTP bajo `/api` (a excepción de `/api/auth/login`) es evaluado por el middleware `requireSession`. Si no se envía un JWT válido en `Authorization: Bearer <token>` o `x-crispy-token`, la API rechaza con 401 Unauthorized.
-   - El handshake de Socket.IO (`io.use(...)`) verifica obligatoriamente el JWT (`socket.handshake.auth.token` / `sessionToken`). Si el token es inválido o no existe, la conexión en tiempo real es denegada.
-   - Si cualquier petición HTTP devuelve 401, el cliente web invoca `logout()` de forma inmediata, limpiando la memoria y redirigiendo al inicio de sesión.
-4. **Guardias Estrictos de Rutas en Frontend (`App.web.tsx`)**:
-   - Componente `ProtectedRoute` y `MainAppLayout` evalúan `userSession?.sessionToken`.
-   - Si no hay sesión válida, cualquier intento de navegar a `/caja`, `/mesonero`, `/cocina` o `/menu-admin` renderiza directamente la pantalla de inicio de sesión (`LoginPage`).
+3. **Intelligent Default Routing**:
+   - **Kitchen Orders and Additions**: Automatically routed to the **Kitchen Printer**.
+   - **Shift Cash Counts and Closings**: Automatically routed to the **POS Printer**.
+   - **Pre-bills and Reports**: Explicit destination selection allowed via the selector modal.
+
+## Security, Mandatory JWT Authentication, and Session Cycle
+1. **Cryptographic JWT Signature (RFC 7519 HMAC-SHA256)**:
+   - Login attempts (`/api/auth/login`) issue a standard JWT signed with a secret (`CRISPY_JWT_SECRET`) that encapsulates `{ username, role, shift, exp }`.
+   - Implemented in `server/helpers/sessionAuth.js` with secure comparison `crypto.timingSafeEqual` to shield against timing attacks.
+2. **Ephemeral Session Cycle in Browser (`sessionStorage`)**:
+   - Token stored strictly in `window.sessionStorage` (`crispy_user_session`), cleaning `localStorage` residues.
+   - **Requirement**: Upon closing the system window, shutting down the computer, or closing the browser, the session expires automatically. Upon reopening the system, no one can access any screen without authenticating first.
+3. **Integral API and WebSocket Protection**:
+   - Every HTTP request under `/api` (except `/api/auth/login`) is evaluated by the `requireSession` middleware. If no valid JWT is sent in `Authorization: Bearer <token>` or `x-crispy-token`, the API rejects with 401 Unauthorized.
+   - The Socket.IO handshake (`io.use(...)`) mandates JWT verification (`socket.handshake.auth.token` / `sessionToken`). If invalid or missing, the real-time connection is denied.
+   - If any HTTP request returns 401, the web client invokes `logout()` immediately, clearing memory and redirecting to the login screen.
+4. **Strict Route Guards in Frontend (`App.web.tsx`)**:
+   - `ProtectedRoute` and `MainAppLayout` components evaluate `userSession?.sessionToken`.
+   - If no valid session exists, any attempt to navigate to `/caja`, `/mesonero`, `/cocina`, or `/menu-admin` renders the login screen (`LoginPage`) directly.
+
+## Renovación Crispy Burger: Menú Admin, Multi-Personalización, Impresoras Duales y Roles
+
+1. **Menú de Administración Renovado (`MenuManagementPage.tsx`)**:
+   - **Ingredientes Clasificados**: Selector de 4 tipos: `Proteína`, `Ingrediente Gratuito`, `Adicional con Costo`, `Ingrediente Base`. Precio único en USD para adicionales/proteínas y \$0 para gratuitos y base.
+   - **Hamburguesas Sin Imágenes**: Título "NUEVA HAMBURGUESA EN EL MENÚ", precio único en USD, selector de cantidad de proteínas (1, 2, 3 carnes), selección de proteínas por defecto e ingredientes base.
+   - **Bebidas y Mesas Limpias**: Sin campos innecesarios, tarjetas blancas limpias, icono `🪑` para mesas, y botones en amarillo Crispy (`#facc15`).
+   - **Impresoras Duales**: Configuración visual independiente para Cocina (LAN / 80mm) y Caja (USB / 58mm).
+
+2. **Multi-Personalización Táctil de Hamburguesas (`BurgerBuilderModal.tsx`)**:
+   - Cuando se solicitan $N$ hamburguesas del mismo tipo (ej. 3 Bistro), la modal presenta pestañas táctiles: `[🍔 #1]`, `[🍔 #2]`, `[🍔 #3]`.
+   - Cada hamburguesa se personaliza de forma independiente: cambio de proteínas por carne, ingredientes base retirados ("SIN"), toppings gratuitos (los 5 oficiales), adicionales con costo, entera o picada en dos (`🔪`), y notas específicas de cocina.
+   - Botón `Copiar #X a todas`: replica la personalización activa a las demás hamburguesas con un solo toque.
+   - **Emisión Inteligente**: Si todas las hamburguesas son idénticas, se consolidan como un solo ítem agrupado (`3x Crispy Bistro`); si presentan diferencias, se emiten como ítems diferenciados con etiquetas identificadoras (`[#1]`, `[#2]`, etc.) para máxima claridad en comanda de cocina y caja.
+
+3. **Selector Rápido de Impresora en Envío y Adición**:
+   - En `MeseroPage.tsx` y `OrderAppendModal.tsx` se integró el selector táctil de 4 opciones antes de enviar:
+     - `🍳 Cocina (LAN / 80mm)`
+     - `💳 Caja (USB / 58mm)`
+     - `⚡ Ambas`
+     - `🚫 No Imprimir`
+   - Formateo adaptativo en backend (`thermalPrinter.js`) según el ancho de papel (80mm vs 58mm).
+
+4. **Roles de Usuario y Acceso Rápido (`LoginPage.tsx`, `CajaPage.tsx`, `App.web.tsx`)**:
+   - En `LoginPage.tsx`: botones táctiles de acceso rápido por rol (`👑 Admin`, `💳 Caja`, `🍽️ Mesero`, `🍳 Cocina`) con autocompletado para agilizar el inicio de sesión.
+   - En `CajaPage.tsx`: botón destacado `🍽️ NUEVO PEDIDO / MESERO` en la barra de pestañas, permitiendo al cajero tomar pedidos y gestionar mesas directamente.
+   - En `App.web.tsx`: alias de ruta `/mesero` redirige a `/mesonero`.
+
+5. **Auditoría Contable y Reportes**:
+   - Reportes contables y de ventas de hamburguesas actualizados con identidad Crispy Burger POS.
+   - Sincronización en tiempo real vía WebSockets en todas las operaciones.
+
+6. **Reglas Contables de Redondeo y Vueltos**:
+   - **Cobro**: El valor total a cobrar en Pesos COP se redondea comercialmente al millar superior (`roundCOP(totalUSD * copRate)`). Dicho monto redondeado se imputa como el valor total a cancelar por la comanda, sin generar diferencias ficticias o vueltos fantasma por centavos en el sistema.
+   - **Vueltos**: Los vueltos entregados al comensal son **estrictamente exactos**. Nunca se aplica redondeo al alza en los vueltos.
+   - **Contravalor en Dólares**: En el registro de movimientos y arqueos de caja, los vueltos en COP y Bs calculan y muestran su equivalente real en USD dividiendo por la tasa correspondiente (`vuelto / tasa`), eliminando registros en \$0.00 USD.
+   - **Cierre Inmediato**: Al presionar `FINALIZAR COBRO`, la modal se cierra de forma automática y asienta la venta en el sistema.
+
+7. **Arquitectura de Modales y Experiencia de Usuario**:
+   - **Montaje en Raíz (`createPortal`)**: Las modales de personalización (`BurgerBuilderModal`), cobro dividido (`SplitPaymentSelectionModal`) y pasarela de cobro (`PaymentLedgerModal`) se renderizan directamente en `document.body` mediante portales de React, garantizando que ocupen el 100% del viewport sin desplazamientos debajo del Navbar ni cortes en los botones de pie de página.
+   - **Identificación de Proteínas Predeterminadas**: Cada slot de carne en el armador de hamburguesas destaca con la insignia `⭐ Original` la proteína correspondiente a la receta de fábrica (ej. Novillo, Pollo Crispy, Chuleta en la 3.0), facilitando el reconocimiento inmediato al mesero frente a modificaciones solicitadas por el cliente.

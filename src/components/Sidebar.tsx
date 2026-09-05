@@ -11,7 +11,6 @@ import {
   IoClose,
   IoFastFood,
   IoCashOutline,
-  IoWifi,
   IoLogOutOutline,
   IoLayersOutline,
   IoCheckmarkCircle,
@@ -316,7 +315,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Top Header & Collapse Toggle Button */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-3">
         <div className="flex items-center gap-2">
-          <IoFastFood className="text-yellow-500 text-2xl shrink-0" />
+          <div className="w-7 h-7 rounded-lg bg-yellow-400 border border-yellow-500 p-0.5 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+            <img src="/logo_default.png" alt="Crispy Burger" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/icon.png'; }} />
+          </div>
           {!isCollapsed && (
             <span className="font-black text-sm tracking-wider text-black">
               CRISPY POS

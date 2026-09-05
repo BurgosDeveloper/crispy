@@ -38,8 +38,11 @@ function loadDualPrinterConfig() {
   const cocinaRaw = fileConfig.cocina || {
     name: 'Impresora Cocina / KDS',
     enabled: fileConfig.enabled !== undefined ? fileConfig.enabled : true,
+    connectionType: 'lan',
+    paperWidth: '80mm',
     host: fileConfig.host || '192.168.1.200',
     port: Number(fileConfig.port || 9100),
+    usbDeviceName: '',
     timeoutMs: Number(fileConfig.timeoutMs || 5000),
     copies: Math.max(1, Number(fileConfig.copies || 1)),
   };
@@ -47,8 +50,11 @@ function loadDualPrinterConfig() {
   const cajaRaw = fileConfig.caja || {
     name: 'Impresora Caja / Mostrador',
     enabled: fileConfig.enabled !== undefined ? fileConfig.enabled : true,
+    connectionType: 'usb',
+    paperWidth: '58mm',
     host: fileConfig.host || '192.168.1.201',
     port: Number(fileConfig.port || 9100),
+    usbDeviceName: 'POS-58',
     timeoutMs: Number(fileConfig.timeoutMs || 5000),
     copies: Math.max(1, Number(fileConfig.copies || 1)),
   };
@@ -57,16 +63,22 @@ function loadDualPrinterConfig() {
     cocina: {
       name: cocinaRaw.name || 'Impresora Cocina / KDS',
       enabled: cocinaRaw.enabled === true,
+      connectionType: cocinaRaw.connectionType === 'usb' ? 'usb' : 'lan',
+      paperWidth: cocinaRaw.paperWidth === '58mm' ? '58mm' : '80mm',
       host: String(cocinaRaw.host || '').trim(),
       port: Number(cocinaRaw.port || 9100),
+      usbDeviceName: String(cocinaRaw.usbDeviceName || '').trim(),
       timeoutMs: Number(cocinaRaw.timeoutMs || 5000),
       copies: Math.max(1, Number(cocinaRaw.copies || 1)),
     },
     caja: {
       name: cajaRaw.name || 'Impresora Caja / Mostrador',
       enabled: cajaRaw.enabled === true,
+      connectionType: cajaRaw.connectionType === 'lan' ? 'lan' : 'usb',
+      paperWidth: cajaRaw.paperWidth === '80mm' ? '80mm' : '58mm',
       host: String(cajaRaw.host || '').trim(),
       port: Number(cajaRaw.port || 9100),
+      usbDeviceName: String(cajaRaw.usbDeviceName !== undefined ? cajaRaw.usbDeviceName : 'POS-58').trim(),
       timeoutMs: Number(cajaRaw.timeoutMs || 5000),
       copies: Math.max(1, Number(cajaRaw.copies || 1)),
     }
@@ -79,13 +91,19 @@ function saveDualPrinterConfig(newConfig) {
     cocina: {
       ...current.cocina,
       ...(newConfig.cocina || {}),
+      connectionType: newConfig.cocina?.connectionType === 'usb' ? 'usb' : 'lan',
+      paperWidth: newConfig.cocina?.paperWidth === '58mm' ? '58mm' : '80mm',
       port: Number(newConfig.cocina?.port || current.cocina.port || 9100),
+      usbDeviceName: String(newConfig.cocina?.usbDeviceName !== undefined ? newConfig.cocina.usbDeviceName : current.cocina.usbDeviceName || '').trim(),
       copies: Math.max(1, Number(newConfig.cocina?.copies || current.cocina.copies || 1)),
     },
     caja: {
       ...current.caja,
       ...(newConfig.caja || {}),
+      connectionType: newConfig.caja?.connectionType === 'lan' ? 'lan' : 'usb',
+      paperWidth: newConfig.caja?.paperWidth === '80mm' ? '80mm' : '58mm',
       port: Number(newConfig.caja?.port || current.caja.port || 9100),
+      usbDeviceName: String(newConfig.caja?.usbDeviceName !== undefined ? newConfig.caja.usbDeviceName : current.caja.usbDeviceName || 'POS-58').trim(),
       copies: Math.max(1, Number(newConfig.caja?.copies || current.caja.copies || 1)),
     }
   };
@@ -313,6 +331,7 @@ function buildReportTicket(reportType, data) {
   const titles = {
     contable: 'REPORTE CONTABLE',
     pizzas: 'HAMBURGUESAS VENDIDAS',
+    hamburguesas: 'HAMBURGUESAS VENDIDAS',
     ingresos: 'INGRESOS Y COBROS',
     egresos: 'VUELTOS Y EGRESOS',
     cocina: 'REPORTE DE COCINA',
@@ -327,13 +346,13 @@ function buildReportTicket(reportType, data) {
   const lines = [];
   addReportHeader(lines, title, data, reportWidth, formatSetup);
 
-  if (reportType === 'pizzas') {
+  if (reportType === 'pizzas' || reportType === 'hamburguesas') {
     const grouped = new Map();
     for (const item of data.items || []) {
-      const isPizza = (item.category || '').toLowerCase().includes('pizza') || (item.productName || '').toLowerCase().includes('pizza') || !!item.size || !!item.isHalfHalf;
-      const sizeLabel = item.size ? ` (${item.size})` : '';
-      const fullName = `${item.productName || item.name || 'Item'}${sizeLabel}`;
-      const category = isPizza ? 'Pizzas' : (item.category || 'Sin categoria');
+      const catLower = (item.category || '').toLowerCase();
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || (item.productName || '').toLowerCase().includes('burger') || (item.productName || '').toLowerCase().includes('crispy');
+      const fullName = item.productName || item.name || 'Item';
+      const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoria');
       const key = `${category}|${fullName}`;
       const current = grouped.get(key) || { category, name: fullName, quantity: 0, totalUSD: 0 };
       current.quantity += Number(item.quantity) || 0;
@@ -345,7 +364,7 @@ function buildReportTicket(reportType, data) {
     const totalUSD = items.reduce((total, item) => total + item.totalUSD, 0);
     addSection(lines, 'DETALLE DE ITEMS FACTURADOS');
     if (items.length === 0) {
-      lines.push('SIN PIZZAS, BEBIDAS O ADICIONALES');
+      lines.push('SIN HAMBURGUESAS, BEBIDAS O ADICIONALES');
     } else {
       let category = '';
       for (const item of items) {
@@ -777,6 +796,78 @@ function buildKitchenAdditionTicket(order, addedItems) {
 }
 
 function sendRawTicket(payload, config) {
+  if (config.connectionType === 'usb') {
+    return new Promise((resolve, reject) => {
+      const printerName = String(config.usbDeviceName || 'POS-58').trim();
+      if (!printerName) {
+        return reject(new Error('Nombre de impresora o dispositivo USB no configurado.'));
+      }
+
+      // 1. Puerto serial o paralelo directo (COMx o LPTx)
+      if (/^(COM\d+|LPT\d+)$/i.test(printerName)) {
+        try {
+          fs.writeFileSync(`\\\\.\\${printerName}`, payload);
+          return resolve();
+        } catch (err) {
+          return reject(err);
+        }
+      }
+
+      // 2. Impresora USB en Windows (Spooler o recurso compartido)
+      const os = require('os');
+      const tempPath = path.join(os.tmpdir(), `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
+      try {
+        fs.writeFileSync(tempPath, payload);
+      } catch (err) {
+        return reject(err);
+      }
+
+      const escapedTempPath = tempPath.replace(/'/g, "''");
+      const escapedPrinter = printerName.replace(/'/g, "''");
+
+      // Script PowerShell para enviar bytes RAW directamente a la cola de impresión de Windows
+      const psScript = `
+        $printer = '${escapedPrinter}';
+        $file = '${escapedTempPath}';
+        try {
+          # Intento 1: Copiar a puerto de red local/compartido
+          Copy-Item -Path $file -Destination "\\\\localhost\\$printer" -Force -ErrorAction Stop
+          exit 0
+        } catch {
+          try {
+            # Intento 2: Usar comando copy de cmd
+            cmd.exe /c "copy /b \`"$file\`" \`"\\\\localhost\\$printer\`"" | Out-Null
+            exit 0
+          } catch {
+            exit 1
+          }
+        }
+      `;
+
+      require('child_process').exec(
+        `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/\n/g, ' ')}"`,
+        { timeout: config.timeoutMs || 5000 },
+        (err) => {
+          try { fs.unlinkSync(tempPath); } catch (_) {}
+          if (err) {
+            // Fallback a socket LAN si host y puerto están configurados
+            if (config.host && Number.isInteger(config.port) && config.port > 0) {
+              const socket = net.createConnection({ host: config.host, port: config.port });
+              socket.setTimeout(config.timeoutMs || 5000);
+              socket.once('connect', () => socket.end(payload, () => resolve()));
+              socket.once('timeout', () => reject(new Error(`Fallo spooler USB (${printerName}) y tiempo de espera agotado en LAN (${config.host}:${config.port}).`)));
+              socket.once('error', (netErr) => reject(new Error(`Fallo spooler USB (${printerName}) y fallback LAN falló: ${netErr.message}`)));
+              return;
+            }
+            return reject(new Error(`No se pudo imprimir en USB "${printerName}". Verifique que la impresora esté conectada o compartida en Windows.`));
+          }
+          resolve();
+        }
+      );
+    });
+  }
+
+  // Conexión TCP / Red estándar para LAN
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: config.host, port: config.port });
     let settled = false;
@@ -806,6 +897,8 @@ async function sendRawTicketToTarget(payload, targetPrinter = 'auto', defaultFal
   } else if (targetPrinter === 'ambas') {
     targets.push({ key: 'cocina', config: configs.cocina });
     targets.push({ key: 'caja', config: configs.caja });
+  } else if (targetPrinter === 'ninguna') {
+    return { printed: false, reason: 'skipped_by_user', results: [] };
   } else {
     // 'auto': defaultFallback determines primary
     if (defaultFallback === 'cocina') {
@@ -821,9 +914,16 @@ async function sendRawTicketToTarget(payload, targetPrinter = 'auto', defaultFal
       results.push({ printer: key, printed: false, reason: 'disabled' });
       continue;
     }
-    if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
-      results.push({ printer: key, printed: false, reason: 'invalid_host_port' });
-      continue;
+    if (config.connectionType === 'lan') {
+      if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
+        results.push({ printer: key, printed: false, reason: 'invalid_host_port' });
+        continue;
+      }
+    } else if (config.connectionType === 'usb') {
+      if (!config.usbDeviceName) {
+        results.push({ printer: key, printed: false, reason: 'invalid_usb_device_name' });
+        continue;
+      }
     }
     try {
       for (let copy = 0; copy < config.copies; copy += 1) {
@@ -845,20 +945,25 @@ async function sendRawTicketToTarget(payload, targetPrinter = 'auto', defaultFal
 }
 
 function buildTestTicket(printerName, config) {
+  const is58mm = config.paperWidth === '58mm';
+  const width = is58mm ? 20 : 28;
   const lines = [
     '\x1B@',
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('CRISPY BURGER'),
-    centered('--- PRUEBA DE CONEXION ---'),
+    centered('CRISPY BURGER', width),
+    centered('--- PRUEBA DE CONEXION ---', width),
     '\x1BE\x00',
     '\x1Ba\x00',
-    divider('='),
+    divider('=', width),
     `IMPRESORA: ${printableText(printerName)}`,
-    `DESTINO: ${printableText(config.host)}:${config.port}`,
+    config.connectionType === 'usb'
+      ? `CONEXION: USB (${printableText(config.usbDeviceName || 'Directo')})`
+      : `DESTINO: ${printableText(config.host)}:${config.port}`,
+    `FORMATO: PAPEL ${config.paperWidth || '80mm'}`,
     `FECHA: ${new Date().toLocaleString('es-VE')}`,
-    divider(),
+    divider('-', width),
     '\x1Ba\x01',
     'CONEXION EXITOSA',
     'IMPRESORA OPERATIVA Y LISTA',
@@ -876,12 +981,15 @@ async function printTestTicket(targetPrinter = 'caja') {
 
   for (const t of targets) {
     const cfg = configs[t] || configs.caja;
-    if (!cfg.host || !Number.isInteger(cfg.port)) {
+    if (cfg.connectionType === 'lan' && (!cfg.host || !Number.isInteger(cfg.port))) {
       throw new Error(`La impresora de ${t} no tiene IP o puerto válido configurado.`);
+    }
+    if (cfg.connectionType === 'usb' && !cfg.usbDeviceName) {
+      throw new Error(`La impresora de ${t} no tiene nombre de dispositivo USB configurado.`);
     }
     const payload = buildTestTicket(cfg.name, cfg);
     await sendRawTicket(payload, cfg);
-    results.push({ printer: t, printed: true, host: cfg.host, port: cfg.port });
+    results.push({ printer: t, printed: true, host: cfg.host, port: cfg.port, connectionType: cfg.connectionType, paperWidth: cfg.paperWidth });
   }
 
   return { success: true, results };

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IoClose,
   IoEyeOutline,
@@ -122,60 +123,51 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     ? history.filter((entry) => entry.itemIds?.some((itemId) => paymentScope.itemIds.includes(itemId)))
     : history;
 
-  const paidUSD = scopedHistory.reduce((total, item) => total + (item.amountPaidUSD || 0), 0);
-  const tenderedUSD = scopedHistory.reduce((total, item) => {
+  const getEntryTenderedUSD = (item: Order['paymentHistory'][number]) => {
     const rateCOP = item.copRate || exchangeRates.COP;
     const rateBs = item.bsRate || exchangeRates.Bs;
-    return (
-      total +
-      (item.cashTenderedUSD || 0) +
-      (rateCOP > 0 ? (item.cashTenderedCOP || 0) / rateCOP : 0) +
-      (rateBs > 0 ? (item.cashTenderedBs || 0) / rateBs : 0)
-    );
-  }, 0);
+    let usd = item.cashTenderedUSD || 0;
+    if ((item.cashTenderedCOP || 0) > 0) {
+      if ((item.amountPaidUSD || 0) > 0 && rateCOP > 0) {
+        const requiredCOP = roundCOP((item.amountPaidUSD || 0) * rateCOP);
+        const excessCOP = Math.max(0, (item.cashTenderedCOP || 0) - requiredCOP);
+        usd += (item.amountPaidUSD || 0) + (excessCOP / rateCOP);
+      } else if (rateCOP > 0) {
+        usd += (item.cashTenderedCOP || 0) / rateCOP;
+      }
+    }
+    if ((item.cashTenderedBs || 0) > 0 && rateBs > 0) {
+      usd += (item.cashTenderedBs || 0) / rateBs;
+    }
+    return usd;
+  };
 
-  const changeGivenUSD = scopedHistory.reduce((total, item) => {
+  const getEntryChangeUSD = (item: Order['paymentHistory'][number]) => {
     const rateCOP = item.copRate || exchangeRates.COP;
     const rateBs = item.bsRate || exchangeRates.Bs;
     return (
-      total +
       (item.changeGivenUSD || 0) +
       (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
       (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0)
     );
-  }, 0);
+  };
+
+  const paidUSD = scopedHistory.reduce((total, item) => total + (item.amountPaidUSD || 0), 0);
+  const tenderedUSD = scopedHistory.reduce((total, item) => total + getEntryTenderedUSD(item), 0);
+  const changeGivenUSD = scopedHistory.reduce((total, item) => total + getEntryChangeUSD(item), 0);
 
   const pendingDebtUSD = Math.max(0, scopeTotalUSD - paidUSD);
   const pendingChangeUSD = Math.max(0, tenderedUSD - scopeTotalUSD - changeGivenUSD);
 
   const fullOrderPaidUSD = history.reduce((total, item) => total + (item.amountPaidUSD || 0), 0);
-  const fullOrderTenderedUSD = history.reduce((total, item) => {
-    const rateCOP = item.copRate || exchangeRates.COP;
-    const rateBs = item.bsRate || exchangeRates.Bs;
-    return (
-      total +
-      (item.cashTenderedUSD || 0) +
-      (rateCOP > 0 ? (item.cashTenderedCOP || 0) / rateCOP : 0) +
-      (rateBs > 0 ? (item.cashTenderedBs || 0) / rateBs : 0)
-    );
-  }, 0);
-
-  const fullOrderChangeUSD = history.reduce((total, item) => {
-    const rateCOP = item.copRate || exchangeRates.COP;
-    const rateBs = item.bsRate || exchangeRates.Bs;
-    return (
-      total +
-      (item.changeGivenUSD || 0) +
-      (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
-      (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0)
-    );
-  }, 0);
+  const fullOrderTenderedUSD = history.reduce((total, item) => total + getEntryTenderedUSD(item), 0);
+  const fullOrderChangeUSD = history.reduce((total, item) => total + getEntryChangeUSD(item), 0);
 
   const entryUSD = asUSD(Number(amountLocal) || 0, currency, exchangeRates.COP, exchangeRates.Bs);
 
   const isReadyToClose =
-    Math.max(0, (order?.totalUSD || 0) - fullOrderPaidUSD) <= 0.01 &&
-    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= 0.01;
+    Math.max(0, (order?.totalUSD || 0) - fullOrderPaidUSD) <= 0.05 &&
+    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= 0.05;
 
   // Auto-switch to change if debt is settled but change is owed
   useEffect(() => {
@@ -197,7 +189,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   const fillExactAmount = () => {
     if (entryType === 'payment') {
       if (currency === 'USD') setAmountLocal(pendingDebtUSD.toFixed(2));
-      if (currency === 'COP') setAmountLocal(String(Math.round(pendingDebtUSD * exchangeRates.COP)));
+      if (currency === 'COP') setAmountLocal(String(roundCOP(pendingDebtUSD * exchangeRates.COP)));
       if (currency === 'Bs') setAmountLocal((pendingDebtUSD * exchangeRates.Bs).toFixed(2));
     } else {
       if (currency === 'USD') setAmountLocal(pendingChangeUSD.toFixed(2));
@@ -249,7 +241,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     setError('');
     try {
       await finalizeOrder(order.id);
-      setShowReceiptPrompt(true);
+      onClose();
     } catch (err: any) {
       setError(err?.message || 'Error al finalizar la comanda.');
     } finally {
@@ -275,26 +267,26 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-white w-screen h-screen max-w-none max-h-none overflow-hidden text-gray-900 animate-in fade-in select-none">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex flex-col bg-white w-full h-full max-h-screen overflow-hidden text-gray-900 select-none">
       <div className="w-full h-full flex flex-col overflow-hidden text-gray-900 border-none rounded-none shadow-none">
-        {/* Top Title Bar */}
-        <div className="bg-slate-950 text-white px-6 py-4 flex items-center justify-between shrink-0 border-b-2 border-yellow-400">
+        {/* Top Title Bar - CLARO OFICIAL CRISPY */}
+        <div className="bg-white text-gray-900 px-6 py-3 flex items-center justify-between shrink-0 border-b-2 border-yellow-400 shadow-xs">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="text-yellow-400 font-black text-xl">≡</span>
-            <h2 className="font-black text-base sm:text-xl tracking-wide text-white flex items-center gap-2">
+            <span className="text-yellow-600 font-black text-xl">≡</span>
+            <h2 className="font-black text-base sm:text-xl tracking-wide text-gray-900 flex items-center gap-2">
               <span>FORMAS DE PAGO</span>
               <span className="bg-yellow-400 text-black px-2.5 py-0.5 rounded-lg text-xs sm:text-sm font-black">
-                Comanda #{order.orderNumber}
+                Comanda #{order.orderNumber.replace(/^#+/, '')}
               </span>
             </h2>
             {order.customerName && (
-              <span className="text-xs sm:text-sm bg-slate-800 text-yellow-300 px-3 py-1 rounded-lg font-black border border-yellow-500/30">
+              <span className="text-xs sm:text-sm bg-stone-100 text-gray-900 px-3 py-1 rounded-lg font-black border border-gray-300">
                 👤 {order.customerName}
               </span>
             )}
             {order.type === 'mesa' && (
-              <span className="text-xs sm:text-sm bg-slate-800 text-gray-200 px-3 py-1 rounded-lg font-black border border-gray-700">
+              <span className="text-xs sm:text-sm bg-stone-100 text-gray-900 px-3 py-1 rounded-lg font-black border border-gray-300">
                 🍽️ Mesa #{order.tableNumber}
               </span>
             )}
@@ -304,7 +296,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
             <button
               type="button"
               onClick={() => (paymentScope && onEditPaymentScope ? onEditPaymentScope(order) : onViewOrder(order))}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-yellow-400 hover:text-black text-gray-200 text-xs sm:text-sm font-black border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3.5 py-1.5 rounded-xl bg-stone-100 hover:bg-yellow-400 hover:text-black text-gray-800 text-xs sm:text-sm font-black border border-gray-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <IoEyeOutline className="text-base" />
               <span>Ver Comanda</span>
@@ -312,7 +304,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-gray-400 hover:text-white transition-all cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-stone-200 text-gray-600 hover:text-black transition-all cursor-pointer"
             >
               <IoClose className="text-2xl" />
             </button>
@@ -329,12 +321,16 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 <span className="text-2xl sm:text-3xl font-black text-black">{(scopeTotalUSD * exchangeRates.Bs).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en bolívares:</span>
-                <span className="text-lg sm:text-xl font-black text-blue-700">{(paidUSD * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado / Recibido:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{((tenderedUSD > 0 ? tenderedUSD : paidUSD) * exchangeRates.Bs).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en bolívares:</span>
-                <span className="text-lg sm:text-xl font-black text-amber-700">{(changeGivenUSD * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">
+                  {pendingChangeUSD > 0.005 ? 'Vuelto por dar:' : 'Vueltos en bolívares:'}
+                </span>
+                <span className={`text-lg sm:text-xl font-black ${pendingChangeUSD > 0.005 ? 'text-amber-700' : 'text-gray-700'}`}>
+                  {((pendingChangeUSD > 0.005 ? pendingChangeUSD : changeGivenUSD) * exchangeRates.Bs).toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -345,12 +341,16 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 <span className="text-2xl sm:text-3xl font-black text-black">{roundCOP(scopeTotalUSD * exchangeRates.COP).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en pesos:</span>
-                <span className="text-lg sm:text-xl font-black text-blue-700">{roundCOP(paidUSD * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado / Recibido:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{Math.round((tenderedUSD > 0 ? tenderedUSD : paidUSD) * exchangeRates.COP).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en pesos:</span>
-                <span className="text-lg sm:text-xl font-black text-amber-700">{roundCOP(changeGivenUSD * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">
+                  {pendingChangeUSD > 0.005 ? 'Vuelto por dar:' : 'Vueltos en pesos:'}
+                </span>
+                <span className={`text-lg sm:text-xl font-black ${pendingChangeUSD > 0.005 ? 'text-amber-700' : 'text-gray-700'}`}>
+                  {Math.round((pendingChangeUSD > 0.005 ? pendingChangeUSD : changeGivenUSD) * exchangeRates.COP).toLocaleString()}
+                </span>
               </div>
             </div>
 
@@ -361,12 +361,16 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 <span className="text-2xl sm:text-3xl font-black text-black">${scopeTotalUSD.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado en dólares:</span>
-                <span className="text-lg sm:text-xl font-black text-blue-700">${paidUSD.toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado / Recibido:</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">${(tenderedUSD > 0 ? tenderedUSD : paidUSD).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
-                <span className="text-sm sm:text-base text-gray-600 font-bold">Vueltos en dólares:</span>
-                <span className="text-lg sm:text-xl font-black text-amber-700">${changeGivenUSD.toFixed(2)}</span>
+                <span className="text-sm sm:text-base text-gray-600 font-bold">
+                  {pendingChangeUSD > 0.005 ? 'Vuelto por dar:' : 'Vueltos en dólares:'}
+                </span>
+                <span className={`text-lg sm:text-xl font-black ${pendingChangeUSD > 0.005 ? 'text-amber-700' : 'text-gray-700'}`}>
+                  ${(pendingChangeUSD > 0.005 ? pendingChangeUSD : changeGivenUSD).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -379,7 +383,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               </span>
             ) : pendingChangeUSD > 0.01 ? (
               <span className="text-base sm:text-lg font-black text-amber-900 bg-amber-100 border-2 border-amber-300 px-5 py-2.5 rounded-2xl animate-pulse shadow-xs">
-                💵 Vuelto pendiente por entregar: ${pendingChangeUSD.toFixed(2)} USD (≈ {roundCOP(pendingChangeUSD * exchangeRates.COP).toLocaleString()} COP / {(pendingChangeUSD * exchangeRates.Bs).toFixed(2)} Bs)
+                💵 Vuelto pendiente por entregar: ${pendingChangeUSD.toFixed(2)} USD (≈ {Math.round(pendingChangeUSD * exchangeRates.COP).toLocaleString()} COP / {(pendingChangeUSD * exchangeRates.Bs).toFixed(2)} Bs)
               </span>
             ) : (
               <span className="text-base sm:text-lg font-black text-green-800 bg-green-50 border-2 border-green-300 px-5 py-2.5 rounded-2xl shadow-xs">
@@ -546,7 +550,54 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                   </thead>
                   <tbody className="divide-y divide-gray-100 font-bold">
                     {scopedHistory.map((mov) => {
-                      const isChange = mov.entryType === 'change' || (mov.changeGivenUSD || 0) > 0;
+                      const isChange =
+                        mov.entryType === 'change' ||
+                        (mov.changeGivenUSD || 0) > 0 ||
+                        (mov.changeGivenCOP || 0) > 0 ||
+                        (mov.changeGivenBs || 0) > 0;
+                      const methodName = mov.paymentMethod || mov.method || 'Efectivo';
+                      const isCOP =
+                        mov.currency === 'COP' ||
+                        (mov.cashTenderedCOP || 0) > 0 ||
+                        (mov.changeGivenCOP || 0) > 0 ||
+                        methodName.includes('COP') ||
+                        methodName.includes('Bancolombia') ||
+                        methodName.includes('Nequi');
+                      const isBs =
+                        mov.currency === 'Bs' ||
+                        (mov.cashTenderedBs || 0) > 0 ||
+                        (mov.changeGivenBs || 0) > 0 ||
+                        methodName.includes('Bs') ||
+                        methodName.includes('Móvil') ||
+                        methodName.includes('Movil') ||
+                        methodName.includes('Débito') ||
+                        methodName.includes('Crédito');
+
+                      const rateCOP = mov.copRate || exchangeRates.COP;
+                      const rateBs = mov.bsRate || exchangeRates.Bs;
+
+                      const originalAmountStr = isCOP
+                        ? isChange
+                          ? `${Math.round(mov.changeGivenCOP || 0).toLocaleString()} COP`
+                          : `${Math.round(mov.cashTenderedCOP || (mov.amountPaidUSD * rateCOP)).toLocaleString()} COP`
+                        : isBs
+                        ? isChange
+                          ? `${(mov.changeGivenBs || 0).toFixed(2)} Bs`
+                          : `${(mov.cashTenderedBs || (mov.amountPaidUSD * rateBs)).toFixed(2)} Bs`
+                        : isChange
+                        ? `$${(mov.changeGivenUSD || 0).toFixed(2)} USD`
+                        : `$${(mov.cashTenderedUSD || mov.amountPaidUSD || 0).toFixed(2)} USD`;
+
+                      const usdEquiv = isChange
+                        ? (mov.changeGivenUSD || 0) +
+                          (rateCOP > 0 ? (mov.changeGivenCOP || 0) / rateCOP : 0) +
+                          (rateBs > 0 ? (mov.changeGivenBs || 0) / rateBs : 0)
+                        : (mov.amountPaidUSD || (
+                            (mov.cashTenderedUSD || 0) +
+                            (rateCOP > 0 ? (mov.cashTenderedCOP || 0) / rateCOP : 0) +
+                            (rateBs > 0 ? (mov.cashTenderedBs || 0) / rateBs : 0)
+                          ));
+
                       return (
                         <tr key={mov.id} className="hover:bg-gray-50">
                           <td className="p-3.5">
@@ -560,14 +611,12 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                               {isChange ? 'Vuelto' : 'Pago'}
                             </span>
                           </td>
-                          <td className="p-3.5 font-black text-gray-900">{mov.method}</td>
+                          <td className="p-3.5 font-black text-gray-900">{methodName}</td>
                           <td className="p-3.5 font-black text-black text-base sm:text-lg">
-                            {mov.currency === 'USD' && `$${(mov.amountPaidUSD || mov.cashTenderedUSD || mov.changeGivenUSD || 0).toFixed(2)} USD`}
-                            {mov.currency === 'COP' && `${roundCOP(mov.cashTenderedCOP || mov.changeGivenCOP || 0).toLocaleString()} COP`}
-                            {mov.currency === 'Bs' && `${(mov.cashTenderedBs || mov.changeGivenBs || 0).toFixed(2)} Bs`}
+                            {originalAmountStr}
                           </td>
                           <td className="p-3.5 font-black text-black text-base sm:text-lg">
-                            ${(mov.amountPaidUSD || mov.cashTenderedUSD || mov.changeGivenUSD || 0).toFixed(2)} USD
+                            ${usdEquiv.toFixed(2)} USD
                           </td>
                           <td className="p-3.5 text-right">
                             <button
@@ -745,6 +794,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

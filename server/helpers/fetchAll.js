@@ -68,6 +68,13 @@ async function fetchAllOrders() {
         orderId: pm.order_id,
         payerName: pm.payer_name || 'Cliente General',
         paymentMethod: pm.payment_method,
+        method: pm.payment_method,
+        entryType: (parseFloat(pm.change_given_usd || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0) ? 'change' : 'payment',
+        currency: (parseFloat(pm.cash_tendered_cop || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('COP') || pm.payment_method.includes('Bancolombia') || pm.payment_method.includes('Nequi'))))
+          ? 'COP'
+          : (parseFloat(pm.cash_tendered_bs || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('Bs') || pm.payment_method.includes('Movil') || pm.payment_method.includes('Debito') || pm.payment_method.includes('Credito'))))
+          ? 'Bs'
+          : 'USD',
         amountPaidUSD: parseFloat(pm.amount_paid_usd) || 0,
         cashTenderedUSD: parseFloat(pm.cash_tendered_usd) || 0,
         cashTenderedCOP: parseFloat(pm.cash_tendered_cop) || 0,
@@ -121,6 +128,8 @@ async function fetchAllProducts() {
     image: normalizeImageUrl(p.image),
     badge: p.badge || undefined,
     baseIngredients: p.base_ingredients || [],
+    proteinCount: p.protein_count !== undefined && p.protein_count !== null ? Number(p.protein_count) : 1,
+    defaultProteins: p.default_proteins || [],
     recipe: [],
     shift: 'ambos',
   }));
@@ -130,19 +139,21 @@ async function fetchAllIngredients() {
   const { rows } = await query(`SELECT * FROM ingredients ORDER BY name ASC`);
   return rows.map((i) => {
     const rawPriceUsd = parseFloat(i.price_usd) || 0;
+    const ingType = i.ingredient_type || (i.category === 'Gratis' ? 'gratis' : (i.category === 'Adicionales' ? 'adicional' : (i.is_base ? 'base' : 'adicional')));
     return {
       id: i.id,
       name: i.name,
+      ingredientType: ingType,
       priceUSD: rawPriceUsd,
       priceGrandeCompleta: rawPriceUsd,
       priceGrandeMitad: rawPriceUsd > 0 ? rawPriceUsd / 2 : 0,
       pricePequenaCompleta: rawPriceUsd,
       pricePequenaMitad: rawPriceUsd > 0 ? rawPriceUsd / 2 : 0,
-      isBase: i.is_base !== false,
-      isExtra: i.is_extra !== false,
-      isBaseForPizza: i.is_base !== false || !!i.is_base_for_pizza,
-      isExtraForPizza: i.is_extra !== false || !!i.is_extra_for_pizza,
-      category: i.category || 'Ingredientes',
+      isBase: ingType === 'base' || ingType === 'proteina' || i.is_base !== false,
+      isExtra: ingType === 'adicional' || ingType === 'gratis' || i.is_extra !== false,
+      isBaseForPizza: ingType === 'base' || ingType === 'proteina' || i.is_base !== false,
+      isExtraForPizza: ingType === 'adicional' || ingType === 'gratis' || i.is_extra !== false,
+      category: i.category || (ingType === 'gratis' ? 'Gratis' : (ingType === 'proteina' ? 'Proteínas' : (ingType === 'base' ? 'Ingredientes Base' : 'Adicionales'))),
       available: i.available !== false,
       shift: 'ambos',
     };

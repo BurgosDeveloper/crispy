@@ -18,32 +18,34 @@ module.exports = function(io) {
     try {
       const {
         name,
+        ingredientType,
         priceUSD,
         priceGrandeCompleta,
         isBase,
         isExtra,
-        isBaseForPizza,
-        isExtraForPizza,
         category,
         available,
       } = req.body;
       const id = `ing-${Date.now()}`;
-      const finalPrice = priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0);
-      const finalIsBase = isBase !== undefined ? !!isBase : (isBaseForPizza !== false);
-      const finalIsExtra = isExtra !== undefined ? !!isExtra : (isExtraForPizza !== false);
+      const finalType = ingredientType || (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional')));
+      const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
+      const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
+      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || isExtra === true;
+      const finalCategory = category || (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales')));
 
       await query(
-        `INSERT INTO ingredients (id, name, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ambos')`,
+        `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ambos')`,
         [
           id,
           name,
+          finalType,
           finalPrice,
           finalIsBase,
           finalIsExtra,
           finalIsBase,
           finalIsExtra,
-          category || 'Ingredientes',
+          finalCategory,
           available !== false,
         ]
       );
@@ -62,19 +64,20 @@ module.exports = function(io) {
       const { id } = req.params;
       const {
         name,
+        ingredientType,
         category,
         priceUSD,
         priceGrandeCompleta,
         isBase,
         isExtra,
-        isBaseForPizza,
-        isExtraForPizza,
         available,
       } = req.body;
 
-      const finalPrice = priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0);
-      const finalIsBase = isBase !== undefined ? !!isBase : (isBaseForPizza !== false);
-      const finalIsExtra = isExtra !== undefined ? !!isExtra : (isExtraForPizza !== false);
+      const finalType = ingredientType || (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional')));
+      const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
+      const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
+      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || isExtra === true;
+      const finalCategory = category || (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales')));
 
       let oldName = null;
       const { rows } = await query(`SELECT name FROM ingredients WHERE id = $1`, [id]);
@@ -82,12 +85,13 @@ module.exports = function(io) {
 
       await query(
         `UPDATE ingredients 
-         SET name = $1, category = $2, price_usd = $3, 
-             is_base = $4, is_extra = $5, is_base_for_pizza = $6, is_extra_for_pizza = $7, available = $8, shift = 'ambos'
-         WHERE id = $9`,
+         SET name = $1, ingredient_type = $2, category = $3, price_usd = $4, 
+             is_base = $5, is_extra = $6, is_base_for_pizza = $7, is_extra_for_pizza = $8, available = $9, shift = 'ambos'
+         WHERE id = $10`,
         [
           name, 
-          category || 'Ingredientes', 
+          finalType,
+          finalCategory, 
           finalPrice,
           finalIsBase,
           finalIsExtra,

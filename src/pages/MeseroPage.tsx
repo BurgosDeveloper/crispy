@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Product, OrderItem, Order } from '../data/mockData';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
-import { BurgerBuilderModal } from '../modules/mesero/BurgerBuilderModal';
+import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
@@ -13,15 +13,11 @@ import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { roundCOP } from '../utils/currencyRounding';
 
 import {
-  IoRestaurant,
   IoReaderOutline,
   IoClose,
   IoTrashOutline,
   IoPaperPlane,
   IoSwapHorizontal,
-  IoAdd,
-  IoTimeOutline,
-  IoCheckmarkCircle,
   IoWarningOutline,
   IoPrintOutline,
 } from 'react-icons/io5';
@@ -33,7 +29,6 @@ export const MeseroPage: React.FC = () => {
     ingredients,
     orders,
     createOrder,
-    cancelOrder,
     exchangeRates,
     userSession,
     reprintKitchenOrder,
@@ -57,6 +52,7 @@ export const MeseroPage: React.FC = () => {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
   const [sentAlert, setSentAlert] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [targetPrinter, setTargetPrinter] = useState<'cocina' | 'caja' | 'ambas' | 'ninguna'>('cocina');
 
   // Modals for Products
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
@@ -129,19 +125,11 @@ export const MeseroPage: React.FC = () => {
   };
 
   // Confirm Burger Add
-  const handleConfirmBurgerAdd = (config: {
-    burger: Product;
-    quantity: number;
-    proteins?: string[];
-    removedIngredients: string[];
-    extras: { name: string; price: number }[];
-    isTakeaway: boolean;
-    isCut: boolean;
-    cutPreference: 'Picada' | 'Entera';
-    notes?: string;
-    finalPrice: number;
-  }) => {
-    const newItem: OrderItem = {
+  const handleConfirmBurgerAdd = (
+    configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const newItems: OrderItem[] = list.map((config) => ({
       id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       productId: config.burger.id,
       productName: config.burger.name,
@@ -156,8 +144,8 @@ export const MeseroPage: React.FC = () => {
       cutPreference: config.cutPreference,
       notes: config.notes,
       isNewOrModified: false,
-    };
-    setCartItems((prev) => [...prev, newItem]);
+    }));
+    setCartItems((prev) => [...prev, ...newItems]);
   };
 
   // Confirm Drink Add
@@ -240,6 +228,7 @@ export const MeseroPage: React.FC = () => {
         totalUSD: cartTotalUSD,
         deliveryFeeUSD: activeOrderTarget.type === 'delivery' ? deliveryFeeUSD : 0,
         shift: userSession?.shift || 'ambos',
+        targetPrinter,
       } as any);
 
       setSentAlert(`✅ Comanda enviada exitosamente (${activeOrderTarget.title})`);
@@ -853,6 +842,46 @@ export const MeseroPage: React.FC = () => {
                           ≈ ${(cartTotalUSD * exchangeRates.COP).toLocaleString()} COP | {(cartTotalUSD * exchangeRates.Bs).toFixed(2)} Bs
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Selector de Impresora al Enviar Pedido */}
+                  <div className="pt-2 border-t border-gray-200 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                        <IoPrintOutline className="text-xs text-yellow-600" />
+                        <span>Imprimir Comanda:</span>
+                      </span>
+                      <span className="text-[9px] font-bold text-gray-500">
+                        {targetPrinter === 'cocina'
+                          ? 'Cocina (80mm LAN)'
+                          : targetPrinter === 'caja'
+                          ? 'Caja (58mm USB)'
+                          : targetPrinter === 'ambas'
+                          ? 'Ambas'
+                          : 'Sin ticket'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[
+                        { id: 'cocina', label: '🍳 Cocina' },
+                        { id: 'caja', label: '💳 Caja' },
+                        { id: 'ambas', label: '⚡ Ambas' },
+                        { id: 'ninguna', label: '🚫 No' },
+                      ].map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setTargetPrinter(p.id as any)}
+                          className={`py-1.5 px-1 rounded-lg text-[10px] font-black text-center transition-all border cursor-pointer ${
+                            targetPrinter === p.id
+                              ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black'
+                              : 'bg-stone-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 

@@ -61,7 +61,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl max-w-sm w-full border border-gray-200 shadow-2xl flex flex-col overflow-hidden">
         {/* Header con las 3 monedas */}
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">

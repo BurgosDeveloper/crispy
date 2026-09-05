@@ -24,7 +24,6 @@ import {
   IoBarChartOutline,
   IoLockClosedOutline,
   IoDocumentTextOutline,
-  IoPizza,
   IoTrendingUp,
   IoPersonOutline,
   IoSwapHorizontal,
@@ -413,6 +412,15 @@ export const CajaPage: React.FC = () => {
             <span>REPORTES & CIERRE</span>
           </button>
 
+          <button
+            onClick={() => navigate('/mesonero')}
+            className="px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 shadow-xs cursor-pointer"
+            title="Crear y tomar pedidos (Modo Mesero)"
+          >
+            <span className="text-sm">🍽️</span>
+            <span>NUEVO PEDIDO / MESERO</span>
+          </button>
+
           {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
             <button
               onClick={() => setIsExchangeModalOpen(true)}
@@ -531,10 +539,9 @@ export const CajaPage: React.FC = () => {
                 const paid = ord.paidAmountUSD || 0;
                 const remaining = Math.max(0, ord.totalUSD - paid);
                 const isDelivery = ord.type === 'delivery';
-                const isPickup = ord.type === 'pickup';
                 const titleText = ord.type === 'mesa'
                   ? `Mesa #${ord.tableNumber}`
-                  : `${isDelivery ? '🛵 Delivery' : '🛍️ PickUp'}: ${ord.customerName || (isDelivery ? 'Delivery' : 'PickUp')}`;
+                  : (ord.customerName || (isDelivery ? 'Delivery' : 'Para Llevar'));
 
                 if (!isExpanded) {
                   // MINICOMANDA: Solo número de mesa o nombre delivery/pickup, 3 montos en cada moneda y botón ojo que expande
@@ -2312,7 +2319,7 @@ export const CajaPage: React.FC = () => {
       {/* Modal Selector de Impresora Térmica para Pre-Cuenta */}
       <PrinterSelectModal
         isOpen={printerSelectOrder !== null}
-        title={`🖨️ PRE-CUENTA COMANDA #${printerSelectOrder?.orderNumber}`}
+        title={`🖨️ PRE-CUENTA COMANDA #${(printerSelectOrder?.orderNumber || '').replace(/^#+/, '')}`}
         jobDescription="Selecciona la impresora térmica donde deseas emitir el ticket de consumo"
         defaultTarget="caja"
         onClose={() => setPrinterSelectOrder(null)}

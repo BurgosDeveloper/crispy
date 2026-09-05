@@ -78,6 +78,7 @@ const MainAppLayout: React.FC = () => {
         <main className="flex-1 w-full overflow-x-hidden">
           <Routes>
             <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
+            <Route path="/mesero" element={<Navigate to="/mesonero" replace />} />
             <Route
               path="/mesonero"
               element={

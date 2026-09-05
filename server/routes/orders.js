@@ -58,7 +58,7 @@ module.exports = function(io) {
   router.post('/', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     let client;
     try {
-      const { type, tableNumber, customerName, kitchenNotes, items, totalUSD, deliveryFeeUSD } = req.body;
+      const { type, tableNumber, customerName, kitchenNotes, items, totalUSD, deliveryFeeUSD, targetPrinter } = req.body;
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'La comanda debe incluir al menos un ítem.' });
       }
@@ -165,10 +165,10 @@ module.exports = function(io) {
       io.emit('tables:sync', allTables);
 
       console.log(`✅ [COMANDA REGISTRADA OK] ${createdOrder.orderNumber} enviada a WebSocket`);
-      if (requiresKitchen) {
-        void printKitchenTicket(createdOrder)
+      if (requiresKitchen && targetPrinter !== 'ninguna') {
+        void printKitchenTicket(createdOrder, targetPrinter || 'cocina')
           .then((result) => {
-            if (result.printed) console.log(`🖨️ [COMANDA IMPRESA] ${createdOrder.orderNumber} (${result.copies} copia${result.copies === 1 ? '' : 's'})`);
+            if (result.printed) console.log(`🖨️ [COMANDA IMPRESA] ${createdOrder.orderNumber} en ${targetPrinter || 'cocina'} (${result.copies} copia${result.copies === 1 ? '' : 's'})`);
           })
           .catch((printError) => {
             console.error(`⚠️ [IMPRESIÓN PENDIENTE] ${createdOrder.orderNumber}: ${printError.message}`);
@@ -736,7 +736,7 @@ module.exports = function(io) {
   // Adicionar productos a una comanda abierta (Mesero, Caja, Admin)
   router.post('/:id/append-items', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     const { id } = req.params;
-    const { addedItems = [], removedItemIds = [] } = req.body;
+    const { addedItems = [], removedItemIds = [], targetPrinter = 'cocina' } = req.body;
 
     if (!Array.isArray(addedItems) && !Array.isArray(removedItemIds)) {
       return res.status(400).json({ error: 'Debes proporcionar los ítems a adicionar o remover.' });
@@ -863,11 +863,11 @@ module.exports = function(io) {
       const updatedOrdersList = await fetchAllOrders(req.user);
       const updatedOrder = updatedOrdersList.find((o) => o.id === id);
 
-      // Impresión térmica selectiva en cocina
-      if (kitchenItemsAdded.length > 0 && updatedOrder) {
+      // Impresión térmica selectiva según destino
+      if (kitchenItemsAdded.length > 0 && updatedOrder && targetPrinter !== 'ninguna') {
         try {
-          await printKitchenAdditionTicket(updatedOrder, addedItems);
-          console.log(`🖨️ [TICKET ADICIÓN COCINA] Impreso exitosamente para comanda #${order.order_number}`);
+          await printKitchenAdditionTicket(updatedOrder, addedItems, targetPrinter);
+          console.log(`🖨️ [TICKET ADICIÓN] Impreso exitosamente para comanda #${order.order_number} en destino: ${targetPrinter}`);
         } catch (err) {
           console.warn(`⚠️ [IMPRESORA TÉRMICA] No se pudo imprimir ticket de adición: ${err.message}`);
         }

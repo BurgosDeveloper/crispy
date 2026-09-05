@@ -62,32 +62,34 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
   const cocina = printersConfig?.cocina;
   const caja = printersConfig?.caja;
 
+  const cleanTitle = title.replace(/##+/g, '#');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-lg bg-gradient-to-br from-[#062416] via-[#091f15] to-[#04100b] border border-sky-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in select-none">
+      <div className="relative w-full max-w-lg bg-white border-2 border-yellow-400 rounded-3xl p-6 shadow-2xl space-y-5 text-gray-900">
         
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex items-center justify-between border-b border-gray-200 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 text-xl font-black">
+            <div className="w-10 h-10 rounded-2xl bg-yellow-100 border border-yellow-400 flex items-center justify-center text-black text-xl font-black shadow-xs">
               <IoPrintOutline />
             </div>
             <div>
-              <h3 className="text-base font-black text-white">{title}</h3>
-              <p className="text-xs text-gray-400 font-bold">{jobDescription}</p>
+              <h3 className="text-base font-black text-gray-900">{cleanTitle}</h3>
+              <p className="text-xs text-gray-600 font-bold">{jobDescription}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-600 hover:text-black transition-colors cursor-pointer"
           >
             <IoClose className="text-xl" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-300 text-xs font-bold flex items-center gap-2">
-            <IoAlertCircleOutline className="text-lg text-red-400 shrink-0" />
+          <div className="p-3 rounded-2xl bg-red-50 border border-red-300 text-red-700 text-xs font-bold flex items-center gap-2">
+            <IoAlertCircleOutline className="text-lg text-red-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -98,32 +100,32 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('cocina')}
-            className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+            className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'cocina'
-                ? 'bg-amber-500/20 border-amber-400 text-white shadow-lg ring-1 ring-amber-400'
-                : 'bg-white/[0.03] border-white/10 text-gray-300 hover:bg-white/5'
+                ? 'bg-amber-50 border-yellow-400 text-black shadow-md ring-2 ring-yellow-400'
+                : 'bg-stone-50 border-gray-200 text-gray-800 hover:border-yellow-400 hover:bg-stone-100'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-yellow-100 border border-yellow-400 flex items-center justify-center text-black text-xl shadow-xs">
                 <IoRestaurantOutline />
               </div>
               <div>
-                <div className="font-black text-sm text-white flex items-center gap-2">
+                <div className="font-black text-sm text-gray-900 flex items-center gap-2">
                   <span>🍳 IMPRESORA DE COCINA</span>
                   {cocina?.enabled ? (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-xs"></span>
                   ) : (
-                    <span className="text-[10px] text-red-400 font-bold">(Deshabilitada)</span>
+                    <span className="text-[10px] text-red-600 font-bold">(Deshabilitada)</span>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-400 font-mono">
+                <div className="text-[11px] text-gray-600 font-mono font-bold">
                   {cocina?.host || '192.168.1.200'}:{cocina?.port || 9100}
                 </div>
               </div>
             </div>
             {selectedTarget === 'cocina' && (
-              <IoCheckmarkCircle className="text-xl text-amber-400" />
+              <IoCheckmarkCircle className="text-2xl text-yellow-600" />
             )}
           </button>
 
@@ -131,32 +133,32 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('caja')}
-            className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+            className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'caja'
-                ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-lg ring-1 ring-emerald-400'
-                : 'bg-white/[0.03] border-white/10 text-gray-300 hover:bg-white/5'
+                ? 'bg-emerald-50 border-emerald-500 text-black shadow-md ring-2 ring-emerald-400'
+                : 'bg-stone-50 border-gray-200 text-gray-800 hover:border-emerald-400 hover:bg-stone-100'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-400 flex items-center justify-center text-emerald-800 text-xl shadow-xs">
                 <IoCardOutline />
               </div>
               <div>
-                <div className="font-black text-sm text-white flex items-center gap-2">
+                <div className="font-black text-sm text-gray-900 flex items-center gap-2">
                   <span>💳 IMPRESORA DE CAJA</span>
                   {caja?.enabled ? (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-xs"></span>
                   ) : (
-                    <span className="text-[10px] text-red-400 font-bold">(Deshabilitada)</span>
+                    <span className="text-[10px] text-red-600 font-bold">(Deshabilitada)</span>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-400 font-mono">
+                <div className="text-[11px] text-gray-600 font-mono font-bold">
                   {caja?.host || '192.168.1.201'}:{caja?.port || 9100}
                 </div>
               </div>
             </div>
             {selectedTarget === 'caja' && (
-              <IoCheckmarkCircle className="text-xl text-emerald-400" />
+              <IoCheckmarkCircle className="text-2xl text-emerald-600" />
             )}
           </button>
 
@@ -164,37 +166,37 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('ambas')}
-            className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+            className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'ambas'
-                ? 'bg-sky-500/20 border-sky-400 text-white shadow-lg ring-1 ring-sky-400'
-                : 'bg-white/[0.03] border-white/10 text-gray-300 hover:bg-white/5'
+                ? 'bg-yellow-100/80 border-yellow-500 text-black shadow-md ring-2 ring-yellow-400'
+                : 'bg-stone-50 border-gray-200 text-gray-800 hover:border-yellow-400 hover:bg-stone-100'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-yellow-200 border border-yellow-400 flex items-center justify-center text-black text-xl shadow-xs">
                 <IoLayersOutline />
               </div>
               <div>
-                <div className="font-black text-sm text-white">
+                <div className="font-black text-sm text-gray-900">
                   🖨️ IMPRIMIR EN AMBAS IMPRESORAS
                 </div>
-                <div className="text-[11px] text-gray-400">
+                <div className="text-[11px] text-gray-600 font-bold">
                   Envía el ticket tanto a Cocina como a Caja simultáneamente
                 </div>
               </div>
             </div>
             {selectedTarget === 'ambas' && (
-              <IoCheckmarkCircle className="text-xl text-sky-400" />
+              <IoCheckmarkCircle className="text-2xl text-yellow-600" />
             )}
           </button>
         </div>
 
         {/* FOOTER BUTTONS */}
-        <div className="pt-3 border-t border-white/10 flex items-center gap-3">
+        <div className="pt-3 border-t border-gray-200 flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition-colors"
+            className="flex-1 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 font-black text-xs transition-colors border border-gray-300 cursor-pointer"
           >
             CANCELAR
           </button>
@@ -202,7 +204,7 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={isPrinting}
-            className="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all"
+            className="flex-1 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs shadow-md border-2 border-yellow-500 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <IoPrintOutline className="text-base" />
             <span>{isPrinting ? 'IMPRIMIENDO...' : 'CONFIRMAR E IMPRIMIR'}</span>

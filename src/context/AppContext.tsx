@@ -49,6 +49,8 @@ interface AppContextType {
     kitchenNotes?: string;
     items: OrderItem[];
     totalUSD: number;
+    deliveryFeeUSD?: number;
+    targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna';
   }) => Promise<void>;
   
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
@@ -87,7 +89,7 @@ interface AppContextType {
   deletePaymentEntry: (orderId: string, paymentId: string) => Promise<Order>;
   mergeOrders: (targetOrderId: string, sourceOrderIds: string[]) => Promise<void>;
   changeOrderTable: (orderId: string, newTableNumber: number) => Promise<Order>;
-  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[]) => Promise<void>;
+  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna') => Promise<void>;
 
   aperturarCajaChica: (usdCash: number, copCash: number) => Promise<void>;
   addCajaTransaction: (trans: { type: 'ingreso' | 'egreso'; amountUSD: number; amountCOP: number; amountBs: number; paymentMethod: string; description: string }) => Promise<void>;
@@ -486,6 +488,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     kitchenNotes?: string;
     items: OrderItem[];
     totalUSD: number;
+    deliveryFeeUSD?: number;
+    targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna';
   }) => {
     const res = await apiFetch(`${backendUrl}/api/orders`, {
       method: 'POST',
@@ -671,11 +675,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return response as Order;
   };
 
-  const appendOrderItems = async (orderId: string, addedItems: OrderItem[], removedItemIds: string[] = []) => {
+  const appendOrderItems = async (
+    orderId: string,
+    addedItems: OrderItem[],
+    removedItemIds: string[] = [],
+    targetPrinter: 'cocina' | 'caja' | 'ambas' | 'ninguna' = 'cocina'
+  ) => {
     const res = await apiFetch(`${backendUrl}/api/orders/${orderId}/append-items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addedItems, removedItemIds }),
+      body: JSON.stringify({ addedItems, removedItemIds, targetPrinter }),
     });
     const response = await requireApiSuccess(res, 'No se pudo adicionar productos a la comanda.');
     if (response?.order) {

@@ -129,9 +129,26 @@ app.use('/api/upload', uploadRoutes(io));
 
 const buildDir = path.join(__dirname, '../build');
 if (fs.existsSync(buildDir)) {
+  app.use((req, res, next) => {
+    if (
+      req.path === '/' ||
+      req.path.endsWith('.html') ||
+      req.path.includes('favicon') ||
+      req.path.includes('icon') ||
+      req.path.includes('manifest') ||
+      req.path.includes('logo')
+    ) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
+    next();
+  });
+
   app.use(express.static(buildDir));
   app.get('*', (req, res) => {
     if (!req.url.startsWith('/api')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(buildDir, 'index.html'));
     } else {
       res.status(404).json({ error: 'Endpoint no encontrado' });

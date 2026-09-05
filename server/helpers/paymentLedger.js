@@ -37,11 +37,28 @@ function paymentHistoryTotals(payments) {
   return payments.reduce((totals, payment) => {
     const copRate = Number(payment.cop_rate) || 3950;
     const bsRate = Number(payment.bs_rate) || 36.5;
-    totals.paidUSD += Number(payment.amount_paid_usd) || 0;
-    totals.tenderedUSD +=
-      (Number(payment.cash_tendered_usd) || 0) +
-      (Number(payment.cash_tendered_cop) || 0) / copRate +
-      (Number(payment.cash_tendered_bs) || 0) / bsRate;
+    const paidUSD = Number(payment.amount_paid_usd) || 0;
+    totals.paidUSD += paidUSD;
+
+    let tenderedUSD = Number(payment.cash_tendered_usd) || 0;
+    const cashCOP = Number(payment.cash_tendered_cop) || 0;
+    const cashBs = Number(payment.cash_tendered_bs) || 0;
+
+    if (cashCOP > 0) {
+      if (paidUSD > 0 && copRate > 0) {
+        // En cobros COP se redondea al millar comercial superior. El exceso sobre el cobro redondeado es el vuelto.
+        const requiredCOP = Math.ceil((paidUSD * copRate) / 1000) * 1000;
+        const excessCOP = Math.max(0, cashCOP - requiredCOP);
+        tenderedUSD += paidUSD + (excessCOP / copRate);
+      } else if (copRate > 0) {
+        tenderedUSD += cashCOP / copRate;
+      }
+    }
+    if (cashBs > 0 && bsRate > 0) {
+      tenderedUSD += cashBs / bsRate;
+    }
+    totals.tenderedUSD += tenderedUSD;
+
     totals.changeGivenUSD +=
       (Number(payment.change_given_usd) || 0) +
       (Number(payment.change_given_cop) || 0) / copRate +

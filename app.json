@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "Basilico Pizzeria",
-    "slug": "basilico-pizzeria",
+    "name": "Crispy Burger",
+    "slug": "crispy-burger",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#070707"
+      "backgroundColor": "#ffffff"
     },
     "android": {
-      "package": "com.basilico.pizzeria",
+      "package": "com.crispy.burger",
       "usesCleartextTraffic": true,
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#070707"
+        "backgroundColor": "#ffffff"
       },
       "permissions": [
         "INTERNET",

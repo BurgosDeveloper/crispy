@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
-  IoFastFood,
   IoPersonOutline,
   IoKeyOutline,
   IoArrowForward,
@@ -36,8 +35,8 @@ export const LoginPage: React.FC = () => {
         
         {/* Header / Brand */}
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-yellow-400 border border-yellow-500 flex items-center justify-center shadow-md transform hover:scale-105 transition-all">
-            <IoFastFood className="text-3xl text-black" />
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-white border-2 border-yellow-400 p-1 flex items-center justify-center shadow-md transform hover:scale-105 transition-all overflow-hidden">
+            <img src="/logo_default.png" alt="Crispy Burger" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/icon.png'; }} />
           </div>
 
           <div>
@@ -104,11 +103,35 @@ export const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        {/* Access Quick Roles Info */}
-        <div className="pt-2 border-t border-gray-100 text-center">
-          <p className="text-[11px] text-gray-500 font-semibold">
-            Roles disponibles: <span className="text-black font-bold">admin</span>, <span className="text-black font-bold">caja</span>, <span className="text-black font-bold">mesero</span>, <span className="text-black font-bold">cocina</span>
-          </p>
+        {/* Access Quick Roles Info & Buttons */}
+        <div className="pt-2 border-t border-gray-100 space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block text-center">
+            Acceso Rápido por Rol:
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { role: 'admin', label: '👑 Administrador', pass: 'admin' },
+              { role: 'caja', label: '💳 Cajero (POS)', pass: 'caja' },
+              { role: 'mesero', label: '🍽️ Mesero', pass: 'mesero' },
+              { role: 'cocina', label: '🍳 Cocina (KDS)', pass: 'cocina' },
+            ].map((r) => (
+              <button
+                key={r.role}
+                type="button"
+                onClick={() => {
+                  setUsername(r.role);
+                  setPassword(r.pass);
+                }}
+                className={`p-2 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  username === r.role
+                    ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs ring-2 ring-yellow-400/50'
+                    : 'bg-stone-50 hover:bg-yellow-50 text-gray-800 border-gray-200'
+                }`}
+              >
+                <span>{r.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
       </div>
