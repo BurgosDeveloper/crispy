@@ -43,13 +43,17 @@ const DEFAULT_BURGER_BASE_INGREDIENTS = [
 ];
 
 const getInitialProteins = (burger: Product): string[] => {
+  const count = burger.proteinCount !== undefined && burger.proteinCount !== null ? burger.proteinCount : 1;
+  const nameLower = (burger.name || '').toLowerCase();
+  const descLower = (burger.description || '').toLowerCase();
+
+  if (count === 0 || nameLower.includes('papas') || nameLower.includes('nuggets')) {
+    return [];
+  }
+
   if (burger.defaultProteins && Array.isArray(burger.defaultProteins) && burger.defaultProteins.length > 0) {
     return [...burger.defaultProteins];
   }
-
-  const nameLower = (burger.name || '').toLowerCase();
-  const descLower = (burger.description || '').toLowerCase();
-  const count = burger.proteinCount || 1;
 
   if (nameLower.includes('3.0') || nameLower.includes('triple') || count === 3) {
     return ['Carne de Novillo', 'Pollo Crispy', 'Chuleta Ahumada'];
@@ -393,7 +397,9 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                 {burger.name.toUpperCase()}
               </h2>
               <span className="bg-yellow-400 text-black text-xs px-2.5 py-0.5 rounded-lg font-black shadow-xs">
-                {currentUnit.proteins.length === 1
+                {currentUnit.proteins.length === 0
+                  ? 'Plato / Ración'
+                  : currentUnit.proteins.length === 1
                   ? 'Sencilla'
                   : currentUnit.proteins.length === 2
                   ? 'Doble Carne'
@@ -641,7 +647,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
         {/* 4. TRES BOTONES DESPLEGABLES COMPACTOS: PERSONALIZAR, PROTEÍNAS Y ADICIONALES */}
         <section className="space-y-2.5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div className={`grid grid-cols-1 ${currentUnit.proteins.length > 0 ? 'md:grid-cols-2' : ''} gap-2.5`}>
             {/* BOTÓN 1: PERSONALIZAR (Despliega ingredientes base sin proteínas) */}
             <button
               type="button"
@@ -668,29 +674,31 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               {showPersonalizar ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
             </button>
 
-            {/* BOTÓN 2: PROTEÍNAS (Despliega cambio de carnes) */}
-            <button
-              type="button"
-              onClick={() => setShowProteinas((prev) => !prev)}
-              className={`p-3.5 rounded-2xl border font-black text-sm sm:text-base flex items-center justify-between transition-all cursor-pointer shadow-xs ${
-                showProteinas
-                  ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
-                  : 'bg-white text-black border-gray-200 hover:border-yellow-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🥩</span>
-                <div className="text-left">
-                  <div className="font-black leading-tight">
-                    {units.length > 1 ? `PROTEÍNAS #${activeUnitIndex + 1}` : 'PROTEÍNA / CARNES'}
-                  </div>
-                  <div className="text-[11px] font-bold text-gray-500 truncate max-w-[180px] sm:max-w-xs">
-                    {currentUnit.proteins.join(' + ')}
+            {/* BOTÓN 2: PROTEÍNAS (Despliega cambio de carnes solo si aplica) */}
+            {currentUnit.proteins.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowProteinas((prev) => !prev)}
+                className={`p-3.5 rounded-2xl border font-black text-sm sm:text-base flex items-center justify-between transition-all cursor-pointer shadow-xs ${
+                  showProteinas
+                    ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
+                    : 'bg-white text-black border-gray-200 hover:border-yellow-400'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🥩</span>
+                  <div className="text-left">
+                    <div className="font-black leading-tight">
+                      {units.length > 1 ? `PROTEÍNAS #${activeUnitIndex + 1}` : 'PROTEÍNA / CARNES'}
+                    </div>
+                    <div className="text-[11px] font-bold text-gray-500 truncate max-w-[180px] sm:max-w-xs">
+                      {currentUnit.proteins.join(' + ')}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {showProteinas ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
-            </button>
+                {showProteinas ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
+              </button>
+            )}
           </div>
 
           {/* FILA INFERIOR: BOTÓN 3 ADICIONALES (Despliega adicionales de costo) */}
@@ -757,7 +765,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           )}
 
           {/* DESPLIEGUE 2: PROTEÍNAS */}
-          {showProteinas && (
+          {showProteinas && currentUnit.proteins.length > 0 && (
             <div className="bg-amber-50/40 p-4 rounded-2xl border border-yellow-300 space-y-3 shadow-xs animate-in fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">

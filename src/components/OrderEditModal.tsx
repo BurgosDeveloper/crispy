@@ -298,7 +298,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
                             {item.productName} {item.isTakeaway && <span className="text-amber-400 ml-1">(📦 LLEVAR)</span>}
                           </div>
                           <div className="text-xs text-slate-400">
-                            ${(item.price || 0).toFixed(2)} c/u {item.size && `• (${item.size})`}
+                            ${(item.price || 0).toFixed(2)} c/u
                           </div>
                         </div>
                       </div>

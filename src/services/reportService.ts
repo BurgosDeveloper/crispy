@@ -251,8 +251,9 @@ export class ReportService {
     paidOrders.forEach((o) => {
       o.items.forEach((it) => {
         const catLower = (it.category || '').toLowerCase();
-        const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || it.productName.toLowerCase().includes('burger') || it.productName.toLowerCase().includes('crispy');
-        const displayName = it.productName;
+        const cleanName = (it.productName || 'Producto').replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
+        const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
+        const displayName = cleanName;
         if (!tally[displayName]) {
           tally[displayName] = {
             qty: 0,
@@ -477,9 +478,10 @@ export class ReportService {
     const tally: Record<string, { category: string; name: string; quantity: number; totalUSD: number }> = {};
     data.items.forEach((item) => {
       const catLower = (item.category || '').toLowerCase();
-      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || item.productName.toLowerCase().includes('burger') || item.productName.toLowerCase().includes('crispy');
+      const cleanName = (item.productName || 'Producto').replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
       const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoría');
-      const displayName = item.productName;
+      const displayName = cleanName;
       const key = `${category}|${displayName}`;
       if (!tally[key]) tally[key] = { category, name: displayName, quantity: 0, totalUSD: 0 };
       tally[key].quantity += item.quantity;
@@ -488,11 +490,12 @@ export class ReportService {
     const rows = Object.entries(tally).sort((a, b) => a[1].category.localeCompare(b[1].category) || a[0].localeCompare(b[0]))
       .map(([, item]) => `<tr><td>${this.escapeHtml(item.category)}</td><td><strong>${this.escapeHtml(item.name)}</strong></td><td style="text-align:right;">${item.quantity}</td><td style="text-align:right;">$${item.totalUSD.toFixed(2)}</td></tr>`).join('');
     const totalUnits = data.items.reduce((total, item) => total + item.quantity, 0);
+    const totalRevenueUSD = Object.values(tally).reduce((sum, it) => sum + it.totalUSD, 0);
     this.openPrintWindow('Hamburguesas_Vendidas_Intervalo', `
       <div class="section-title">HAMBURGUESAS E ÍTEMS VENDIDOS POR TIPO Y UNIDADES</div>
       <p style="font-size:12px; color:#4b5563;">${this.intervalTitle(data)}</p>
       <table><thead><tr><th>Categoría</th><th>Ítem</th><th style="text-align:right;">Unidades</th><th style="text-align:right;">Total USD</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="text-align:center;">Sin ítems facturados en el intervalo.</td></tr>'}</tbody></table>
-      <div class="total-box"><div><div class="total-label">UNIDADES FACTURADAS</div><strong>${totalUnits}</strong></div><div><div class="total-label">ÍTEMS DIFERENTES</div><strong>${Object.keys(tally).length}</strong></div></div>
+      <div class="total-box"><div><div class="total-label">UNIDADES FACTURADAS</div><strong>${totalUnits}</strong></div><div><div class="total-label">TOTAL FACTURADO PRODUCTOS</div><strong style="color:#047857; font-size:14px;">$${totalRevenueUSD.toFixed(2)} USD</strong></div></div>
     `);
   }
 
@@ -586,27 +589,120 @@ export class ReportService {
   // 8. Reporte Contable Consolidado con Desglose de Monedas y Créditos
   generateReporteContable(data: ReporteIntervaloData) {
     const methodNames = ['Efectivo USD', 'Binance', 'Zelle', 'Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP', 'Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'];
-    const methodTotals = new Map(methodNames.map((method) => [method, { currency: this.paymentCurrency(method), nativeTotal: 0, usd: 0, cop: 0, bs: 0, equivalentUSD: 0, count: 0 }]));
+    const methodTotals = new Map(methodNames.map((method) => [
+      method,
+      {
+        currency: this.paymentCurrency(method),
+        incomeNative: 0,
+        changeNative: 0,
+        netNative: 0,
+        netUSD: 0,
+        count: 0,
+      }
+    ]));
+
     const billedTotals = { usd: 0, cop: 0, bs: 0 };
     const paymentsByOrder = new Map<string, ReporteIntervaloData['payments']>();
 
     data.payments.forEach((payment) => {
       if (payment.paymentMethod === 'Crédito') return;
-      if (payment.amountPaidUSD <= 0) return;
-      const saleAmounts = this.registeredSaleAmounts(payment);
-      billedTotals.usd += saleAmounts.usd;
-      billedTotals.cop += saleAmounts.cop;
-      billedTotals.bs += saleAmounts.bs;
+      const method = payment.paymentMethod || 'Efectivo USD';
+      const curr = this.paymentCurrency(method);
+      const cRate = Number(payment.copRate) || Number(data.exchangeRates?.COP) || 3950;
+      const bRate = Number(payment.bsRate) || Number(data.exchangeRates?.Bs) || 36.5;
 
-      const totals = methodTotals.get(payment.paymentMethod) || { currency: saleAmounts.currency, nativeTotal: 0, usd: 0, cop: 0, bs: 0, equivalentUSD: 0, count: 0 };
-      totals.nativeTotal += saleAmounts.nativeAmount;
-      totals.usd += saleAmounts.usd;
-      totals.cop += saleAmounts.cop;
-      totals.bs += saleAmounts.bs;
-      totals.equivalentUSD += saleAmounts.equivalentUSD;
-      totals.count += 1;
-      methodTotals.set(payment.paymentMethod, totals);
+      const paidUSD = Number(payment.amountPaidUSD) || 0;
+      let tenderUSD = Number(payment.cashTenderedUSD) || 0;
+      let tenderCOP = Number(payment.cashTenderedCOP) || 0;
+      let tenderBs = Number(payment.cashTenderedBs) || 0;
+
+      // Si es un pago y no vino el efectivo recibido explícito, calcular según el método
+      if (tenderUSD === 0 && tenderCOP === 0 && tenderBs === 0 && paidUSD > 0) {
+        if (curr === 'USD') tenderUSD = paidUSD;
+        else if (curr === 'COP') tenderCOP = paidUSD * cRate;
+        else if (curr === 'Bs') tenderBs = paidUSD * bRate;
+      }
+
+      // Obtener vueltos registrados en este movimiento
+      const changeUSD = Number(payment.changeGivenUSD) || 0;
+      const changeCOP = Number(payment.changeGivenCOP) || 0;
+      const changeBs = Number(payment.changeGivenBs) || 0;
+
+      // 1. Acumular Ingresos al método
+      const totals = methodTotals.get(method) || {
+        currency: curr,
+        incomeNative: 0,
+        changeNative: 0,
+        netNative: 0,
+        netUSD: 0,
+        count: 0,
+      };
+
+      if (curr === 'USD') {
+        totals.incomeNative += tenderUSD;
+        billedTotals.usd += tenderUSD;
+      } else if (curr === 'COP') {
+        totals.incomeNative += tenderCOP;
+        billedTotals.cop += tenderCOP;
+      } else if (curr === 'Bs') {
+        totals.incomeNative += tenderBs;
+        billedTotals.bs += tenderBs;
+      }
+
+      if (paidUSD > 0 || tenderUSD > 0 || tenderCOP > 0 || tenderBs > 0) {
+        totals.count += 1;
+      }
+      methodTotals.set(method, totals);
+
+      // 2. Descontar Vueltos estrictamente en su moneda nativa y método
+      if (changeUSD > 0 || changeCOP > 0 || changeBs > 0) {
+        if (paidUSD === 0) {
+          // Fila de vuelto dedicada: descontar de su método registrado
+          if (changeUSD > 0) {
+            totals.changeNative += changeUSD;
+            billedTotals.usd -= changeUSD;
+          }
+          if (changeCOP > 0) {
+            totals.changeNative += changeCOP;
+            billedTotals.cop -= changeCOP;
+          }
+          if (changeBs > 0) {
+            totals.changeNative += changeBs;
+            billedTotals.bs -= changeBs;
+          }
+          methodTotals.set(method, totals);
+        } else {
+          // Fila mixta (cobro con excedente y vuelto en una sola fila)
+          if (changeUSD > 0) {
+            const usdM = methodTotals.get('Efectivo USD');
+            if (usdM) { usdM.changeNative += changeUSD; methodTotals.set('Efectivo USD', usdM); }
+            billedTotals.usd -= changeUSD;
+          }
+          if (changeCOP > 0) {
+            const copM = methodTotals.get('Efectivo COP');
+            if (copM) { copM.changeNative += changeCOP; methodTotals.set('Efectivo COP', copM); }
+            billedTotals.cop -= changeCOP;
+          }
+          if (changeBs > 0) {
+            const bsM = methodTotals.get('Pago Móvil');
+            if (bsM) { bsM.changeNative += changeBs; methodTotals.set('Pago Móvil', bsM); }
+            billedTotals.bs -= changeBs;
+          }
+        }
+      }
+
       paymentsByOrder.set(payment.orderId, [...(paymentsByOrder.get(payment.orderId) || []), payment]);
+    });
+
+    // Calcular Venta Neta por método y equivalente USD
+    const copRateGlobal = Number(data.exchangeRates?.COP) || 3950;
+    const bsRateGlobal = Number(data.exchangeRates?.Bs) || 36.5;
+
+    methodTotals.forEach((val) => {
+      val.netNative = val.incomeNative - val.changeNative;
+      if (val.currency === 'USD') val.netUSD = val.netNative;
+      else if (val.currency === 'COP') val.netUSD = val.netNative / copRateGlobal;
+      else if (val.currency === 'Bs') val.netUSD = val.netNative / bsRateGlobal;
     });
 
     // Calcular Egresos y Vueltos para la auditoría de Caja Chica (gaveta física)
@@ -648,18 +744,24 @@ export class ReportService {
     const cajaChicaEsperadaUSD = aperturaUSD + totalIngresosEfectivoUSD - totalEgresosEfectivoUSD;
     const cajaChicaEsperadaCOP = aperturaCOP + totalIngresosEfectivoCOP - totalEgresosEfectivoCOP;
 
-    // Desglose de Deliverys por tarifa
+    // Separación Estricta de Contado y Crédito
+    const creditOrders = data.orders.filter((order) => order.paymentStatus === 'credito' || order.paymentMethod === 'Crédito');
+    const cashOrders = data.orders.filter((order) => order.paymentStatus === 'pagado' && order.paymentMethod !== 'Crédito');
+    const cashOrderIds = new Set(cashOrders.map((o) => o.id));
+    const cashItems = data.items.filter((item) => cashOrderIds.has(item.orderId));
+
+    // Desglose de Deliverys de Comandas al Contado
     const deliveryTierMap = new Map<number, number>();
-    data.orders.forEach((ord) => {
+    cashOrders.forEach((ord) => {
       const fee = Number(ord.deliveryFeeUSD) || 0;
       if (ord.type === 'delivery' || fee > 0) {
         deliveryTierMap.set(fee, (deliveryTierMap.get(fee) || 0) + 1);
       }
     });
 
-    // Desglose de Adicionales / Extras por precio
+    // Desglose de Adicionales / Extras por precio de Comandas al Contado
     const extrasTierMap = new Map<number, { count: number; totalUSD: number }>();
-    data.items.forEach((it: any) => {
+    cashItems.forEach((it: any) => {
       const itQty = Number(it.quantity) || 1;
       const extrasList: any[] = [];
       if (Array.isArray(it.extras)) {
@@ -668,40 +770,33 @@ export class ReportService {
         extrasList.push(...it.extrasJson);
       }
 
-      if (it.isHalfHalf && it.halfDetails) {
-        if (Array.isArray(it.halfDetails.half1Extras)) extrasList.push(...it.halfDetails.half1Extras);
-        if (Array.isArray(it.halfDetails.half2Extras)) extrasList.push(...it.halfDetails.half2Extras);
-      }
-
       extrasList.forEach((extra) => {
         const price = Number(extra.price) || 0;
-        const count = itQty;
-        const subtotal = price * count;
-
-        const current = extrasTierMap.get(price) || { count: 0, totalUSD: 0 };
-        current.count += count;
-        current.totalUSD += subtotal;
-        extrasTierMap.set(price, current);
+        if (price > 0) {
+          const count = itQty;
+          const subtotal = price * count;
+          const current = extrasTierMap.get(price) || { count: 0, totalUSD: 0 };
+          current.count += count;
+          current.totalUSD += subtotal;
+          extrasTierMap.set(price, current);
+        }
       });
     });
 
-    const totalVentaFacturadaUSD = Array.from(methodTotals.values()).reduce((sum, m) => sum + m.equivalentUSD, 0);
+    const totalVentaFacturadaUSD = billedTotals.usd + (billedTotals.cop / copRateGlobal) + (billedTotals.bs / bsRateGlobal);
 
-    // Separación de Contado y Crédito
-    const creditOrders = data.orders.filter((order) => order.paymentStatus === 'credito' || order.paymentMethod === 'Crédito');
-    const cashOrders = data.orders.filter((order) => order.paymentStatus === 'pagado' && order.paymentMethod !== 'Crédito');
     const firstOrder = data.orders[0]?.orderNumber || 'N/A';
     const lastOrder = data.orders[data.orders.length - 1]?.orderNumber || 'N/A';
 
-    // Desglose por Tipo de Pago (Columna de Moneda y Monto Facturado)
+    // Desglose por Tipo de Pago (Columna de Moneda y Monto Facturado Neto)
     const methodRows = Array.from(methodTotals.entries())
-      .filter(([, totals]) => totals.count > 0 || totals.nativeTotal > 0)
+      .filter(([, totals]) => totals.count > 0 || totals.netNative !== 0)
       .map(([method, totals]) => {
         const formattedAmount = totals.currency === 'USD'
-          ? `$${totals.usd.toFixed(2)}`
+          ? `$${totals.netNative.toFixed(2)}`
           : totals.currency === 'COP'
-          ? `$${Math.round(totals.cop).toLocaleString()}`
-          : `Bs ${totals.bs.toFixed(2)}`;
+          ? `$${Math.round(totals.netNative).toLocaleString()} COP`
+          : `Bs ${totals.netNative.toFixed(2)}`;
         return `
           <tr>
             <td><strong>${this.escapeHtml(this.paymentMethodLabel(method))}</strong></td>
@@ -717,10 +812,10 @@ export class ReportService {
     const creditRows = creditOrders.map((ord) => {
       const orderItems = data.items
         .filter((it) => it.orderId === ord.id)
-        .map((it) => `${it.quantity}x ${this.escapeHtml(it.productName)}`)
+        .map((it) => `${it.quantity}x ${this.escapeHtml(it.productName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim())}`)
         .join(', ');
-      const copEquiv = Math.round(ord.totalUSD * (ord.copRateAtPayment || data.exchangeRates.COP)).toLocaleString();
-      const bsEquiv = (ord.totalUSD * (ord.bsRateAtPayment || data.exchangeRates.Bs)).toFixed(2);
+      const copEquiv = Math.round(ord.totalUSD * (ord.copRateAtPayment || copRateGlobal)).toLocaleString();
+      const bsEquiv = (ord.totalUSD * (ord.bsRateAtPayment || bsRateGlobal)).toFixed(2);
       return `
         <tr>
           <td><strong>#${this.escapeHtml(ord.orderNumber)}</strong></td>
@@ -735,51 +830,63 @@ export class ReportService {
       `;
     }).join('');
 
-    // Ítems Facturados (incluyendo hamburguesas, bebidas, deliverys y adicionales)
-    const itemMap: Record<string, { category: string; name: string; quantity: number }> = {};
-    data.items.forEach((item) => {
+    // Consolidación de Ítems Facturados al Contado (Sin tamaño, sin mitades)
+    const itemMap = new Map<string, { category: string; name: string; quantity: number; subtotalUSD: number }>();
+
+    cashItems.forEach((item) => {
+      const rawName = item.productName || (item as any).name || 'Producto';
+      const cleanName = rawName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
       const category = item.category || 'General';
       const catLower = category.toLowerCase();
-      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || item.productName.toLowerCase().includes('burger') || item.productName.toLowerCase().includes('crispy');
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
       const effectiveCategory = isBurger ? 'Hamburguesas' : category;
-      const displayName = item.productName;
-      const key = `${effectiveCategory}|${displayName}`;
-      if (!itemMap[key]) itemMap[key] = { category: effectiveCategory, name: displayName, quantity: 0 };
-      itemMap[key].quantity += item.quantity;
+      const key = `${effectiveCategory}|${cleanName}`;
+      const prev = itemMap.get(key) || { category: effectiveCategory, name: cleanName, quantity: 0, subtotalUSD: 0 };
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.price) || 0;
+      prev.quantity += qty;
+      prev.subtotalUSD += price * qty;
+      itemMap.set(key, prev);
     });
 
     // Agregar Deliverys a Ítems Facturados
     deliveryTierMap.forEach((count, fee) => {
       if (fee > 0 && count > 0) {
-        const key = `Delivery|Delivery de $${fee.toFixed(2)}`;
-        itemMap[key] = {
-          category: 'Delivery',
-          name: `Delivery de $${fee.toFixed(2)}`,
-          quantity: count,
-        };
+        const key = `Delivery|Servicio Delivery de $${fee.toFixed(2)}`;
+        const prev = itemMap.get(key) || { category: 'Delivery', name: `Servicio Delivery de $${fee.toFixed(2)}`, quantity: 0, subtotalUSD: 0 };
+        prev.quantity += count;
+        prev.subtotalUSD += fee * count;
+        itemMap.set(key, prev);
       }
     });
 
     // Agregar Adicionales a Ítems Facturados
     extrasTierMap.forEach((info, price) => {
-      if (info.count > 0) {
+      if (info.count > 0 && price > 0) {
         const key = `Adicionales|Adicional de $${price.toFixed(2)}`;
-        itemMap[key] = {
-          category: 'Adicionales',
-          name: `Adicional de $${price.toFixed(2)}`,
-          quantity: info.count,
-        };
+        const prev = itemMap.get(key) || { category: 'Adicionales', name: `Adicional de $${price.toFixed(2)}`, quantity: 0, subtotalUSD: 0 };
+        prev.quantity += info.count;
+        prev.subtotalUSD += info.totalUSD;
+        itemMap.set(key, prev);
       }
     });
 
-    const itemRows = Object.values(itemMap)
-      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
-      .map((item) => `<tr><td>${this.escapeHtml(item.category)}</td><td>${this.escapeHtml(item.name)}</td><td style="text-align:right;">${item.quantity}</td></tr>`)
-      .join('');
+    const sortedItems = Array.from(itemMap.values()).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+    const totalItemsUSD = sortedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
+    const totalItemsUnits = sortedItems.reduce((sum, it) => sum + it.quantity, 0);
+
+    const itemRows = sortedItems.map((item) => `
+      <tr>
+        <td>${this.escapeHtml(item.category)}</td>
+        <td><strong>${this.escapeHtml(item.name)}</strong></td>
+        <td style="text-align:center;">${item.quantity}</td>
+        <td style="text-align:right; font-weight:700;">$${item.subtotalUSD.toFixed(2)}</td>
+      </tr>
+    `).join('');
 
     // Historial por Método de Pago (Moneda y Monto Facturado)
     const historyByMethod = Array.from(methodTotals.keys()).map((method) => {
-      const entries = data.payments.filter((payment) => payment.paymentMethod === method && payment.amountPaidUSD > 0);
+      const entries = data.payments.filter((payment) => payment.paymentMethod === method && (payment.amountPaidUSD > 0 || payment.changeGivenUSD > 0 || payment.changeGivenCOP > 0 || payment.changeGivenBs > 0));
       if (entries.length === 0) return '';
       return `
         <h4 style="font-size:10px; font-weight:900; margin:12px 0 4px; padding:3px 6px; background:#f3f4f6;">${this.escapeHtml(this.paymentMethodLabel(method))}</h4>
@@ -796,18 +903,31 @@ export class ReportService {
           <tbody>
             ${entries.map((payment) => {
               const amounts = this.registeredSaleAmounts(payment);
-              const formatted = amounts.currency === 'USD'
-                ? `$${amounts.usd.toFixed(2)}`
-                : amounts.currency === 'COP'
-                ? `$${Math.round(amounts.cop).toLocaleString()}`
-                : `Bs ${amounts.bs.toFixed(2)}`;
+              const changeAmounts = {
+                usd: Number(payment.changeGivenUSD) || 0,
+                cop: Number(payment.changeGivenCOP) || 0,
+                bs: Number(payment.changeGivenBs) || 0,
+              };
+              const isChangeOnly = (payment.amountPaidUSD || 0) === 0 && (changeAmounts.usd > 0 || changeAmounts.cop > 0 || changeAmounts.bs > 0);
+              let formatted = '';
+              if (isChangeOnly) {
+                if (changeAmounts.usd > 0) formatted = `-$${changeAmounts.usd.toFixed(2)} (Vuelto)`;
+                else if (changeAmounts.cop > 0) formatted = `-$${Math.round(changeAmounts.cop).toLocaleString()} COP (Vuelto)`;
+                else if (changeAmounts.bs > 0) formatted = `-Bs ${changeAmounts.bs.toFixed(2)} (Vuelto)`;
+              } else {
+                formatted = amounts.currency === 'USD'
+                  ? `$${amounts.usd.toFixed(2)}`
+                  : amounts.currency === 'COP'
+                  ? `$${Math.round(amounts.cop).toLocaleString()} COP`
+                  : `Bs ${amounts.bs.toFixed(2)}`;
+              }
               return `
                 <tr>
                   <td>${this.reportDate(payment.createdAt)}</td>
                   <td>#${this.escapeHtml(payment.orderNumber)}</td>
                   <td>${this.escapeHtml(payment.payerName)}</td>
                   <td>${amounts.currency}</td>
-                  <td style="text-align:right; font-weight:700;">${formatted}</td>
+                  <td style="text-align:right; font-weight:700; ${isChangeOnly ? 'color:#dc2626;' : ''}">${formatted}</td>
                 </tr>
               `;
             }).join('')}
@@ -951,13 +1071,23 @@ export class ReportService {
         <thead>
           <tr>
             <th>Categoría</th>
-            <th>Ítem</th>
-            <th style="text-align:right;">Cantidad</th>
+            <th>Ítem / Producto</th>
+            <th style="text-align:center;">Cant.</th>
+            <th style="text-align:right;">Subtotal USD</th>
           </tr>
         </thead>
         <tbody>
-          ${itemRows || '<tr><td colspan="3" style="text-align:center;">Sin ítems facturados.</td></tr>'}
+          ${itemRows || '<tr><td colspan="4" style="text-align:center;">Sin ítems facturados.</td></tr>'}
         </tbody>
+        ${sortedItems.length > 0 ? `
+        <tfoot>
+          <tr style="background:#f0fdf4; border-top:2px solid #059669; font-weight:900;">
+            <td colspan="2" style="color:#065f46; font-size:11px;">TOTAL PRODUCTOS FACTURADOS:</td>
+            <td style="text-align:center; color:#065f46;">${totalItemsUnits}</td>
+            <td style="text-align:right; color:#047857; font-size:12px;">$${totalItemsUSD.toFixed(2)} USD</td>
+          </tr>
+        </tfoot>
+        ` : ''}
       </table>
     `;
 
@@ -975,27 +1105,20 @@ export class ReportService {
     const itemsHtml = (order.items || []).map((it) => {
       const subtotal = it.price * it.quantity;
       const details = [];
-      if (it.size) details.push(`Tamaño: ${it.size}`);
       if (it.isTakeaway) details.push('PARA LLEVAR');
-      if (it.sugarPreference) details.push(`Azúcar: ${it.sugarPreference}`);
-      if (it.isHalfHalf && it.halfDetails) {
-        details.push(`1ra Mitad: ${it.halfDetails.half1Name}`);
-        if (it.halfDetails.half1Removed?.length) details.push(`  Sin: ${it.halfDetails.half1Removed.join(', ')}`);
-        if (it.halfDetails.half1Extras?.length) details.push(`  Extra: ${it.halfDetails.half1Extras.map((e) => e.name).join(', ')}`);
-        details.push(`2da Mitad: ${it.halfDetails.half2Name}`);
-        if (it.halfDetails.half2Removed?.length) details.push(`  Sin: ${it.halfDetails.half2Removed.join(', ')}`);
-        if (it.halfDetails.half2Extras?.length) details.push(`  Extra: ${it.halfDetails.half2Extras.map((e) => e.name).join(', ')}`);
-      } else {
-        if (it.proteins?.length) details.push(`Proteína: ${it.proteins.join(' + ')}`);
-        if (it.removedIngredients?.length) details.push(`Sin: ${it.removedIngredients.join(', ')}`);
-        if (it.extras?.length) details.push(`Extra: ${it.extras.map((e) => e.name).join(', ')}`);
-      }
+      if (it.proteins?.length) details.push(`Proteína: ${it.proteins.join(' + ')}`);
+      if (it.removedIngredients?.length) details.push(`Sin: ${it.removedIngredients.join(', ')}`);
+      if (it.extras?.length) details.push(`Extra: ${it.extras.map((e) => e.name).join(', ')}`);
       if (it.notes) details.push(`Nota: ${it.notes}`);
+
+      const cleanName = (it.productName || 'Producto')
+        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+        .trim();
 
       return `
         <tr>
           <td style="padding: 4px 0; border-bottom: 1px dashed #e5e7eb;">
-            <div style="font-weight: 800; font-size: 11px; color: #111827;">${it.quantity}x ${it.productName}</div>
+            <div style="font-weight: 800; font-size: 11px; color: #111827;">${it.quantity}x ${cleanName}</div>
             ${details.length > 0 ? `<div style="font-size: 9px; color: #4b5563; margin-left: 6px;">${details.join('<br>')}</div>` : ''}
           </td>
           <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 11px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">

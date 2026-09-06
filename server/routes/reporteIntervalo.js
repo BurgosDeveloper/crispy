@@ -249,7 +249,6 @@ module.exports = function (io) {
           productName: it.product_name,
           price: parseFloat(it.price) || 0,
           quantity: it.quantity || 1,
-          size: it.size || 'Grande',
           category: it.category || 'Sin categoría',
           drinkType: it.drink_type,
           sugarPreference: it.sugar_preference || undefined,

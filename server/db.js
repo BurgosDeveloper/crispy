@@ -208,6 +208,7 @@ async function initDb() {
         ('prod-mixtura', 'Mixtura', 'Hamburguesas', NULL, 9.00, 'Carne de novillo, pollo crispy, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne de novillo', 'Pollo crispy', 'Doble queso', 'Doble tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 2, ARRAY['Carne de novillo', 'Pollo crispy'], 'ambos'),
         ('prod-house', 'House', 'Hamburguesas', NULL, 9.00, 'Pollo crispy, chuleta ahumada, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada', 'Doble queso', 'Doble tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 2, ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada'], 'ambos'),
         ('prod-3-0', '3.0', 'Hamburguesas', NULL, 10.00, 'Carne novillo, pollo crispy, chuleta ahumada, triple queso y triple tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada', 'Triple queso', 'Triple tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 3, ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada'], 'ambos'),
+        ('prod-racion-papas', 'Ración de Papas', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['Papas fritas', 'Sal'], 0, ARRAY[]::text[], 'ambos'),
         ('prod-refresco-350ml', 'Refresco 350ml', 'Bebidas', 'refresco', 1.00, 'Refresco personal en botella de 350ml bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-nestea', 'Nestea', 'Bebidas', 'te', 1.00, 'Té frío Nestea bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-cerveza', 'Cerveza', 'Bebidas', 'cerveza', 1.00, 'Cerveza nacional bien fría.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
@@ -215,14 +216,17 @@ async function initDb() {
         ('prod-agua-mineral', 'Agua Mineral', 'Bebidas', 'agua', 1.00, 'Agua mineral embotellada bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-granizado', 'Granizado', 'Bebidas', 'jugo', 1.50, 'Bebida granizada natural refrescante.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-lata', 'Lata', 'Bebidas', 'refresco', 1.50, 'Refresco en lata 355ml bien frío surtido.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos')
-        ON CONFLICT (id) DO NOTHING;`,
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, category = EXCLUDED.category, protein_count = EXCLUDED.protein_count, default_proteins = EXCLUDED.default_proteins;`,
+
+      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, shift) VALUES
+        ('prod-racion-papas', 'Ración de Papas', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['Papas fritas', 'Sal'], 0, ARRAY[]::text[], 'ambos')
+        ON CONFLICT (id) DO UPDATE SET name = 'Ración de Papas', price = 2.00, category = 'Hamburguesas', protein_count = 0, default_proteins = ARRAY[]::text[];`,
+      `DELETE FROM ingredients WHERE id IN ('ing-adicional-racion-papas', 'ing-servicio-papas-fritas');`,
 
       `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, category, available, shift) VALUES
         ('ing-adicional-tocineta', 'Tocineta', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
         ('ing-adicional-queso-cheddar', 'Queso Cheddar', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
         ('ing-adicional-proteina', 'Proteína', 'adicional', 3.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-        ('ing-adicional-racion-papas', 'Ración Papas', 'adicional', 2.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-        ('ing-servicio-papas-fritas', 'Servicio Adicional de Papas Fritas', 'adicional', 2.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
         ('ing-gratis-jalapenos', 'Jalapeños Picantes (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
         ('ing-gratis-cebolla-caramelizada', 'Cebolla Caramelizada (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
         ('ing-gratis-sweet-relish', 'Sweet Relish (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),

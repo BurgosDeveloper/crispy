@@ -90,38 +90,100 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function registeredSaleAmounts(payment: ReporteIntervaloData['payments'][number]) {
-  const paidUSD = payment.amountPaidUSD || 0;
-  let usd = 0;
-  let cop = 0;
-  let bs = 0;
-  if (['Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP'].includes(payment.paymentMethod)) {
-    cop = paidUSD * (payment.copRate || 3950);
-  } else if (['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'].includes(payment.paymentMethod)) {
-    bs = paidUSD * (payment.bsRate || 36.5);
-  } else {
-    usd = paidUSD;
-  }
-  return { usd, cop, bs };
+function paymentCurrency(method: string): 'USD' | 'COP' | 'Bs' {
+  if (['Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP'].includes(method)) return 'COP';
+  if (['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'].includes(method)) return 'Bs';
+  return 'USD';
 }
 
 export function exportToExcel(data: ReporteIntervaloData): void {
   const wb = XLSX.utils.book_new();
 
-  // --- Hoja 1: Totales Consolidados ---
-  const registeredPayments = data.payments.filter((payment) => payment.paymentMethod !== 'Crédito' && payment.amountPaidUSD > 0);
-  const totals = registeredPayments.reduce((sum, payment) => {
-    const amounts = registeredSaleAmounts(payment);
-    return { usd: sum.usd + amounts.usd, cop: sum.cop + amounts.cop, bs: sum.bs + amounts.bs };
-  }, { usd: 0, cop: 0, bs: 0 });
-  const cashOrders = data.orders.filter((o) => o.paymentMethod !== 'Mixto' && o.paymentStatus === 'pagado').length;
-  const creditOrders = data.orders.filter((o) => o.paymentStatus === 'credito' || o.paymentMethod === 'Crédito').length;
+  const copRateGlobal = Number(data.exchangeRates?.COP) || 3950;
+  const bsRateGlobal = Number(data.exchangeRates?.Bs) || 36.5;
 
-  // Desglose de Deliverys por tarifa
+  // --- Hoja 1: Totales Consolidados con Venta Neta ---
+  const billedTotals = { usd: 0, cop: 0, bs: 0 };
+  const methodTotals: Record<string, { count: number; usd: number; cop: number; bs: number; currency: string }> = {};
+
+  data.payments.forEach((payment) => {
+    if (payment.paymentMethod === 'Crédito') return;
+    const method = payment.paymentMethod || 'Efectivo USD';
+    const curr = paymentCurrency(method);
+    const cRate = Number(payment.copRate) || copRateGlobal;
+    const bRate = Number(payment.bsRate) || bsRateGlobal;
+
+    const paidUSD = Number(payment.amountPaidUSD) || 0;
+    let tenderUSD = Number(payment.cashTenderedUSD) || 0;
+    let tenderCOP = Number(payment.cashTenderedCOP) || 0;
+    let tenderBs = Number(payment.cashTenderedBs) || 0;
+
+    if (tenderUSD === 0 && tenderCOP === 0 && tenderBs === 0 && paidUSD > 0) {
+      if (curr === 'USD') tenderUSD = paidUSD;
+      else if (curr === 'COP') tenderCOP = paidUSD * cRate;
+      else if (curr === 'Bs') tenderBs = paidUSD * bRate;
+    }
+
+    const changeUSD = Number(payment.changeGivenUSD) || 0;
+    const changeCOP = Number(payment.changeGivenCOP) || 0;
+    const changeBs = Number(payment.changeGivenBs) || 0;
+
+    if (!methodTotals[method]) {
+      methodTotals[method] = { count: 0, usd: 0, cop: 0, bs: 0, currency: curr };
+    }
+    const m = methodTotals[method];
+
+    if (curr === 'USD') {
+      m.usd += tenderUSD;
+      billedTotals.usd += tenderUSD;
+    } else if (curr === 'COP') {
+      m.cop += tenderCOP;
+      billedTotals.cop += tenderCOP;
+    } else if (curr === 'Bs') {
+      m.bs += tenderBs;
+      billedTotals.bs += tenderBs;
+    }
+
+    if (paidUSD > 0 || tenderUSD > 0 || tenderCOP > 0 || tenderBs > 0) {
+      m.count += 1;
+    }
+
+    // Descontar vueltos
+    if (changeUSD > 0 || changeCOP > 0 || changeBs > 0) {
+      if (paidUSD === 0) {
+        if (changeUSD > 0) { m.usd -= changeUSD; billedTotals.usd -= changeUSD; }
+        if (changeCOP > 0) { m.cop -= changeCOP; billedTotals.cop -= changeCOP; }
+        if (changeBs > 0) { m.bs -= changeBs; billedTotals.bs -= changeBs; }
+      } else {
+        if (changeUSD > 0) {
+          if (!methodTotals['Efectivo USD']) methodTotals['Efectivo USD'] = { count: 0, usd: 0, cop: 0, bs: 0, currency: 'USD' };
+          methodTotals['Efectivo USD'].usd -= changeUSD;
+          billedTotals.usd -= changeUSD;
+        }
+        if (changeCOP > 0) {
+          if (!methodTotals['Efectivo COP']) methodTotals['Efectivo COP'] = { count: 0, usd: 0, cop: 0, bs: 0, currency: 'COP' };
+          methodTotals['Efectivo COP'].cop -= changeCOP;
+          billedTotals.cop -= changeCOP;
+        }
+        if (changeBs > 0) {
+          if (!methodTotals['Pago Móvil']) methodTotals['Pago Móvil'] = { count: 0, usd: 0, cop: 0, bs: 0, currency: 'Bs' };
+          methodTotals['Pago Móvil'].bs -= changeBs;
+          billedTotals.bs -= changeBs;
+        }
+      }
+    }
+  });
+
+  const cashOrders = data.orders.filter((o) => o.paymentStatus === 'pagado' && o.paymentMethod !== 'Crédito');
+  const creditOrders = data.orders.filter((o) => o.paymentStatus === 'credito' || o.paymentMethod === 'Crédito');
+  const cashOrderIds = new Set(cashOrders.map((o) => o.id));
+  const cashItems = data.items.filter((it) => cashOrderIds.has(it.orderId));
+
+  // Desglose de Deliverys de Comandas al Contado
   const deliveryMap: Record<number, number> = {};
   let totalDeliveryServices = 0;
   let totalDeliveryUSD = 0;
-  data.orders.forEach((ord) => {
+  cashOrders.forEach((ord) => {
     const fee = Number(ord.deliveryFeeUSD) || 0;
     if (ord.type === 'delivery' || fee > 0) {
       totalDeliveryServices += 1;
@@ -130,11 +192,11 @@ export function exportToExcel(data: ReporteIntervaloData): void {
     }
   });
 
-  // Desglose de Extras / Adicionales por tarifa
+  // Desglose de Extras / Adicionales de Comandas al Contado
   const extrasMap: Record<number, { count: number; totalUSD: number }> = {};
   let totalExtrasCount = 0;
   let totalExtrasUSD = 0;
-  data.items.forEach((it: any) => {
+  cashItems.forEach((it: any) => {
     const itQty = Number(it.quantity) || 1;
     const extrasList: any[] = [];
     if (Array.isArray(it.extras)) extrasList.push(...it.extras);
@@ -142,29 +204,31 @@ export function exportToExcel(data: ReporteIntervaloData): void {
 
     extrasList.forEach((extra) => {
       const price = Number(extra.price) || 0;
-      const count = itQty;
-      const subtotal = price * count;
-      totalExtrasCount += count;
-      totalExtrasUSD += subtotal;
-      if (!extrasMap[price]) extrasMap[price] = { count: 0, totalUSD: 0 };
-      extrasMap[price].count += count;
-      extrasMap[price].totalUSD += subtotal;
+      if (price > 0) {
+        const count = itQty;
+        const subtotal = price * count;
+        totalExtrasCount += count;
+        totalExtrasUSD += subtotal;
+        if (!extrasMap[price]) extrasMap[price] = { count: 0, totalUSD: 0 };
+        extrasMap[price].count += count;
+        extrasMap[price].totalUSD += subtotal;
+      }
     });
   });
 
-  const totalFacturadoUSD = totals.usd + (totals.cop / data.exchangeRates.COP) + (totals.bs / data.exchangeRates.Bs);
+  const totalFacturadoUSD = billedTotals.usd + (billedTotals.cop / copRateGlobal) + (billedTotals.bs / bsRateGlobal);
 
   const totalesData = [
     ['CIERRE DE CAJA EN EL INTERVALO CONSOLIDADO'],
     ['Desde:', formatDate(data.dateRange.from), 'Hasta:', formatDate(data.dateRange.to)],
     [],
     ['Concepto', 'USD', 'COP', 'Bs'],
-    ['Total Facturado (Vendido)', totals.usd.toFixed(2), Math.round(totals.cop).toLocaleString(), totals.bs.toFixed(2)],
+    ['Total Facturado (Vendido)', billedTotals.usd.toFixed(2), Math.round(billedTotals.cop).toLocaleString(), billedTotals.bs.toFixed(2)],
     ['Total Venta Facturada (Equiv. USD)', `$${totalFacturadoUSD.toFixed(2)} USD`, '', ''],
     [],
     ['Total Comandas', data.orders.length.toString()],
-    ['Comandas de Contado', cashOrders.toString()],
-    ['Comandas a Crédito', creditOrders.toString()],
+    ['Comandas de Contado', cashOrders.length.toString()],
+    ['Comandas a Crédito', creditOrders.length.toString()],
     [],
     ['Total Servicios Delivery', `${totalDeliveryServices} envíos ($${totalDeliveryUSD.toFixed(2)} USD)`],
     ['Total Adicionales / Extras', `${totalExtrasCount} extras ($${totalExtrasUSD.toFixed(2)} USD)`],
@@ -177,28 +241,22 @@ export function exportToExcel(data: ReporteIntervaloData): void {
   XLSX.utils.book_append_sheet(wb, ws1, 'Totales');
 
   // --- Hoja 2: Desglose por Cuenta/Caja ---
-  const methodTotals: Record<string, { count: number; usd: number; cop: number; bs: number }> = {};
-  registeredPayments.forEach((p) => {
-    if (!methodTotals[p.paymentMethod]) {
-      methodTotals[p.paymentMethod] = { count: 0, usd: 0, cop: 0, bs: 0 };
-    }
-    const amounts = registeredSaleAmounts(p);
-    methodTotals[p.paymentMethod].count++;
-    methodTotals[p.paymentMethod].usd += amounts.usd;
-    methodTotals[p.paymentMethod].cop += amounts.cop;
-    methodTotals[p.paymentMethod].bs += amounts.bs;
-  });
-
-  const cuentasHeader = ['Método de Pago', 'Cantidad', 'Total USD', 'Total COP', 'Total Bs'];
+  const cuentasHeader = ['Método de Pago', 'Cantidad', 'Total Facturado Moneda Original', 'Moneda'];
   const cuentasRows = Object.entries(methodTotals)
-    .sort((a, b) => (b[1].usd + b[1].cop / data.exchangeRates.COP + b[1].bs / data.exchangeRates.Bs) - (a[1].usd + a[1].cop / data.exchangeRates.COP + a[1].bs / data.exchangeRates.Bs))
-    .map(([method, info]) => [
-      method,
-      info.count.toString(),
-      info.usd.toFixed(2),
-      Math.round(info.cop).toLocaleString(),
-      info.bs.toFixed(2),
-    ]);
+    .filter(([, info]) => info.count > 0 || info.usd !== 0 || info.cop !== 0 || info.bs !== 0)
+    .map(([method, info]) => {
+      const formatted = info.currency === 'USD'
+        ? `$${info.usd.toFixed(2)}`
+        : info.currency === 'COP'
+        ? `$${Math.round(info.cop).toLocaleString()}`
+        : `Bs ${info.bs.toFixed(2)}`;
+      return [
+        method,
+        info.count.toString(),
+        formatted,
+        info.currency,
+      ];
+    });
 
   const cuentasData = [
     ['DESGLOSE POR TIPO DE CUENTA Y CAJA'],
@@ -208,29 +266,38 @@ export function exportToExcel(data: ReporteIntervaloData): void {
     ...cuentasRows,
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(cuentasData);
-  ws2['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 18 }];
+  ws2['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 15 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Cuentas');
 
-  // --- Hoja 3: Ítems Vendidos ---
+  // --- Hoja 3: Ítems Vendidos al Contado ---
   const itemTally: Record<string, { category: string; name: string; quantity: number; totalUSD: number }> = {};
-  data.items.forEach((it) => {
-    const category = it.category || 'General';
-    const key = `${category}|${it.productName}`;
+  cashItems.forEach((it) => {
+    const rawCategory = it.category || 'General';
+    const cleanName = (it.productName || 'Producto')
+      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+      .trim();
+    const catLower = rawCategory.toLowerCase();
+    const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
+    const category = isBurger ? 'Hamburguesas' : rawCategory;
+
+    const key = `${category}|${cleanName}`;
     if (!itemTally[key]) {
-      itemTally[key] = { category, name: it.productName, quantity: 0, totalUSD: 0 };
+      itemTally[key] = { category, name: cleanName, quantity: 0, totalUSD: 0 };
     }
-    itemTally[key].quantity += it.quantity;
-    itemTally[key].totalUSD += it.price * it.quantity;
+    const qty = Number(it.quantity) || 1;
+    const price = Number(it.price) || 0;
+    itemTally[key].quantity += qty;
+    itemTally[key].totalUSD += price * qty;
   });
 
   // Agregar Deliverys
   Object.entries(deliveryMap).forEach(([feeStr, count]) => {
     const fee = Number(feeStr) || 0;
     if (fee > 0 && count > 0) {
-      const key = `Delivery|Delivery de $${fee.toFixed(2)}`;
+      const key = `Delivery|Servicio Delivery de $${fee.toFixed(2)}`;
       itemTally[key] = {
         category: 'Delivery',
-        name: `Delivery de $${fee.toFixed(2)}`,
+        name: `Servicio Delivery de $${fee.toFixed(2)}`,
         quantity: count,
         totalUSD: fee * count,
       };
@@ -240,7 +307,7 @@ export function exportToExcel(data: ReporteIntervaloData): void {
   // Agregar Adicionales
   Object.entries(extrasMap).forEach(([priceStr, info]) => {
     const price = Number(priceStr) || 0;
-    if (info.count > 0) {
+    if (info.count > 0 && price > 0) {
       const key = `Adicionales|Adicional de $${price.toFixed(2)}`;
       itemTally[key] = {
         category: 'Adicionales',
@@ -257,6 +324,9 @@ export function exportToExcel(data: ReporteIntervaloData): void {
       return catCmp !== 0 ? catCmp : a.name.localeCompare(b.name);
     });
 
+  const totalItemsUnits = itemEntries.reduce((sum, it) => sum + it.quantity, 0);
+  const totalItemsUSD = itemEntries.reduce((sum, it) => sum + it.totalUSD, 0);
+
   const itemsHeader = ['Categoría', 'Producto', 'Cantidad', 'Total USD'];
   const itemsRows = itemEntries.map((info) => [
     info.category,
@@ -265,8 +335,10 @@ export function exportToExcel(data: ReporteIntervaloData): void {
     info.totalUSD.toFixed(2),
   ]);
 
+  itemsRows.push(['TOTAL', 'TOTAL PRODUCTOS FACTURADOS', totalItemsUnits.toString(), totalItemsUSD.toFixed(2)]);
+
   const itemsData = [
-    ['ÍTEMS FACTURADOS EN EL INTERVALO'],
+    ['ÍTEMS FACTURADOS EN EL INTERVALO (CONTADO)'],
     ['Desde:', formatDate(data.dateRange.from), 'Hasta:', formatDate(data.dateRange.to)],
     [],
     itemsHeader,

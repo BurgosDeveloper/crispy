@@ -231,6 +231,12 @@ function itemDetails(item, order = {}) {
   return details;
 }
 
+function reportPaymentCurrency(method) {
+  if (['Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP'].includes(method)) return 'COP';
+  if (['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'].includes(method)) return 'Bs';
+  return 'USD';
+}
+
 function reportAmounts(payment) {
   let usd = Number(payment.cashTenderedUSD) || 0;
   let cop = Number(payment.cashTenderedCOP) || 0;
@@ -351,7 +357,9 @@ function buildReportTicket(reportType, data) {
     for (const item of data.items || []) {
       const catLower = (item.category || '').toLowerCase();
       const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || (item.productName || '').toLowerCase().includes('burger') || (item.productName || '').toLowerCase().includes('crispy');
-      const fullName = item.productName || item.name || 'Item';
+      const fullName = (item.productName || item.name || 'Item')
+        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+        .trim();
       const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoria');
       const key = `${category}|${fullName}`;
       const current = grouped.get(key) || { category, name: fullName, quantity: 0, totalUSD: 0 };
@@ -456,54 +464,124 @@ function buildReportTicket(reportType, data) {
     lines.push(`COMANDAS: ${(data.orders || []).length}`, `ITEMS FACTURADOS: ${(data.items || []).reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
   } else {
     // REPORTE CONTABLE CONSOLIDADO
+    const copRateGlobal = Number(data.exchangeRates?.COP) || 3950;
+    const bsRateGlobal = Number(data.exchangeRates?.Bs) || 36.5;
+
     const billedTotals = { usd: 0, cop: 0, bs: 0 };
     const byMethod = new Map();
-    const paymentCounts = new Map();
 
     for (const payment of data.payments || []) {
       if (payment.paymentMethod === 'Crédito') continue;
+      const method = payment.paymentMethod || 'Efectivo USD';
+      const curr = reportPaymentCurrency(method);
+      const cRate = Number(payment.copRate) || copRateGlobal;
+      const bRate = Number(payment.bsRate) || bsRateGlobal;
+
       const paidUSD = Number(payment.amountPaidUSD) || 0;
-      if (paidUSD <= 0) continue;
-      const amounts = reportSaleAmounts(payment);
-      billedTotals.usd += amounts.usd;
-      billedTotals.cop += amounts.cop;
-      billedTotals.bs += amounts.bs;
-      const methodTotals = byMethod.get(payment.paymentMethod) || { usd: 0, cop: 0, bs: 0 };
-      methodTotals.usd += amounts.usd;
-      methodTotals.cop += amounts.cop;
-      methodTotals.bs += amounts.bs;
-      byMethod.set(payment.paymentMethod, methodTotals);
-      paymentCounts.set(payment.paymentMethod, (paymentCounts.get(payment.paymentMethod) || 0) + 1);
+      let tenderUSD = Number(payment.cashTenderedUSD) || 0;
+      let tenderCOP = Number(payment.cashTenderedCOP) || 0;
+      let tenderBs = Number(payment.cashTenderedBs) || 0;
+
+      if (tenderUSD === 0 && tenderCOP === 0 && tenderBs === 0 && paidUSD > 0) {
+        if (curr === 'USD') tenderUSD = paidUSD;
+        else if (curr === 'COP') tenderCOP = paidUSD * cRate;
+        else if (curr === 'Bs') tenderBs = paidUSD * bRate;
+      }
+
+      const changeUSD = Number(payment.changeGivenUSD) || 0;
+      const changeCOP = Number(payment.changeGivenCOP) || 0;
+      const changeBs = Number(payment.changeGivenBs) || 0;
+
+      const methodTotals = byMethod.get(method) || { currency: curr, incomeNative: 0, changeNative: 0, netNative: 0, netUSD: 0, count: 0 };
+
+      // 1. Sumar ingresos al método que recibió el dinero
+      if (curr === 'USD') {
+        methodTotals.incomeNative += tenderUSD;
+        billedTotals.usd += tenderUSD;
+      } else if (curr === 'COP') {
+        methodTotals.incomeNative += tenderCOP;
+        billedTotals.cop += tenderCOP;
+      } else if (curr === 'Bs') {
+        methodTotals.incomeNative += tenderBs;
+        billedTotals.bs += tenderBs;
+      }
+
+      if (paidUSD > 0 || tenderUSD > 0 || tenderCOP > 0 || tenderBs > 0) {
+        methodTotals.count += 1;
+      }
+      byMethod.set(method, methodTotals);
+
+      // 2. Descontar vueltos estrictamente en su moneda nativa y método
+      if (changeUSD > 0 || changeCOP > 0 || changeBs > 0) {
+        if (paidUSD === 0) {
+          if (changeUSD > 0) {
+            methodTotals.changeNative += changeUSD;
+            billedTotals.usd -= changeUSD;
+          }
+          if (changeCOP > 0) {
+            methodTotals.changeNative += changeCOP;
+            billedTotals.cop -= changeCOP;
+          }
+          if (changeBs > 0) {
+            methodTotals.changeNative += changeBs;
+            billedTotals.bs -= changeBs;
+          }
+          byMethod.set(method, methodTotals);
+        } else {
+          if (changeUSD > 0) {
+            const m = byMethod.get('Efectivo USD') || { currency: 'USD', incomeNative: 0, changeNative: 0, netNative: 0, netUSD: 0, count: 0 };
+            m.changeNative += changeUSD;
+            byMethod.set('Efectivo USD', m);
+            billedTotals.usd -= changeUSD;
+          }
+          if (changeCOP > 0) {
+            const m = byMethod.get('Efectivo COP') || { currency: 'COP', incomeNative: 0, changeNative: 0, netNative: 0, netUSD: 0, count: 0 };
+            m.changeNative += changeCOP;
+            byMethod.set('Efectivo COP', m);
+            billedTotals.cop -= changeCOP;
+          }
+          if (changeBs > 0) {
+            const m = byMethod.get('Pago Móvil') || { currency: 'Bs', incomeNative: 0, changeNative: 0, netNative: 0, netUSD: 0, count: 0 };
+            m.changeNative += changeBs;
+            byMethod.set('Pago Móvil', m);
+            billedTotals.bs -= changeBs;
+          }
+        }
+      }
+    }
+
+    for (const [, m] of byMethod) {
+      m.netNative = m.incomeNative - m.changeNative;
+      if (m.currency === 'USD') m.netUSD = m.netNative;
+      else if (m.currency === 'COP') m.netUSD = m.netNative / copRateGlobal;
+      else if (m.currency === 'Bs') m.netUSD = m.netNative / bsRateGlobal;
     }
 
     const expenses = (data.transactions || []).filter((item) => item.type === 'egreso');
 
     const creditOrders = (data.orders || []).filter((o) => o.paymentStatus === 'credito' || o.paymentMethod === 'Crédito');
     const cashOrders = (data.orders || []).filter((o) => o.paymentStatus === 'pagado' && o.paymentMethod !== 'Crédito');
+    const cashOrderIds = new Set(cashOrders.map((o) => o.id));
+    const cashItems = (data.items || []).filter((item) => cashOrderIds.has(item.orderId));
+
     const firstOrder = data.orders?.[0]?.orderNumber || 'N/A';
     const lastOrder = data.orders?.[data.orders.length - 1]?.orderNumber || 'N/A';
 
     lines.push(...wrapText(`COMANDA INICIAL: #${firstOrder}`, reportWidth));
     lines.push(...wrapText(`COMANDA FINAL:   #${lastOrder}`, reportWidth));
 
-    // Desglose de Deliverys por tarifa
+    // Desglose de Deliverys de Comandas al Contado
     const deliveryMap = new Map();
-    let totalDeliveryServices = 0;
-    let totalDeliveryUSD = 0;
-    for (const ord of (data.orders || [])) {
+    for (const ord of cashOrders) {
       const fee = Number(ord.deliveryFeeUSD) || 0;
       if (ord.type === 'delivery' || fee > 0) {
-        totalDeliveryServices += 1;
-        totalDeliveryUSD += fee;
         deliveryMap.set(fee, (deliveryMap.get(fee) || 0) + 1);
       }
     }
 
-    // Desglose de Extras / Adicionales por precio
+    // Desglose de Extras / Adicionales de Comandas al Contado
     const extrasMap = new Map();
-    let totalExtrasCount = 0;
-    let totalExtrasUSD = 0;
-    for (const it of (data.items || [])) {
+    for (const it of cashItems) {
       const itQty = Number(it.quantity) || 1;
       const extrasList = [];
       if (Array.isArray(it.extras)) {
@@ -511,27 +589,20 @@ function buildReportTicket(reportType, data) {
       } else if (it.extrasJson && Array.isArray(it.extrasJson)) {
         extrasList.push(...it.extrasJson);
       }
-      if (it.isHalfHalf && it.halfDetails) {
-        if (Array.isArray(it.halfDetails.half1Extras)) extrasList.push(...it.halfDetails.half1Extras);
-        if (Array.isArray(it.halfDetails.half2Extras)) extrasList.push(...it.halfDetails.half2Extras);
-      }
       for (const extra of extrasList) {
         const price = Number(extra.price) || 0;
-        const count = itQty;
-        const subtotal = price * count;
-        totalExtrasCount += count;
-        totalExtrasUSD += subtotal;
-        const prev = extrasMap.get(price) || { count: 0, totalUSD: 0 };
-        prev.count += count;
-        prev.totalUSD += subtotal;
-        extrasMap.set(price, prev);
+        if (price > 0) {
+          const count = itQty;
+          const subtotal = price * count;
+          const prev = extrasMap.get(price) || { count: 0, totalUSD: 0 };
+          prev.count += count;
+          prev.totalUSD += subtotal;
+          extrasMap.set(price, prev);
+        }
       }
     }
 
-    const totalFacturadoUSD = Array.from(byMethod.values()).reduce((sum, m) => {
-      const equiv = m.usd + (m.cop / (Number(data.exchangeRates?.COP) || 3950)) + (m.bs / (Number(data.exchangeRates?.Bs) || 36.5));
-      return sum + equiv;
-    }, 0);
+    const totalFacturadoUSD = billedTotals.usd + (billedTotals.cop / copRateGlobal) + (billedTotals.bs / bsRateGlobal);
 
     // SECCIÓN 2 — TOTAL FACTURADO POR MONEDA
     addSection(lines, 'SECCION 2: FACTURADO', reportWidth);
@@ -552,10 +623,15 @@ function buildReportTicket(reportType, data) {
     if (byMethod.size === 0) {
       lines.push('SIN COBROS EN EL INTERVALO');
     } else {
-      for (const [method, amounts] of byMethod) {
-        const count = paymentCounts.get(method) || 1;
-        lines.push('', ...wrapText(`• ${method} (${count}):`, reportWidth));
-        addAmountLines(lines, amounts, '    ');
+      for (const [method, totals] of byMethod) {
+        if (totals.count === 0 && totals.netNative === 0) continue;
+        const formatted = totals.currency === 'USD'
+          ? `$${totals.netNative.toFixed(2)} USD`
+          : totals.currency === 'COP'
+          ? `$${Math.round(totals.netNative).toLocaleString('en-US')} COP`
+          : `Bs ${totals.netNative.toFixed(2)}`;
+        lines.push('', ...wrapText(`• ${method} (${totals.count}):`, reportWidth));
+        lines.push(...wrapText(`    ${formatted}`, reportWidth));
       }
     }
 
@@ -616,32 +692,49 @@ function buildReportTicket(reportType, data) {
       lines.push(...wrapText(`TOTAL A CREDITO: $${totalCreditUSD.toFixed(2)} USD`, reportWidth));
     }
 
-    // SECCIÓN FINAL — ÍTEMS FACTURADOS (DE ÚLTIMO)
+    // SECCIÓN 6 — ÍTEMS FACTURADOS AL CONTADO
     const itemMap = new Map();
-    for (const item of (data.items || [])) {
-      const category = item.category || 'General';
-      const isPizza = category.toLowerCase().includes('pizza') || (item.productName || '').toLowerCase().includes('pizza') || !!item.size || !!item.isHalfHalf;
-      const sizeLabel = item.size ? ` (${item.size})` : '';
-      const fullName = `${item.productName || item.name || 'Item'}${sizeLabel}`;
-      const key = `${category}|${fullName}`;
-      const current = itemMap.get(key) || { category, name: fullName, quantity: 0 };
-      current.quantity += Number(item.quantity) || 1;
+    for (const item of cashItems) {
+      const rawCategory = item.category || 'General';
+      const cleanName = (item.productName || item.name || 'Item')
+        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+        .trim();
+      const catLower = rawCategory.toLowerCase();
+      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
+      const category = isBurger ? 'Hamburguesas' : rawCategory;
+
+      const key = `${category}|${cleanName}`;
+      const current = itemMap.get(key) || { category, name: cleanName, quantity: 0, subtotalUSD: 0 };
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.price) || 0;
+      current.quantity += qty;
+      current.subtotalUSD += price * qty;
       itemMap.set(key, current);
     }
 
     // Agregar Deliverys
     deliveryMap.forEach((count, fee) => {
       if (fee > 0 && count > 0) {
-        const key = `Delivery|Delivery de $${fee.toFixed(2)}`;
-        itemMap.set(key, { category: 'Delivery', name: `Delivery de $${fee.toFixed(2)}`, quantity: count });
+        const key = `Delivery|Servicio Delivery de $${fee.toFixed(2)}`;
+        itemMap.set(key, {
+          category: 'Delivery',
+          name: `Servicio Delivery de $${fee.toFixed(2)}`,
+          quantity: count,
+          subtotalUSD: fee * count,
+        });
       }
     });
 
     // Agregar Adicionales
     extrasMap.forEach((info, price) => {
-      if (info.count > 0) {
+      if (info.count > 0 && price > 0) {
         const key = `Adicionales|Adicional de $${price.toFixed(2)}`;
-        itemMap.set(key, { category: 'Adicionales', name: `Adicional de $${price.toFixed(2)}`, quantity: info.count });
+        itemMap.set(key, {
+          category: 'Adicionales',
+          name: `Adicional de $${price.toFixed(2)}`,
+          quantity: info.count,
+          subtotalUSD: info.totalUSD,
+        });
       }
     });
 
@@ -651,13 +744,21 @@ function buildReportTicket(reportType, data) {
     } else {
       let currentCategory = '';
       const sortedItems = [...itemMap.values()].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+      const totalItemsUSD = sortedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
+
       for (const it of sortedItems) {
         if (it.category !== currentCategory) {
           currentCategory = it.category;
           lines.push('', ...wrapText(`• ${currentCategory}:`, reportWidth));
         }
-        lines.push(...wrapText(`  ${it.quantity}x ${it.name}`, reportWidth, '  '));
+        lines.push(...wrapText(`  ${it.quantity}x ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth, '  '));
       }
+
+      lines.push(divider('-', reportWidth));
+      lines.push('\x1BE\x01');
+      lines.push(...wrapText('TOTAL EN $ PRODUCTOS:', reportWidth));
+      lines.push(...wrapText(`$${totalItemsUSD.toFixed(2)} USD`, reportWidth));
+      lines.push('\x1BE\x00');
     }
   }
 

@@ -147,6 +147,18 @@ INSERT INTO products (id, name, category, drink_type, price, description, image,
   ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada', 'Triple queso', 'Triple tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'],
   'ambos'
 ),
+(
+  'prod-racion-papas',
+  'Ración de Papas',
+  'Hamburguesas',
+  NULL,
+  2.00,
+  'Porción individual de papas fritas doradas y crujientes.',
+  '',
+  NULL,
+  ARRAY['Papas fritas', 'Sal'],
+  'ambos'
+),
 
 -- --- BEBIDAS (Sin imágenes, tarjetas compactas de texto) ---
 (
@@ -240,8 +252,6 @@ INSERT INTO ingredients (id, name, price_usd, is_base, is_extra, category, avail
 ('ing-adicional-tocineta', 'Tocineta', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
 ('ing-adicional-queso-cheddar', 'Queso Cheddar', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
 ('ing-adicional-proteina', 'Proteína', 3.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-('ing-adicional-racion-papas', 'Ración Papas', 2.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-('ing-servicio-papas-fritas', 'Servicio Adicional de Papas Fritas', 2.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
 
 -- --- TOPPINGS ¡GRATIS! ---
 ('ing-gratis-jalapenos', 'Jalapeños Picantes (Gratis)', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
