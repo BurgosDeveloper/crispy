@@ -211,23 +211,123 @@ function isKitchenItem(item) {
   return true;
 }
 
+function getDefaultProteins(burgerName = '') {
+  const nameLower = (burgerName || '').toLowerCase();
+  if (nameLower.includes('papas') || nameLower.includes('nugget')) return [];
+  if (nameLower.includes('3.0') || nameLower.includes('triple')) return ['Carne de Novillo', 'Pollo Crispy', 'Chuleta Ahumada'];
+  if (nameLower.includes('mixtura')) return ['Carne de Novillo', 'Pollo Crispy'];
+  if (nameLower.includes('house')) return ['Pollo Crispy', 'Chuleta Ahumada'];
+  if (nameLower.includes('super smash') || nameLower.includes('tasty')) return ['Smash de Carne', 'Smash de Carne'];
+  if (nameLower.includes('doble')) return ['Carne de Novillo', 'Carne de Novillo'];
+  if (nameLower.includes('mr pork') || nameLower.includes('pork')) return ['Chuleta Ahumada'];
+  if (nameLower.includes('street')) return ['Carne Mechada'];
+  if (nameLower.includes('chicken grill') || nameLower.includes('grill')) return ['Pechuga a la Plancha'];
+  if (nameLower.includes('crispy')) return ['Pollo Crispy'];
+  return ['Carne de Novillo'];
+}
+
+function areProteinsDefault(burgerName, proteins) {
+  if (!proteins || !Array.isArray(proteins) || proteins.length === 0) return true;
+  const defaultList = getDefaultProteins(burgerName);
+  if (proteins.length !== defaultList.length) return false;
+  const pSorted = [...proteins].map((p) => String(p).trim().toLowerCase()).sort();
+  const dSorted = [...defaultList].map((d) => String(d).trim().toLowerCase()).sort();
+  return pSorted.every((p, idx) => p === dSorted[idx]);
+}
+
+function abbreviateFreeTopping(name = '') {
+  const n = String(name).trim().toLowerCase();
+  if (n.includes('jalape')) return 'JAL';
+  if (n.includes('cebolla')) return 'CEB';
+  if (n.includes('relish')) return 'REL';
+  if (n.includes('pepinillo')) return 'PEP';
+  if (n.includes('maiz') || n.includes('maíz')) return 'MAIZ';
+  return null;
+}
+
+function formatKitchenTime(dateValue) {
+  const date = dateValue ? new Date(dateValue) : new Date();
+  if (Number.isNaN(date.getTime())) return '';
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = hours < 10 ? `0${hours}` : `${hours}`;
+  const strMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
+  return `${strHours}:${strMinutes} ${ampm}`;
+}
+
 function itemDetails(item, order = {}) {
   const details = [];
+  const orderType = (order.type || '').toLowerCase();
 
-  if (item.isTakeaway || item.is_takeaway) details.push('*** PARA LLEVAR ***');
+  // 1. Para llevar en ítems: Solo si es mesa y este ítem se pidió específicamente para llevar
+  if (orderType === 'mesa' && (item.isTakeaway || item.is_takeaway)) {
+    details.push('*** PARA LLEVAR ***');
+  }
+
+  // 2. Picada: Solo si está marcada como picada (sin ENTERA)
   const isCut = !!(item.isCut || item.is_cut || item.cutPreference === 'Picada' || item.cut_preference === 'Picada');
   if (isCut) {
     details.push('🔪 PICADA (CORTADA EN DOS)');
-  } else {
-    details.push('🍔 ENTERA');
   }
-  if (item.proteins?.length) details.push(`PROTEINA: ${item.proteins.join(' + ')}`);
-  if (item.removedIngredients?.length) details.push(`SIN: ${item.removedIngredients.join(', ')}`);
-  if (item.extras?.length) {
-    details.push(`EXTRA: ${item.extras.map((extra) => extra.name || extra).join(', ')}`);
+
+  // 3. Proteínas: Solo si cambiaron respecto a la receta original
+  const prodName = item.productName || item.name || '';
+  if (item.proteins && Array.isArray(item.proteins) && item.proteins.length > 0) {
+    if (!areProteinsDefault(prodName, item.proteins)) {
+      details.push(`PROTEINAS: ${item.proteins.join(' + ')}`);
+    }
   }
-  if (item.sugarPreference) details.push(`Azucar: ${item.sugarPreference}`);
-  if (item.notes) details.push(`NOTA: ${item.notes}`);
+
+  // 4. Ingredientes removidos (SIN)
+  const removed = item.removedIngredients || item.removed_ingredients;
+  if (Array.isArray(removed) && removed.length > 0) {
+    details.push(`SIN: ${removed.join(', ')}`);
+  }
+
+  // 5. Toppings gratis abreviados y adicionales pagos completos
+  const freeToppings = [];
+  const paidExtras = [];
+
+  let rawExtras = [];
+  if (Array.isArray(item.extras)) rawExtras = item.extras;
+  else if (item.extrasJson && Array.isArray(item.extrasJson)) rawExtras = item.extrasJson;
+  else if (item.extras_json) {
+    try {
+      rawExtras = typeof item.extras_json === 'string' ? JSON.parse(item.extras_json) : item.extras_json;
+    } catch (e) {}
+  }
+
+  for (const ext of rawExtras) {
+    const extName = typeof ext === 'string' ? ext : (ext.name || '');
+    const extPrice = typeof ext === 'object' ? Number(ext.price) || 0 : 0;
+    const abbrev = abbreviateFreeTopping(extName);
+    if (abbrev && extPrice === 0) {
+      if (!freeToppings.includes(abbrev)) freeToppings.push(abbrev);
+    } else if (extName) {
+      paidExtras.push(extName);
+    }
+  }
+
+  if (freeToppings.length > 0) {
+    details.push(freeToppings.join(', '));
+  }
+  for (const paid of paidExtras) {
+    details.push(`EXTRA: ${paid}`);
+  }
+
+  // 6. Bebidas / Azúcar
+  if (item.sugarPreference) {
+    details.push(`Azucar: ${item.sugarPreference}`);
+  }
+
+  // 7. Notas del ítem
+  if (item.notes && item.notes.trim()) {
+    details.push(`NOTA: ${item.notes.trim()}`);
+  }
+
   return details;
 }
 
@@ -792,45 +892,47 @@ function buildKitchenTicket(order) {
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
     '\x1Ba\x01',
-    kitchenCentered('CRISPY BURGER'),
-    kitchenCentered('COMANDA COCINA'),
-    '\x1Ba\x00',
-    kitchenDivider('='),
-    '\x1Ba\x01',
     `COMANDA: #${printableText(order.orderNumber)}`,
     '\x1Ba\x00',
-    `HORA: ${new Date(order.createdAt || Date.now()).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`,
+    `HORA: ${formatKitchenTime(order.createdAt)}`,
   ];
 
-  if (order.type === 'mesa' && order.tableNumber) {
+  const orderType = (order.type || '').toLowerCase();
+  if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
-  } else if (order.type === 'delivery') {
+  } else if (orderType === 'delivery') {
     lines.push('SERVICIO: DELIVERY');
-  } else if (order.type === 'pickup') {
+  } else if (orderType === 'pickup') {
     lines.push('SERVICIO: PICKUP');
   }
 
-  if (order.customerName) lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
-  if (order.waiterName) lines.push(...kitchenWrap(`MESERO: ${order.waiterName}`));
+  if (order.customerName) {
+    lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
+  }
 
-  lines.push(kitchenDivider('-'));
-  lines.push('\x1Ba\x01', 'DETALLE PREPARACION', '\x1Ba\x00');
+  if (orderType === 'delivery' || orderType === 'pickup') {
+    lines.push('PEDIDO PARA LLEVAR COMPLETO');
+  }
+
   lines.push(kitchenDivider('-'));
 
   for (const item of kitchenItems) {
-    lines.push(...kitchenWrap(`${item.quantity || 1}x ${item.productName || 'Producto'}`));
+    const cleanName = (item.productName || item.name || 'Producto')
+      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+      .trim();
+    lines.push(...kitchenWrap(`${item.quantity || 1}x ${cleanName}`));
     for (const detail of itemDetails(item, order)) {
       lines.push(...kitchenWrap(`* ${detail}`));
     }
-  }
-
-  if (order.kitchenNotes) {
     lines.push(kitchenDivider('-'));
-    lines.push('NOTA COCINA:');
-    lines.push(...kitchenWrap(order.kitchenNotes));
   }
 
-  lines.push(kitchenDivider('='));
+  if (order.kitchenNotes && order.kitchenNotes.trim()) {
+    lines.push('NOTA COCINA:');
+    lines.push(...kitchenWrap(order.kitchenNotes.trim()));
+    lines.push(kitchenDivider('-'));
+  }
+
   lines.push(`ITEMS COCINA: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
   lines.push('');
   lines.push('\x1Ba\x01');
@@ -853,39 +955,42 @@ function buildKitchenAdditionTicket(order, addedItems) {
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
     '\x1Ba\x01',
-    kitchenCentered('CRISPY BURGER'),
-    kitchenCentered('ADICION COCINA'),
-    '\x1Ba\x00',
-    kitchenDivider('='),
-    '\x1Ba\x01',
+    'ADICION COCINA',
     `COMANDA: #${printableText(order.orderNumber)}`,
     '\x1Ba\x00',
-    `HORA: ${new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`,
+    `HORA: ${formatKitchenTime(new Date())}`,
   ];
 
-  if (order.type === 'mesa' && order.tableNumber) {
+  const orderType = (order.type || '').toLowerCase();
+  if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
-  } else if (order.type === 'delivery') {
+  } else if (orderType === 'delivery') {
     lines.push('SERVICIO: DELIVERY');
-  } else if (order.type === 'pickup') {
+  } else if (orderType === 'pickup') {
     lines.push('SERVICIO: PICKUP');
   }
 
-  if (order.customerName) lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
-  if (order.waiterName) lines.push(...kitchenWrap(`MESERO: ${order.waiterName}`));
+  if (order.customerName) {
+    lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
+  }
 
-  lines.push(kitchenDivider('-'));
-  lines.push('\x1Ba\x01', 'NUEVOS ITEMS', '\x1Ba\x00');
+  if (orderType === 'delivery' || orderType === 'pickup') {
+    lines.push('PEDIDO PARA LLEVAR COMPLETO');
+  }
+
   lines.push(kitchenDivider('-'));
 
   for (const item of kitchenItems) {
-    lines.push(...kitchenWrap(`${item.quantity || 1}x ${item.productName || 'Producto'}`));
+    const cleanName = (item.productName || item.name || 'Producto')
+      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+      .trim();
+    lines.push(...kitchenWrap(`${item.quantity || 1}x ${cleanName}`));
     for (const detail of itemDetails(item, order)) {
       lines.push(...kitchenWrap(`* ${detail}`));
     }
+    lines.push(kitchenDivider('-'));
   }
 
-  lines.push(kitchenDivider('='));
   lines.push(`ITEMS ADICIONADOS: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
   lines.push('');
   lines.push('\x1Ba\x01');
