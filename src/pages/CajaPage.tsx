@@ -14,6 +14,7 @@ import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
+import { areProteinsDefault } from '../utils/burgerProteins';
 import {
   IoCard,
   IoCashOutline,
@@ -756,7 +757,7 @@ export const CajaPage: React.FC = () => {
                             </p>
                           )}
 
-                          {it.proteins && it.proteins.length > 0 && (
+                          {it.proteins && it.proteins.length > 0 && !areProteinsDefault(it.productName, it.proteins) && (
                             <p className="text-[10px] text-amber-800 font-bold ml-2">
                               🥩 Proteínas: {it.proteins.join(' + ')}
                             </p>
@@ -772,11 +773,17 @@ export const CajaPage: React.FC = () => {
                             <div className="ml-2 text-[10px] text-gray-700 font-bold space-y-0.5">
                               {it.extras.map((ex, exIdx) => (
                                 <div key={exIdx} className="flex justify-between">
-                                  <span>➕ EXTRA: {ex.name}</span>
+                                  <span>➕ ADD: {ex.name}</span>
                                   {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
                                 </div>
                               ))}
                             </div>
+                          )}
+
+                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                            <p className="text-[10px] text-amber-900 font-bold ml-2">
+                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
+                            </p>
                           )}
                         </div>
                       ))}
@@ -1059,6 +1066,12 @@ export const CajaPage: React.FC = () => {
                             </p>
                           )}
 
+                          {it.proteins && it.proteins.length > 0 && !areProteinsDefault(it.productName, it.proteins) && (
+                            <p className="text-[10px] text-amber-800 font-bold ml-2">
+                              🥩 Proteínas: {it.proteins.join(' + ')}
+                            </p>
+                          )}
+
                           {it.removedIngredients && it.removedIngredients.length > 0 && (
                             <p className="text-[10px] text-red-600 font-bold ml-2">
                               🚫 SIN: {it.removedIngredients.join(', ')}
@@ -1069,11 +1082,17 @@ export const CajaPage: React.FC = () => {
                             <div className="ml-2 text-[10px] text-gray-700 font-bold space-y-0.5">
                               {it.extras.map((ex, exIdx) => (
                                 <div key={exIdx} className="flex justify-between">
-                                  <span>➕ EXTRA: {ex.name}</span>
+                                  <span>➕ ADD: {ex.name}</span>
                                   {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
                                 </div>
                               ))}
                             </div>
+                          )}
+
+                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                            <p className="text-[10px] text-amber-900 font-bold ml-2">
+                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
+                            </p>
                           )}
                         </div>
                       ))}

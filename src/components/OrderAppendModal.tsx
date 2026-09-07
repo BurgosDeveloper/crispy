@@ -6,6 +6,7 @@ import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mese
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { AdminPinModal } from './AdminPinModal';
 import { roundCOP } from '../utils/currencyRounding';
+import { areProteinsDefault } from '../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -434,7 +435,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
                                 {/* Modificadores */}
                                 <div className="text-[10px] text-gray-500 space-y-0.5 mt-0.5">
-                                  {item.proteins && item.proteins.length > 0 && (
+                                  {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
                                     <div>🥩 {item.proteins.join(' + ')}</div>
                                   )}
                                   {item.removedIngredients && item.removedIngredients.length > 0 && (
@@ -444,10 +445,12 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                   )}
                                   {item.extras && item.extras.length > 0 && (
                                     <div className="text-gray-700 font-bold">
-                                      {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
+                                      {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
                                     </div>
                                   )}
-                                  {item.notes && <div className="italic text-gray-600">"{item.notes}"</div>}
+                                  {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
+                                    <div className="italic text-gray-600">"{item.notes.replace(/\[#\d+\]/g, '').trim()}"</div>
+                                  )}
                                 </div>
                               </div>
 

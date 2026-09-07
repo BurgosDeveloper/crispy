@@ -13,6 +13,7 @@ import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
+import { areProteinsDefault } from '../utils/burgerProteins';
 
 import {
   IoReaderOutline,
@@ -768,7 +769,7 @@ export const MeseroPage: React.FC = () => {
                           </div>
 
                           {/* Proteins (Tarea 3) */}
-                          {item.proteins && item.proteins.length > 0 && (
+                          {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
                             <div className="text-[10px] text-amber-800 font-extrabold bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 inline-block">
                               🥩 {item.proteins.join(' + ')}
                             </div>
@@ -781,12 +782,12 @@ export const MeseroPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Extra ingredients (EXTRA) */}
+                          {/* Extra ingredients (ADD) */}
                           {item.extras && item.extras.length > 0 && (
                             <div className="text-[10px] text-gray-700 font-semibold space-y-0.5">
                               {item.extras.map((ex, exIdx) => (
                                 <div key={exIdx} className="flex justify-between">
-                                  <span>➕ {ex.name}</span>
+                                  <span>➕ ADD: {ex.name}</span>
                                   {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
                                 </div>
                               ))}
@@ -801,9 +802,9 @@ export const MeseroPage: React.FC = () => {
                           )}
 
                           {/* Item Note */}
-                          {item.notes && (
+                          {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
                             <div className="text-[10px] text-gray-500 italic">
-                              📝 Nota: {item.notes}
+                              📝 Nota: {item.notes.replace(/\[#\d+\]/g, '').trim()}
                             </div>
                           )}
 

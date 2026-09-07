@@ -322,12 +322,19 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const handleSave = () => {
     if (!burger || units.length === 0) return;
 
-    // Verificar si todas las unidades son idénticas
-    const allIdentical = units.every((u) => areUnitsIdentical(u, units[0]));
+    // Agrupar unidades que tengan la MISMA configuración exacta
+    const groups: { unit: BurgerUnitConfig; quantity: number }[] = [];
 
-    if (allIdentical) {
-      // Si todas son iguales, se agrupan en un único ítem con cantidad N
-      const u = units[0];
+    for (const u of units) {
+      const match = groups.find((g) => areUnitsIdentical(g.unit, u));
+      if (match) {
+        match.quantity += 1;
+      } else {
+        groups.push({ unit: u, quantity: 1 });
+      }
+    }
+
+    const itemsToEmit: BurgerOrderConfirmationItem[] = groups.map(({ unit: u, quantity }) => {
       const combinedExtras: { name: string; price: number }[] = [
         ...u.selectedFreeToppings.map((name) => ({ name, price: 0 })),
         ...u.selectedPaidExtras,
@@ -335,50 +342,27 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       const extrasCost = u.selectedPaidExtras.reduce((sum, e) => sum + e.price, 0);
       const unitPrice = burger.price + extrasCost;
 
-      onConfirm({
+      // NOTA: Únicamente si el usuario escribió una nota real en el input.
+      // NUNCA agregar tags artificiales como [#1], [#2] si el usuario no escribió nada.
+      const userNote = u.notes ? u.notes.trim() : '';
+
+      return {
         burger,
-        quantity: units.length,
+        quantity,
         proteins: u.proteins.length > 0 ? u.proteins : undefined,
         removedIngredients: u.removedIngredients,
         extras: combinedExtras,
         isTakeaway: u.isTakeaway,
         isCut: u.isCut,
         cutPreference: u.cutPreference,
-        notes: u.notes.trim() || undefined,
+        notes: userNote || undefined,
         finalPrice: unitPrice,
-      });
+      };
+    });
+
+    if (itemsToEmit.length === 1) {
+      onConfirm(itemsToEmit[0]);
     } else {
-      // Son diferentes: se emiten como ítems individualizados con marcador de unidad
-      const itemsToEmit: BurgerOrderConfirmationItem[] = units.map((u, idx) => {
-        const combinedExtras: { name: string; price: number }[] = [
-          ...u.selectedFreeToppings.map((name) => ({ name, price: 0 })),
-          ...u.selectedPaidExtras,
-        ];
-        const extrasCost = u.selectedPaidExtras.reduce((sum, e) => sum + e.price, 0);
-        const unitPrice = burger.price + extrasCost;
-
-        let unitNotes = u.notes.trim();
-        const tag = `[#${idx + 1}]`;
-        if (unitNotes) {
-          unitNotes = `${tag} ${unitNotes}`;
-        } else {
-          unitNotes = tag;
-        }
-
-        return {
-          burger,
-          quantity: 1,
-          proteins: u.proteins.length > 0 ? u.proteins : undefined,
-          removedIngredients: u.removedIngredients,
-          extras: combinedExtras,
-          isTakeaway: u.isTakeaway,
-          isCut: u.isCut,
-          cutPreference: u.cutPreference,
-          notes: unitNotes,
-          finalPrice: unitPrice,
-        };
-      });
-
       onConfirm(itemsToEmit);
     }
 

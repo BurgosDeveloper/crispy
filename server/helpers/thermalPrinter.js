@@ -211,27 +211,40 @@ function isKitchenItem(item) {
   return true;
 }
 
+function normalizeProteinName(name = '') {
+  const n = String(name || '').trim().toLowerCase();
+  if (n.includes('novillo') || (n.includes('carne') && !n.includes('mechada') && !n.includes('smash'))) return 'carne de novillo';
+  if (n.includes('crispy') || (n.includes('pollo') && !n.includes('plancha'))) return 'pollo crispy';
+  if (n.includes('plancha') || n.includes('grill') || (n.includes('pechuga'))) return 'pechuga de pollo a la plancha';
+  if (n.includes('chuleta') || n.includes('pork') || n.includes('cerdo')) return 'chuleta de cerdo ahumada';
+  if (n.includes('mechada') || n.includes('street')) return 'carne mechada';
+  if (n.includes('smash')) return 'doble smash de carne';
+  return n;
+}
+
 function getDefaultProteins(burgerName = '') {
-  const nameLower = (burgerName || '').toLowerCase();
+  const nameLower = String(burgerName || '').toLowerCase().trim();
   if (nameLower.includes('papas') || nameLower.includes('nugget')) return [];
-  if (nameLower.includes('3.0') || nameLower.includes('triple')) return ['Carne de Novillo', 'Pollo Crispy', 'Chuleta Ahumada'];
-  if (nameLower.includes('mixtura')) return ['Carne de Novillo', 'Pollo Crispy'];
-  if (nameLower.includes('house')) return ['Pollo Crispy', 'Chuleta Ahumada'];
-  if (nameLower.includes('super smash') || nameLower.includes('tasty')) return ['Smash de Carne', 'Smash de Carne'];
-  if (nameLower.includes('doble')) return ['Carne de Novillo', 'Carne de Novillo'];
-  if (nameLower.includes('mr pork') || nameLower.includes('pork')) return ['Chuleta Ahumada'];
-  if (nameLower.includes('street')) return ['Carne Mechada'];
-  if (nameLower.includes('chicken grill') || nameLower.includes('grill')) return ['Pechuga a la Plancha'];
-  if (nameLower.includes('crispy')) return ['Pollo Crispy'];
-  return ['Carne de Novillo'];
+  if (nameLower.includes('3.0') || nameLower.includes('triple')) return ['carne de novillo', 'pollo crispy', 'chuleta de cerdo ahumada'];
+  if (nameLower.includes('mixtura')) return ['carne de novillo', 'pollo crispy'];
+  if (nameLower.includes('house')) return ['pollo crispy', 'chuleta de cerdo ahumada'];
+  if (nameLower.includes('super smash') || nameLower.includes('tasty')) return ['doble smash de carne'];
+  if (nameLower.includes('mr pork') || nameLower.includes('pork')) return ['chuleta de cerdo ahumada'];
+  if (nameLower.includes('street')) return ['carne mechada'];
+  if (nameLower.includes('chicken grill') || nameLower.includes('grill')) return ['pechuga de pollo a la plancha'];
+  if (nameLower.includes('crispy') || nameLower.includes('crispys')) return ['pollo crispy'];
+  if (nameLower.includes('bistro')) return ['carne de novillo'];
+  return ['carne de novillo'];
 }
 
 function areProteinsDefault(burgerName, proteins) {
   if (!proteins || !Array.isArray(proteins) || proteins.length === 0) return true;
   const defaultList = getDefaultProteins(burgerName);
+  if (defaultList.length === 0 && proteins.length === 0) return true;
   if (proteins.length !== defaultList.length) return false;
-  const pSorted = [...proteins].map((p) => String(p).trim().toLowerCase()).sort();
-  const dSorted = [...defaultList].map((d) => String(d).trim().toLowerCase()).sort();
+
+  const pSorted = [...proteins].map(normalizeProteinName).sort();
+  const dSorted = [...defaultList].map(normalizeProteinName).sort();
   return pSorted.every((p, idx) => p === dSorted[idx]);
 }
 
@@ -287,7 +300,7 @@ function itemDetails(item, order = {}) {
     details.push(`SIN: ${removed.join(', ')}`);
   }
 
-  // 5. Toppings gratis abreviados y adicionales pagos completos
+  // 5. Toppings gratis abreviados y adicionales pagos con ADD:
   const freeToppings = [];
   const paidExtras = [];
 
@@ -315,7 +328,7 @@ function itemDetails(item, order = {}) {
     details.push(freeToppings.join(', '));
   }
   for (const paid of paidExtras) {
-    details.push(`EXTRA: ${paid}`);
+    details.push(`ADD: ${paid}`);
   }
 
   // 6. Bebidas / Azúcar
@@ -323,9 +336,12 @@ function itemDetails(item, order = {}) {
     details.push(`Azucar: ${item.sugarPreference}`);
   }
 
-  // 7. Notas del ítem
-  if (item.notes && item.notes.trim()) {
-    details.push(`NOTA: ${item.notes.trim()}`);
+  // 7. Notas del ítem: ÚNICAMENTE si el usuario escribió una nota real (sin tags artificiales [#1])
+  if (item.notes && typeof item.notes === 'string') {
+    const cleanNote = item.notes.replace(/\[#\d+\]/g, '').trim();
+    if (cleanNote && cleanNote !== 'null' && cleanNote !== 'undefined' && cleanNote !== 'Sin notas') {
+      details.push(`NOTA: ${cleanNote}`);
+    }
   }
 
   return details;
@@ -923,6 +939,30 @@ function kitchenWrap(value, indent = '') {
   return wrapText(value, KITCHEN_LINE_WIDTH, indent);
 }
 
+function consolidateKitchenItems(items, order) {
+  const consolidated = [];
+  for (const item of items) {
+    const cleanName = (item.productName || item.name || 'Producto')
+      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+      .trim();
+    const details = itemDetails(item, order);
+    const key = `${cleanName.toLowerCase()}|||${details.join('|||')}`;
+
+    const existing = consolidated.find((c) => c.key === key);
+    if (existing) {
+      existing.quantity += (Number(item.quantity) || 1);
+    } else {
+      consolidated.push({
+        key,
+        name: cleanName,
+        quantity: Number(item.quantity) || 1,
+        details,
+      });
+    }
+  }
+  return consolidated;
+}
+
 function buildKitchenTicket(order) {
   const allItems = order.items || [];
   const kitchenItems = allItems.filter(isKitchenItem);
@@ -959,21 +999,23 @@ function buildKitchenTicket(order) {
 
   lines.push(kitchenDivider('-'));
 
-  for (const item of kitchenItems) {
-    const cleanName = (item.productName || item.name || 'Producto')
-      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
-      .trim();
-    lines.push(...kitchenWrap(`${item.quantity || 1}x ${cleanName}`));
-    for (const detail of itemDetails(item, order)) {
+  const consolidated = consolidateKitchenItems(kitchenItems, order);
+
+  for (const item of consolidated) {
+    lines.push(...kitchenWrap(`${item.quantity}x ${item.name}`));
+    for (const detail of item.details) {
       lines.push(...kitchenWrap(`* ${detail}`));
     }
     lines.push(kitchenDivider('-'));
   }
 
-  if (order.kitchenNotes && order.kitchenNotes.trim()) {
-    lines.push('NOTA COCINA:');
-    lines.push(...kitchenWrap(order.kitchenNotes.trim()));
-    lines.push(kitchenDivider('-'));
+  if (order.kitchenNotes && typeof order.kitchenNotes === 'string') {
+    const cleanKitchenNote = order.kitchenNotes.replace(/\[#\d+\]/g, '').trim();
+    if (cleanKitchenNote && cleanKitchenNote !== 'null' && cleanKitchenNote !== 'undefined' && cleanKitchenNote !== 'Sin notas') {
+      lines.push('NOTA COCINA:');
+      lines.push(...kitchenWrap(cleanKitchenNote));
+      lines.push(kitchenDivider('-'));
+    }
   }
 
   lines.push(`ITEMS COCINA: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
@@ -1023,12 +1065,11 @@ function buildKitchenAdditionTicket(order, addedItems) {
 
   lines.push(kitchenDivider('-'));
 
-  for (const item of kitchenItems) {
-    const cleanName = (item.productName || item.name || 'Producto')
-      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
-      .trim();
-    lines.push(...kitchenWrap(`${item.quantity || 1}x ${cleanName}`));
-    for (const detail of itemDetails(item, order)) {
+  const consolidated = consolidateKitchenItems(kitchenItems, order);
+
+  for (const item of consolidated) {
+    lines.push(...kitchenWrap(`${item.quantity}x ${item.name}`));
+    for (const detail of item.details) {
       lines.push(...kitchenWrap(`* ${detail}`));
     }
     lines.push(kitchenDivider('-'));

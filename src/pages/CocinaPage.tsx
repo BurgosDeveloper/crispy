@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSearchParams } from 'react-router-dom';
 import { Order } from '../data/mockData';
+import { areProteinsDefault } from '../utils/burgerProteins';
 import {
   IoFlame,
   IoTimeOutline,
@@ -282,7 +283,7 @@ export const CocinaPage: React.FC = () => {
                             </div>
                           )}
 
-                          {!it.isHalfHalf && it.proteins && it.proteins.length > 0 && (
+                          {!it.isHalfHalf && it.proteins && it.proteins.length > 0 && !areProteinsDefault(it.productName, it.proteins) && (
                             <div className="ml-8 text-xs font-black text-amber-900 bg-amber-400/20 px-2 py-1 rounded-lg border border-yellow-400 flex items-center gap-1">
                               🥩 PROTEÍNA: {it.proteins.join(' + ')}
                             </div>
@@ -296,13 +297,19 @@ export const CocinaPage: React.FC = () => {
 
                           {!it.isHalfHalf && it.extras && it.extras.length > 0 && (
                             <div className="ml-8 text-xs font-black text-emerald-700 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1">
-                              <IoAddCircleOutline /> ➕ EXTRA: {it.extras.map((e) => e.name).join(', ')}
+                              <IoAddCircleOutline /> ➕ ADD: {it.extras.map((e) => e.name).join(', ')}
                             </div>
                           )}
 
                           {it.sugarPreference && (
                             <div className="ml-8 text-xs font-bold text-sky-700 bg-sky-500/10 px-2 py-1 rounded-lg border border-sky-500/20">
                               🥤 Preferencia: {it.sugarPreference}
+                            </div>
+                          )}
+
+                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                            <div className="ml-8 text-xs font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
                             </div>
                           )}
                         </div>

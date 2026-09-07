@@ -3,6 +3,7 @@ import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
+import { areProteinsDefault } from '../utils/burgerProteins';
 import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline, IoCashOutline } from 'react-icons/io5';
 
 interface OrderDetailModalProps {
@@ -232,7 +233,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   {/* Regular pizza/item extras & removed ingredients */}
                   {!item.isHalfHalf && (
                     <>
-                      {item.proteins && item.proteins.length > 0 && (
+                      {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
                         <div className="text-xs font-black pl-2 mt-1 text-amber-800 bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-200 inline-block">
                           🥩 Proteína(s): {item.proteins.join(' + ')}
                         </div>
@@ -244,7 +245,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       )}
                       {item.extras && item.extras.length > 0 && (
                         <div className="text-xs font-bold pl-2 mt-1.5 text-emerald-700">
-                          {item.category && item.category !== 'Pizzas' ? '🥗 Contorno(s):' : '➕ Extras:'} {item.extras.map(e => `${e.name}${e.price > 0 ? ` (+$${e.price.toFixed(2)})` : ''}`).join(', ')}
+                          {item.category && item.category !== 'Pizzas' && item.category !== 'Hamburguesas' ? '🥗 Contorno(s):' : '➕ ADD:'} {item.extras.map(e => `${e.name}${e.price > 0 ? ` (+$${e.price.toFixed(2)})` : ''}`).join(', ')}
                         </div>
                       )}
                     </>
@@ -256,9 +257,9 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     </div>
                   )}
 
-                  {item.notes && (
+                  {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
                     <div className="text-xs font-semibold italic pl-2 mt-1.5 text-slate-600">
-                      📝 Nota: "{item.notes}"
+                      📝 Nota: "{item.notes.replace(/\[#\d+\]/g, '').trim()}"
                     </div>
                   )}
                 </div>
