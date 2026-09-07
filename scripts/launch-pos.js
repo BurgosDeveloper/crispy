@@ -14,10 +14,25 @@ function killOldPosInstances() {
     const outNode = execSync(cmdNode, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     const nodeLines = outNode.split('\n');
     for (const line of nodeLines) {
-      if (line.toLowerCase().includes('basilico')) {
+      if (line.toLowerCase().includes('crispy') || line.toLowerCase().includes('basilico') || line.toLowerCase().includes('server/index.js')) {
         const match = line.trim().match(/(\d+)$/);
         if (match && Number(match[1]) !== process.pid) {
           try { execSync(`taskkill /F /PID ${match[1]}`, { stdio: 'ignore' }); } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const cmdNetstat = 'netstat -ano | findstr :3001';
+    const outNetstat = execSync(cmdNetstat, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const netLines = outNetstat.split('\n');
+    for (const line of netLines) {
+      if (line.includes('LISTENING')) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && Number(pid) !== process.pid) {
+          try { execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' }); } catch (e) {}
         }
       }
     }
