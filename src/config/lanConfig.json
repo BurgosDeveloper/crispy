@@ -1,6 +1,6 @@
 {
-  "lanIp": "192.168.1.7",
-  "backendUrl": "http://192.168.1.7:3001",
+  "lanIp": "192.168.10.35",
+  "backendUrl": "http://192.168.10.35:3001",
   "interfaceName": "Wi-Fi",
-  "detectedAt": "2026-09-07T13:53:34.625Z"
+  "detectedAt": "2026-09-07T15:43:27.611Z"
 }

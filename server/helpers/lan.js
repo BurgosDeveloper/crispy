@@ -6,8 +6,8 @@ const PRIVATE_IPV4 = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/;
 const EXCLUDED_INTERFACES = /(vpn|virtual|vmware|vbox|loopback|bluetooth|radmin)/i;
 
 function interfacePriority(name) {
-  if (/(wi-?fi|wlan)/i.test(name)) return 0;
-  if (/(ethernet|lan)/i.test(name)) return 1;
+  if (/(ethernet|lan|conexi[oó]n de [aá]rea local|red)/i.test(name)) return 0;
+  if (/(wi-?fi|wlan)/i.test(name)) return 1;
   return 2;
 }
 
