@@ -22,7 +22,7 @@ async function initDb() {
   // Lista de posibles contraseñas a probar en orden
   const passwordsToTry = explicitPass
     ? [explicitPass]
-    : ['sdmaia1.', 'postgres', 'admin', 'root', ''];
+    : ['crispy1.', 'sdmaia1.', 'postgres', 'admin', 'root', ''];
 
   const dbsToTry = [targetDbName, 'postgres'];
 

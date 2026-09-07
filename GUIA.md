@@ -392,7 +392,7 @@ Si la térmica está apagada, fuera de red o deshabilitada, el POS muestra el er
 
 Las migraciones son automáticas: al iniciar el backend, `server/db.js` ejecuta los `CREATE TABLE` y `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` necesarios. No ejecutes el esquema manualmente para una actualización normal.
 
-- **Base de datos local**: PostgreSQL `crispy` (usuario `postgres`, clave `sdmaia1.`, puerto `5432`).
+- **Base de datos local**: PostgreSQL `crispy` (usuario `postgres`, clave `crispy1.`, `sdmaia1.`, `postgres` o `admin`, puerto `5432`).
 - **Repositorio remoto**: `https://github.com/BurgosDeveloper/crispy.git`.
 - **Esquema de datos**: `server/schema.sql` y `server/db.js` adaptados al catálogo de Hamburguesas, Bebidas y Acompañantes.
 - **Historial de pagos**: Soporte multi-divisa (USD, COP, Bs, Binance) con columnas `cash_tendered_bs`, `change_given_bs`, `cop_rate`, `bs_rate` auditables.
