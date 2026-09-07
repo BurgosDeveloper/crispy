@@ -3,11 +3,8 @@ import { Table, Order } from '../../data/mockData';
 import {
   IoCar,
   IoWalk,
-  IoAdd,
-  IoEyeOutline,
-  IoRestaurant,
   IoCashOutline,
-  IoPrintOutline,
+  IoTimeOutline,
 } from 'react-icons/io5';
 
 interface TableCompactGridProps {
@@ -18,7 +15,18 @@ interface TableCompactGridProps {
   onAppendOrder?: (order: Order) => void;
   onPayOrder?: (order: Order) => void;
   onPrintReceipt?: (order: Order) => void;
+  onViewHistory?: () => void;
   canPay?: boolean;
+}
+
+function formatOrderTime(dateValue?: string | Date): string {
+  if (!dateValue) return '';
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
 }
 
 export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
@@ -29,203 +37,392 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onAppendOrder,
   onPayOrder,
   onPrintReceipt,
+  onViewHistory,
   canPay = false,
 }) => {
+  // Comandas activas en curso
   const activeOrders = orders.filter(
     (o) =>
-      o.status !== 'entregada' &&
       o.status !== 'cancelado' &&
       o.status !== 'fusionada' &&
-      o.paymentStatus !== 'credito'
+      !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito'))
   );
 
+  // Separación por tipo de servicio
+  const activeDeliveryOrders = activeOrders.filter((o) => o.type === 'delivery');
+  const activePickupOrders = activeOrders.filter((o) => o.type === 'pickup' || (o.type as any) === 'llevar');
+
   const occupiedCount = tables.filter((t) =>
-    activeOrders.some((o) => o.tableNumber === t.number)
+    activeOrders.some((o) => o.type === 'mesa' && o.tableNumber === t.number)
   ).length;
 
   return (
-    <div className="flex flex-col h-full space-y-2.5">
-      {/* Top Bar: Ultra-Compact Fast Actions (Delivery & PickUp chips) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white border border-gray-200 shadow-sm shrink-0">
+    <div className="flex flex-col h-full w-full space-y-2 select-none">
+      {/* 1. BARRA SUPERIOR DE ACCIONES RÁPIDAS */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 shadow-xs shrink-0">
+        {/* Indicadores de Mesas Libres / Ocupadas */}
+        <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-1.5 bg-green-50 px-2.5 py-1 rounded-lg border border-green-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+            <span className="text-gray-800 font-black">Libres: {tables.length - occupiedCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-300">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block border border-amber-500" />
+            <span className="text-stone-900 font-black">Ocupadas: {occupiedCount}</span>
+          </div>
+        </div>
+
+        {/* Botones de Acción: NUEVO DELIVERY (Azul), NUEVO PICK UP (Rojo), ULTIMOS PEDIDOS (Amarillo) */}
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onSelectTarget('delivery', undefined, 'Orden Delivery a Domicilio')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 transition-all shadow-sm active:scale-95"
-            title="Crear nueva orden para delivery"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1d4ed8] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
+            title="Crear nuevo pedido delivery"
           >
             <IoCar className="text-sm" />
-            <span>🛵 + DELIVERY</span>
+            <span>NUEVO DELIVERY</span>
           </button>
 
           <button
             type="button"
             onClick={() => onSelectTarget('pickup', undefined, 'Orden PickUp (Para Llevar)')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black hover:bg-gray-800 text-white font-black text-xs border border-black transition-all shadow-sm active:scale-95"
-            title="Crear nueva orden para llevar"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#b91c1c] hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
+            title="Crear nuevo pedido para llevar"
           >
             <IoWalk className="text-sm" />
-            <span>🛍️ + PICKUP</span>
+            <span>NUEVO PICK UP</span>
           </button>
-        </div>
 
-        <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
-            <span className="text-gray-600 font-bold">Libres: {tables.length - occupiedCount}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block border border-yellow-500" />
-            <span className="text-black font-black">Ocupadas: {occupiedCount}</span>
-          </div>
+          {onViewHistory && (
+            <button
+              type="button"
+              onClick={onViewHistory}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#eab308] hover:bg-yellow-500 text-black font-black text-xs uppercase tracking-wider border border-yellow-500 transition-all shadow-xs active:scale-95 cursor-pointer"
+              title="Ver listado o historial de comandas"
+            >
+              <IoTimeOutline className="text-sm" />
+              <span>ULTIMOS PEDIDOS</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Compact Grid of Tables: auto-scales and fits without scroll */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 flex-1 auto-rows-fr">
-        {tables.map((table) => {
-          const activeOrder = activeOrders.find((o) => o.tableNumber === table.number);
-          const isOccupied = !!activeOrder;
-          const isReady = activeOrder?.status === 'preparada';
+      {/* 2. CUERPO PRINCIPAL DIVIDIDO EN 3 SECCIONES A PANTALLA COMPLETA */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 overflow-hidden">
+        {/* ========================================================= */}
+        {/* SECCIÓN 1: MESAS (COLUMNA IZQUIERDA ~40-42%, 4 POR FILA)   */}
+        {/* ========================================================= */}
+        <div className="w-full lg:w-[42%] xl:w-[40%] flex flex-col min-h-0 bg-white/70 backdrop-blur-xs rounded-2xl border border-gray-200 p-2.5 overflow-hidden shadow-xs">
+          <div className="text-center pb-1.5 shrink-0 border-b border-gray-100 mb-2 flex items-center justify-between px-1">
+            <h3 className="font-black text-xs uppercase text-gray-700 tracking-widest">
+              MESAS ({tables.length})
+            </h3>
+            <span className="text-[10px] font-bold text-gray-500">
+              {occupiedCount} ocupadas
+            </span>
+          </div>
 
-          return (
-            <div
-              key={table.id}
-              className={`relative rounded-xl border p-2 flex flex-col justify-between transition-all select-none min-h-[95px] max-h-[135px] ${
-                isOccupied
-                  ? isReady
-                    ? 'bg-yellow-200/80 border-yellow-500 shadow-md ring-2 ring-yellow-400'
-                    : 'bg-yellow-50 border-yellow-400 shadow-sm'
-                  : 'bg-white border-gray-200 hover:border-yellow-400 hover:bg-gray-50/80 shadow-sm cursor-pointer'
-              }`}
-              onClick={() => {
-                if (!isOccupied) {
-                  onSelectTarget('mesa', table.number, `Mesa #${table.number}`);
-                }
-              }}
-            >
-              {/* Top Row: Table Number & Status Pill */}
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1">
-                  <IoRestaurant className={`text-xs ${isOccupied ? 'text-black' : 'text-gray-400'}`} />
-                  <span className="font-black text-sm text-gray-900">#{table.number}</span>
-                </div>
+          {/* Cuadrícula de Mesas Compactas: 4 por fila */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-1.5 flex-1 overflow-y-auto pr-1">
+            {tables.map((table) => {
+              const activeOrder = activeOrders.find(
+                (o) => o.type === 'mesa' && o.tableNumber === table.number
+              );
+              const isOccupied = !!activeOrder;
+              const isReady = activeOrder?.status === 'preparada';
 
-                <span
-                  className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+              return (
+                <div
+                  key={table.id}
+                  onClick={() => {
+                    if (!isOccupied) {
+                      onSelectTarget('mesa', table.number, `Mesa #${table.number}`);
+                    } else if (onViewActiveOrder && activeOrder) {
+                      onViewActiveOrder(activeOrder);
+                    }
+                  }}
+                  className={`relative rounded-xl border p-1.5 flex flex-col justify-between transition-all cursor-pointer select-none min-h-[74px] hover:shadow-md active:scale-[0.98] ${
                     isOccupied
                       ? isReady
-                        ? 'bg-green-600 text-white animate-pulse'
-                        : 'bg-yellow-400 text-black border border-yellow-500'
-                      : 'bg-gray-100 text-gray-600'
+                        ? 'bg-amber-300/90 border-amber-500 shadow-sm ring-2 ring-amber-400'
+                        : 'bg-[#eab308] hover:bg-yellow-500 border-amber-500 shadow-xs text-stone-900'
+                      : 'bg-[#e8f5e9] hover:bg-[#c8e6c9] border-[#a5d6a7] text-gray-800 shadow-xs'
                   }`}
+                  title={
+                    isOccupied
+                      ? `Mesa #${table.number} - Comanda #${activeOrder?.orderNumber} ($${activeOrder?.totalUSD.toFixed(2)}) - Click para opciones`
+                      : `Mesa #${table.number} - Libre (Click para tomar pedido)`
+                  }
                 >
-                  {isOccupied ? (isReady ? '¡LISTA!' : 'OCUPADA') : 'LIBRE'}
-                </span>
-              </div>
-
-              {/* Middle Section: Active Order info or Free prompt */}
-              <div className="my-1">
-                {isOccupied && activeOrder ? (
-                  <div>
-                    <div className="text-base font-black text-black leading-tight">
-                      ${activeOrder.totalUSD.toFixed(2)}
-                    </div>
-                    <div className="text-[10px] text-gray-600 truncate font-semibold">
-                      {activeOrder.customerName || `Comanda #${activeOrder.orderNumber || ''}`}
-                    </div>
+                  {/* Cabecera: Nombre de Mesa */}
+                  <div className="flex items-center justify-between leading-none">
+                    <span className="font-black text-[11px] sm:text-xs tracking-tight text-stone-900 truncate">
+                      Mesa {table.number}
+                    </span>
+                    {isOccupied && isReady && (
+                      <span className="text-[7px] font-black px-1 py-0.5 rounded bg-green-600 text-white animate-pulse">
+                        ¡LISTA!
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-[10px] text-gray-400 font-semibold">
-                    Cap: {table.capacity} pers.
-                  </div>
-                )}
-              </div>
 
-              {/* Bottom Actions: If Occupied, provide compact action buttons */}
-              {isOccupied && activeOrder ? (
-                <div className="flex items-center gap-1 pt-1 border-t border-yellow-200/80 shrink-0">
-                  {canPay && onPayOrder && activeOrder.paymentStatus !== 'pagado' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPayOrder(activeOrder);
-                      }}
-                      className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[10px] flex items-center justify-center gap-0.5 border border-yellow-500 shadow-xs transition-all cursor-pointer"
-                      title="Cobrar comanda de esta mesa"
-                    >
-                      <IoCashOutline className="text-xs" />
-                      <span>Cobrar</span>
-                    </button>
+                  {/* Cuerpo: Si ocupada muestra Comanda, Hora y Total */}
+                  {isOccupied && activeOrder ? (
+                    <div className="my-auto text-center py-0.5">
+                      <div className="text-xs sm:text-sm font-black text-stone-950 tracking-wide leading-none">
+                        -#{activeOrder.orderNumber}-
+                      </div>
+                      <div className="text-[9px] sm:text-[10px] font-extrabold text-stone-800 leading-tight mt-0.5">
+                        {formatOrderTime(activeOrder.createdAt)}
+                      </div>
+                      <div className="text-[11px] sm:text-xs font-black text-stone-950 mt-0.5 leading-none">
+                        ${activeOrder.totalUSD.toFixed(2)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="my-auto text-center text-[9px] sm:text-[10px] font-bold text-emerald-800/70">
+                      Cap: {table.capacity}p
+                    </div>
                   )}
 
-                  {onAppendOrder && (!canPay || activeOrder.paymentStatus === 'pagado') && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAppendOrder(activeOrder);
-                      }}
-                      className="flex-1 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[10px] flex items-center justify-center gap-0.5 shadow-sm transition-all cursor-pointer"
-                      title="Adicionar productos a esta comanda"
-                    >
-                      <IoAdd className="text-xs" />
-                      <span>+ Ítem</span>
-                    </button>
+                  {/* Pie de Tarjeta: Info / Cobro rápido */}
+                  {isOccupied && activeOrder ? (
+                    <div className="flex items-center justify-between pt-0.5 border-t border-black/10 shrink-0 text-[8px] sm:text-[9px]">
+                      <span className="font-bold text-stone-800 truncate">
+                        {activeOrder.items.length} itm
+                      </span>
+                      {canPay && onPayOrder && activeOrder.paymentStatus !== 'pagado' ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPayOrder(activeOrder);
+                          }}
+                          className="px-1 py-0.5 rounded bg-stone-900 hover:bg-black text-white font-black text-[8px] flex items-center gap-0.5 cursor-pointer shadow-xs"
+                          title="Cobrar comanda directamente"
+                        >
+                          <span>Cobrar</span>
+                        </button>
+                      ) : (
+                        <span className="font-black text-stone-900 uppercase">
+                          {activeOrder.paymentStatus === 'pagado' ? 'PAGADO' : 'VER'}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[8px] sm:text-[9px] font-black text-emerald-800 text-center pt-0.5 border-t border-green-200 uppercase tracking-wide leading-none">
+                      Libre
+                    </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-                  {canPay && onAppendOrder && activeOrder.paymentStatus !== 'pagado' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAppendOrder(activeOrder);
-                      }}
-                      className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition-all cursor-pointer"
-                      title="Adicionar productos a esta comanda"
-                    >
-                      <IoAdd className="text-xs" />
-                    </button>
-                  )}
+        {/* ========================================================= */}
+        {/* SECCIÓN 2 Y 3: DELIVERY Y PICKUP (COLUMNA DERECHA ~58-60%)*/}
+        {/* ========================================================= */}
+        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col gap-2.5 min-h-0 overflow-hidden">
+          {/* ------------------------------------------------------- */}
+          {/* SECCIÓN 2: DELIVERY (ARRIBA DERECHA - COLOR AZUL)       */}
+          {/* ------------------------------------------------------- */}
+          <div className="flex-1 flex flex-col min-h-0 bg-white/70 backdrop-blur-xs rounded-2xl border border-blue-200 p-2.5 overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between pb-1.5 border-b border-blue-100 mb-2 shrink-0">
+              <span className="font-black text-xs uppercase text-blue-900 tracking-wider flex items-center gap-1.5">
+                <IoCar className="text-sm text-blue-700" />
+                <span>DELIVERY</span>
+              </span>
+              <span className="text-[11px] font-black bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full border border-blue-200">
+                {activeDeliveryOrders.length} activas
+              </span>
+            </div>
 
-                  {onPrintReceipt && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPrintReceipt(activeOrder);
-                      }}
-                      className="p-1 sm:px-1.5 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 font-black text-[10px] flex items-center justify-center gap-0.5 shadow-xs transition-all cursor-pointer"
-                      title="Imprimir pre-cuenta del cliente"
-                    >
-                      <IoPrintOutline className="text-xs" />
-                      <span className="hidden xl:inline">Cuenta</span>
-                    </button>
-                  )}
-
-                  {onViewActiveOrder && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewActiveOrder(activeOrder);
-                      }}
-                      className="p-1 rounded bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transition-all cursor-pointer"
-                      title="Ver detalle de comanda"
-                    >
-                      <IoEyeOutline className="text-xs" />
-                    </button>
-                  )}
+            {/* Rejilla de 4 comandas por fila */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 flex-1 overflow-y-auto pr-1">
+              {activeDeliveryOrders.length === 0 ? (
+                <div className="col-span-full h-full flex flex-col items-center justify-center text-center p-4 text-blue-400 text-xs font-bold">
+                  <span>Sin pedidos delivery activos</span>
                 </div>
               ) : (
-                <div className="text-[9px] font-black text-yellow-600 uppercase text-center pt-1 border-t border-gray-100">
-                  + Tomar Pedido
-                </div>
+                activeDeliveryOrders.map((ord) => {
+                  const isReady = ord.status === 'preparada';
+                  const isPaid = ord.paymentStatus === 'pagado';
+
+                  return (
+                    <div
+                      key={ord.id}
+                      onClick={() => {
+                        if (onViewActiveOrder) onViewActiveOrder(ord);
+                        else if (canPay && onPayOrder) onPayOrder(ord);
+                      }}
+                      className="rounded-xl p-2.5 bg-[#1d4ed8] hover:bg-blue-800 text-white shadow-xs border border-blue-900 transition-all cursor-pointer flex flex-col justify-between min-h-[105px] select-none hover:shadow-md active:scale-[0.98]"
+                      title={`Comanda #${ord.orderNumber} - ${ord.customerName || 'Cliente'} - Click para opciones`}
+                    >
+                      {/* Cabecera */}
+                      <div className="flex items-center justify-between leading-none">
+                        <span className="font-black text-[10px] uppercase tracking-wider text-blue-200 flex items-center gap-1">
+                          <IoCar className="text-xs" /> Delivery
+                        </span>
+                        {isReady ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-500 text-white animate-pulse">
+                            ¡LISTA!
+                          </span>
+                        ) : isPaid ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-400 text-stone-900">
+                            PAGADO
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-yellow-300">
+                            ${ord.totalUSD.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Cuerpo */}
+                      <div className="text-center py-1">
+                        <div className="font-black text-base text-yellow-300 tracking-wider leading-none">
+                          -#{ord.orderNumber}-
+                        </div>
+                        <div className="font-bold text-xs truncate text-white mt-1 leading-tight" title={ord.customerName}>
+                          {ord.customerName || 'Cliente Delivery'}
+                        </div>
+                        <div className="text-[10px] font-semibold text-blue-200 mt-0.5 leading-none">
+                          {formatOrderTime(ord.createdAt)}
+                        </div>
+                      </div>
+
+                      {/* Pie con total y botón Cobrar rápido */}
+                      <div className="flex items-center justify-between pt-1 border-t border-blue-700/60 shrink-0 text-[10px]">
+                        <span className="font-bold text-blue-100 truncate">
+                          {ord.items.length} {ord.items.length === 1 ? 'ítem' : 'ítems'}
+                        </span>
+                        {canPay && onPayOrder && !isPaid ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPayOrder(ord);
+                            }}
+                            className="px-2 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[9px] flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
+                            title="Cobrar comanda"
+                          >
+                            <IoCashOutline className="text-xs" />
+                            <span>Cobrar</span>
+                          </button>
+                        ) : (
+                          <span className="font-black text-white">
+                            ${ord.totalUSD.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
-          );
-        })}
+          </div>
+
+          {/* ------------------------------------------------------- */}
+          {/* SECCIÓN 3: PICKUP (ABAJO DERECHA - COLOR ROJO)          */}
+          {/* ------------------------------------------------------- */}
+          <div className="flex-1 flex flex-col min-h-0 bg-white/70 backdrop-blur-xs rounded-2xl border border-red-200 p-2.5 overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between pb-1.5 border-b border-red-100 mb-2 shrink-0">
+              <span className="font-black text-xs uppercase text-red-900 tracking-wider flex items-center gap-1.5">
+                <IoWalk className="text-sm text-red-700" />
+                <span>PICKUP</span>
+              </span>
+              <span className="text-[11px] font-black bg-red-100 text-red-900 px-2 py-0.5 rounded-full border border-red-200">
+                {activePickupOrders.length} activas
+              </span>
+            </div>
+
+            {/* Rejilla de 4 comandas por fila */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 flex-1 overflow-y-auto pr-1">
+              {activePickupOrders.length === 0 ? (
+                <div className="col-span-full h-full flex flex-col items-center justify-center text-center p-4 text-red-400 text-xs font-bold">
+                  <span>Sin pedidos pickup activos</span>
+                </div>
+              ) : (
+                activePickupOrders.map((ord) => {
+                  const isReady = ord.status === 'preparada';
+                  const isPaid = ord.paymentStatus === 'pagado';
+
+                  return (
+                    <div
+                      key={ord.id}
+                      onClick={() => {
+                        if (onViewActiveOrder) onViewActiveOrder(ord);
+                        else if (canPay && onPayOrder) onPayOrder(ord);
+                      }}
+                      className="rounded-xl p-2.5 bg-[#b91c1c] hover:bg-red-800 text-white shadow-xs border border-red-900 transition-all cursor-pointer flex flex-col justify-between min-h-[105px] select-none hover:shadow-md active:scale-[0.98]"
+                      title={`Comanda #${ord.orderNumber} - ${ord.customerName || 'Cliente'} - Click para opciones`}
+                    >
+                      {/* Cabecera */}
+                      <div className="flex items-center justify-between leading-none">
+                        <span className="font-black text-[10px] uppercase tracking-wider text-red-200 flex items-center gap-1">
+                          <IoWalk className="text-xs" /> Pickup
+                        </span>
+                        {isReady ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-500 text-white animate-pulse">
+                            ¡LISTA!
+                          </span>
+                        ) : isPaid ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-400 text-stone-900">
+                            PAGADO
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-yellow-300">
+                            ${ord.totalUSD.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Cuerpo */}
+                      <div className="text-center py-1">
+                        <div className="font-black text-base text-yellow-300 tracking-wider leading-none">
+                          -#{ord.orderNumber}-
+                        </div>
+                        <div className="font-bold text-xs truncate text-white mt-1 leading-tight" title={ord.customerName}>
+                          {ord.customerName || 'Cliente Pickup'}
+                        </div>
+                        <div className="text-[10px] font-semibold text-red-200 mt-0.5 leading-none">
+                          {formatOrderTime(ord.createdAt)}
+                        </div>
+                      </div>
+
+                      {/* Pie con total y botón Cobrar rápido */}
+                      <div className="flex items-center justify-between pt-1 border-t border-red-700/60 shrink-0 text-[10px]">
+                        <span className="font-bold text-red-100 truncate">
+                          {ord.items.length} {ord.items.length === 1 ? 'ítem' : 'ítems'}
+                        </span>
+                        {canPay && onPayOrder && !isPaid ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPayOrder(ord);
+                            }}
+                            className="px-2 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[9px] flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
+                            title="Cobrar comanda"
+                          >
+                            <IoCashOutline className="text-xs" />
+                            <span>Cobrar</span>
+                          </button>
+                        ) : (
+                          <span className="font-black text-white">
+                            ${ord.totalUSD.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

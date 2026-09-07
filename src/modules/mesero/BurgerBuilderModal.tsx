@@ -149,6 +149,7 @@ interface BurgerBuilderModalProps {
   onConfirm: (config: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]) => void;
   defaultTakeaway?: boolean;
   exchangeRates?: { COP: number; Bs: number };
+  inline?: boolean;
 }
 
 export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
@@ -159,13 +160,13 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   onConfirm,
   defaultTakeaway = false,
   exchangeRates = { COP: 3950, Bs: 36.5 },
+  inline = false,
 }) => {
   const [units, setUnits] = useState<BurgerUnitConfig[]>([]);
   const [activeUnitIndex, setActiveUnitIndex] = useState<number>(0);
   const [copyToast, setCopyToast] = useState<string>('');
 
-  // Toggles tipo acordeón para no sobrecargar la vista
-  const [showPersonalizar, setShowPersonalizar] = useState<boolean>(false);
+  // Toggles tipo acordeón solo para Proteínas y Adicionales (Personalizar está siempre abierta debajo)
   const [showProteinas, setShowProteinas] = useState<boolean>(false);
   const [showAdicionales, setShowAdicionales] = useState<boolean>(false);
 
@@ -173,7 +174,6 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     if (burger) {
       setUnits([createInitialUnitConfig(0, burger, defaultTakeaway)]);
       setActiveUnitIndex(0);
-      setShowPersonalizar(false);
       setShowProteinas(false);
       setShowAdicionales(false);
       setCopyToast('');
@@ -370,18 +370,18 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     onClose();
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-stone-100 text-gray-900 w-full h-full max-h-screen overflow-hidden select-none">
+  const modalContent = (
+    <div className={inline ? "flex flex-col h-full bg-stone-100 text-gray-900 w-full overflow-hidden select-none" : "fixed inset-0 z-[100] flex flex-col bg-stone-100 text-gray-900 w-full h-full max-h-screen overflow-hidden select-none"}>
       {/* 1. TOP HEADER (CORTE COMPACTO Y CLARO) */}
-      <header className="bg-white text-gray-900 px-4 sm:px-6 py-3 flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-2xl sm:text-3xl">🍔</span>
+      <header className={`bg-white text-gray-900 ${inline ? 'px-3 py-2' : 'px-4 sm:px-6 py-3'} flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs`}>
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+          <span className={inline ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}>🍔</span>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-wide">
+              <h2 className={`${inline ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black text-gray-900 tracking-wide`}>
                 {burger.name.toUpperCase()}
               </h2>
-              <span className="bg-yellow-400 text-black text-xs px-2.5 py-0.5 rounded-lg font-black shadow-xs">
+              <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-lg font-black shadow-xs">
                 {currentUnit.proteins.length === 0
                   ? 'Plato / Ración'
                   : currentUnit.proteins.length === 1
@@ -391,7 +391,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   : 'Triple Carne'}
               </span>
               {units.length > 1 && (
-                <span className="bg-stone-800 text-white text-xs px-2.5 py-0.5 rounded-lg font-black">
+                <span className="bg-stone-800 text-white text-xs px-2 py-0.5 rounded-lg font-black">
                   {units.length} UNIDADES EN PEDIDO
                 </span>
               )}
@@ -412,17 +412,17 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-600 hover:text-black transition-colors cursor-pointer"
-          title="Cerrar modal"
+          className="p-1.5 sm:p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-600 hover:text-black transition-colors cursor-pointer"
+          title={inline ? "Cerrar personalización" : "Cerrar modal"}
         >
-          <IoClose className="text-2xl" />
+          <IoClose className={inline ? "text-xl" : "text-2xl"} />
         </button>
       </header>
 
       {/* 2. BODY SCROLLABLE (ESPACIOSO Y SIN CORTES) */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-3.5 max-w-7xl mx-auto w-full pb-8">
+      <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-2 sm:p-3 space-y-2.5 pb-3' : 'p-3 sm:p-5 space-y-3.5 max-w-7xl mx-auto w-full pb-8'}`}>
         {/* BARRA SUPERIOR COMPACTA: CANTIDAD, PARA LLEVAR Y PICADA / ENTERA */}
-        <section className="bg-white p-3 rounded-2xl border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <section className="bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
           {/* Selector de Cantidad */}
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">Cantidad Total:</span>
@@ -631,128 +631,67 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           </div>
         </section>
 
-        {/* 4. TRES BOTONES DESPLEGABLES COMPACTOS: PERSONALIZAR, PROTEÍNAS Y ADICIONALES */}
+        {/* 4. BOTONES DESPLEGABLES DE PROTEÍNAS Y ADICIONALES + SECCIÓN DE PERSONALIZAR ABIERTA */}
         <section className="space-y-2.5">
-          <div className={`grid grid-cols-1 ${currentUnit.proteins.length > 0 ? 'md:grid-cols-2' : ''} gap-2.5`}>
-            {/* BOTÓN 1: PERSONALIZAR (Despliega ingredientes base sin proteínas) */}
-            <button
-              type="button"
-              onClick={() => setShowPersonalizar((prev) => !prev)}
-              className={`p-3.5 rounded-2xl border font-black text-sm sm:text-base flex items-center justify-between transition-all cursor-pointer shadow-xs ${
-                showPersonalizar
-                  ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
-                  : 'bg-white text-black border-gray-200 hover:border-yellow-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🛠️</span>
-                <div className="text-left">
-                  <div className="font-black leading-tight">
-                    {units.length > 1 ? `PERSONALIZAR #${activeUnitIndex + 1}` : 'PERSONALIZAR INGREDIENTES'}
-                  </div>
-                  <div className="text-[11px] font-bold text-gray-500">
-                    {currentUnit.removedIngredients.length > 0
-                      ? `🚫 ${currentUnit.removedIngredients.length} ingrediente(s) quitado(s)`
-                      : 'Lleva todos sus ingredientes'}
-                  </div>
-                </div>
-              </div>
-              {showPersonalizar ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
-            </button>
-
-            {/* BOTÓN 2: PROTEÍNAS (Despliega cambio de carnes solo si aplica) */}
+          <div className={`grid grid-cols-1 ${currentUnit.proteins.length > 0 ? 'sm:grid-cols-2' : ''} gap-2`}>
+            {/* BOTÓN 1: PROTEÍNAS (Despliega cambio de carnes solo si aplica) */}
             {currentUnit.proteins.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowProteinas((prev) => !prev)}
-                className={`p-3.5 rounded-2xl border font-black text-sm sm:text-base flex items-center justify-between transition-all cursor-pointer shadow-xs ${
+                className={`p-3 rounded-xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
                   showProteinas
                     ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
                     : 'bg-white text-black border-gray-200 hover:border-yellow-400'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <span className="text-xl">🥩</span>
                   <div className="text-left">
                     <div className="font-black leading-tight">
                       {units.length > 1 ? `PROTEÍNAS #${activeUnitIndex + 1}` : 'PROTEÍNA / CARNES'}
                     </div>
-                    <div className="text-[11px] font-bold text-gray-500 truncate max-w-[180px] sm:max-w-xs">
+                    <div className="text-[10px] font-bold text-gray-500 truncate max-w-[150px] sm:max-w-xs">
                       {currentUnit.proteins.join(' + ')}
                     </div>
                   </div>
                 </div>
-                {showProteinas ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
+                {showProteinas ? <IoChevronUp className="text-lg" /> : <IoChevronDown className="text-lg" />}
               </button>
             )}
+
+            {/* BOTÓN 2: ADICIONALES CON COSTO */}
+            <button
+              type="button"
+              onClick={() => setShowAdicionales((prev) => !prev)}
+              className={`p-3 rounded-xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
+                showAdicionales
+                  ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
+                  : 'bg-white text-black border-gray-200 hover:border-yellow-400'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">➕</span>
+                <div className="text-left">
+                  <div className="font-black leading-tight">
+                    {units.length > 1
+                      ? `ADICIONALES ($) #${activeUnitIndex + 1}`
+                      : 'ADICIONALES CON COSTO ($)'}
+                  </div>
+                  <div className="text-[10px] font-bold text-gray-500">
+                    {currentUnit.selectedPaidExtras.length > 0
+                      ? `+${currentUnit.selectedPaidExtras.length} adicional(es) (+${currentUnitExtrasTotal.toFixed(2)} USD)`
+                      : 'Sin adicionales con costo'}
+                  </div>
+                </div>
+              </div>
+              {showAdicionales ? <IoChevronUp className="text-lg" /> : <IoChevronDown className="text-lg" />}
+            </button>
           </div>
 
-          {/* FILA INFERIOR: BOTÓN 3 ADICIONALES (Despliega adicionales de costo) */}
-          <button
-            type="button"
-            onClick={() => setShowAdicionales((prev) => !prev)}
-            className={`w-full p-3.5 rounded-2xl border font-black text-sm sm:text-base flex items-center justify-between transition-all cursor-pointer shadow-xs ${
-              showAdicionales
-                ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
-                : 'bg-white text-black border-gray-200 hover:border-yellow-400'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">➕</span>
-              <div className="text-left">
-                <div className="font-black leading-tight">
-                  {units.length > 1
-                    ? `ADICIONALES CON COSTO (#${activeUnitIndex + 1})`
-                    : 'ADICIONALES CON COSTO ($)'}
-                </div>
-                <div className="text-[11px] font-bold text-gray-500">
-                  {currentUnit.selectedPaidExtras.length > 0
-                    ? `+${currentUnit.selectedPaidExtras.length} adicional(es) sumados (+$${currentUnitExtrasTotal.toFixed(2)} USD)`
-                    : 'Sin adicionales con costo'}
-                </div>
-              </div>
-            </div>
-            {showAdicionales ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
-          </button>
-
-          {/* DESPLIEGUE 1: PERSONALIZAR */}
-          {showPersonalizar && (
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 space-y-2.5 shadow-xs animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">
-                  Toca un ingrediente para quitarlo ("SIN"):
-                </span>
-                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
-                  Rojo tachado = Se quita
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {customizableBaseIngredients.map((ing) => {
-                  const isRemoved = currentUnit.removedIngredients.includes(ing);
-                  return (
-                    <button
-                      key={ing}
-                      type="button"
-                      onClick={() => toggleRemoveBase(ing)}
-                      className={`p-2.5 rounded-xl text-left font-black text-xs sm:text-sm transition-all border flex items-center justify-between cursor-pointer ${
-                        isRemoved
-                          ? 'bg-red-50 text-red-700 border-red-300 line-through'
-                          : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-red-300'
-                      }`}
-                    >
-                      <span className="truncate">{isRemoved ? `SIN ${ing}` : ing}</span>
-                      {isRemoved && <IoCloseCircle className="text-red-600 text-lg shrink-0 ml-1" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* DESPLIEGUE 2: PROTEÍNAS */}
+          {/* DESPLIEGUE 1: PROTEÍNAS */}
           {showProteinas && currentUnit.proteins.length > 0 && (
-            <div className="bg-amber-50/40 p-4 rounded-2xl border border-yellow-300 space-y-3 shadow-xs animate-in fade-in">
+            <div className="bg-amber-50/40 p-3 sm:p-4 rounded-xl border border-yellow-300 space-y-3 shadow-xs animate-in fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">
                   Selecciona la proteína para cada carne de la hamburguesa:
@@ -871,6 +810,42 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* SECCIÓN PERSONALIZAR INGREDIENTES BASE ("SIN ...") - ABIERTA POR DEFECTO DEBAJO DE LOS BOTONES */}
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 space-y-2 shadow-xs">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs sm:text-sm font-black text-gray-800 uppercase flex items-center gap-1.5">
+                <span>🛠️</span>
+                <span>PERSONALIZAR INGREDIENTES ({units.length > 1 ? `HAMBURGUESA #${activeUnitIndex + 1}` : 'TOCA PARA QUITAR "SIN"'}):</span>
+              </span>
+              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                {currentUnit.removedIngredients.length > 0
+                  ? `🚫 ${currentUnit.removedIngredients.length} ingrediente(s) quitado(s)`
+                  : 'Lleva todos sus ingredientes'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {customizableBaseIngredients.map((ing) => {
+                const isRemoved = currentUnit.removedIngredients.includes(ing);
+                return (
+                  <button
+                    key={ing}
+                    type="button"
+                    onClick={() => toggleRemoveBase(ing)}
+                    className={`p-2.5 rounded-xl text-left font-black text-xs sm:text-sm transition-all border flex items-center justify-between cursor-pointer ${
+                      isRemoved
+                        ? 'bg-red-50 text-red-700 border-red-300 line-through'
+                        : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-red-300'
+                    }`}
+                  >
+                    <span className="truncate">{isRemoved ? `SIN ${ing}` : ing}</span>
+                    {isRemoved && <IoCloseCircle className="text-red-600 text-base shrink-0 ml-1" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         {/* 5. NOTAS DE COCINA DE LA UNIDAD ACTIVA */}
@@ -891,43 +866,48 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       </main>
 
       {/* 6. BOTTOM FOOTER (CORTE COMPACTO Y CLARO) */}
-      <footer className="bg-white text-gray-900 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-lg">
+      <footer className={`bg-white text-gray-900 ${inline ? 'px-3 py-2' : 'px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-lg`}>
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
             Total a sumar ({units.length} hamburguesa{units.length > 1 ? 's' : ''}):
           </span>
-          <div className="flex items-baseline gap-2.5 flex-wrap">
-            <span className="text-2xl sm:text-3xl font-black text-black">
-              ${grandTotalPrice.toFixed(2)} <span className="text-sm font-bold text-gray-500">USD</span>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-black`}>
+              ${grandTotalPrice.toFixed(2)} <span className="text-xs font-bold text-gray-500">USD</span>
             </span>
-            <span className="text-xs sm:text-sm font-bold text-gray-700">
+            <span className="text-xs font-bold text-gray-700">
               🇨🇴 {roundCOP(grandTotalPrice * copRate).toLocaleString()} COP
             </span>
-            <span className="text-xs sm:text-sm font-bold text-gray-700">
+            <span className="text-xs font-bold text-gray-700">
               🇻🇪 {(grandTotalPrice * bsRate).toFixed(2)} Bs
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer"
+            className="px-3 py-2 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer"
           >
             CANCELAR
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="px-6 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm sm:text-base border-2 border-yellow-500 flex items-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
-            <IoCheckmark className="text-xl" />
-            <span>AGREGAR A LA COMANDA ({units.length})</span>
+            <IoCheckmark className="text-lg" />
+            <span>AGREGAR AL PEDIDO ({units.length})</span>
           </button>
         </div>
       </footer>
-    </div>,
-    document.body
+    </div>
   );
+
+  if (inline) {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

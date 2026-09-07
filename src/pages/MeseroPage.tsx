@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Product, OrderItem, Order } from '../data/mockData';
@@ -9,6 +9,7 @@ import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
+import { OrderEditModal } from '../components/OrderEditModal';
 import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { reportService } from '../services/reportService';
@@ -32,13 +33,16 @@ export const MeseroPage: React.FC = () => {
     ingredients,
     orders,
     createOrder,
+    updateOrderStatus,
+    deleteOrder,
+    editOrder,
     exchangeRates,
     userSession,
     reprintKitchenOrder,
     printOrderReceipt,
   } = useApp();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'pedidos';
 
   // Target of active order (Mesa, Delivery, PickUp)
@@ -47,6 +51,22 @@ export const MeseroPage: React.FC = () => {
     tableNumber?: number;
     title: string;
   } | null>(null);
+
+  // Auto-abrir comanda si se navegó desde Caja u otra vista con query params (?type=delivery | pickup | mesa)
+  useEffect(() => {
+    const typeParam = searchParams.get('type');
+    const tableParam = searchParams.get('table');
+    if (typeParam === 'delivery') {
+      setActiveOrderTarget({ type: 'delivery', title: 'Nuevo Pedido Delivery 🛵' });
+    } else if (typeParam === 'pickup') {
+      setActiveOrderTarget({ type: 'pickup', title: 'Nuevo Pedido PickUp 🛍️' });
+    } else if (typeParam === 'mesa' && tableParam) {
+      const tNum = parseInt(tableParam, 10);
+      if (!isNaN(tNum)) {
+        setActiveOrderTarget({ type: 'mesa', tableNumber: tNum, title: `Mesa #${tNum}` });
+      }
+    }
+  }, [searchParams]);
 
   // Cart & Order Form State
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
@@ -66,6 +86,7 @@ export const MeseroPage: React.FC = () => {
   const [tableChangeOrder, setTableChangeOrder] = useState<Order | null>(null);
   const [orderAppendModalOrder, setOrderAppendModalOrder] = useState<Order | null>(null);
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
+  const [orderEditModalOrder, setOrderEditModalOrder] = useState<Order | null>(null);
   const [printerSelectOrder, setPrinterSelectOrder] = useState<Order | null>(null);
   const [activeOrderForPay, setActiveOrderForPay] = useState<Order | null>(null);
   const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
@@ -146,10 +167,8 @@ export const MeseroPage: React.FC = () => {
 
     if (product.category === 'Hamburguesas') {
       setSelectedBurger(product);
-    } else if (product.category === 'Bebidas' && product.drinkType === 'jugo') {
-      setSelectedDrink(product);
     } else {
-      // Direct add to cart for sealed drinks, sides or combos
+      // Direct add to cart for drinks, sides or combos (1 solo clic, suma cantidades si se repite)
       const newItem: OrderItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         productId: product.id,
@@ -314,6 +333,7 @@ export const MeseroPage: React.FC = () => {
             canPay={userSession?.role === 'caja' || userSession?.role === 'admin'}
             onPayOrder={(ord) => setActiveOrderForPay(ord)}
             onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+            onViewHistory={() => setSearchParams({ tab: 'comandas' })}
           />
         </div>
       )}
@@ -322,10 +342,21 @@ export const MeseroPage: React.FC = () => {
       {activeSubTab === 'comandas' && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden space-y-2">
           <div className="flex flex-wrap items-center justify-between pb-1 border-b border-gray-200 shrink-0 gap-2">
-            <h2 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-              <IoReaderOutline className="text-yellow-600 text-sm" />
-              <span>ESTADO DE COMANDAS ACTIVAS</span>
-            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSearchParams({ tab: 'pedidos' })}
+                className="px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-black text-white font-black text-xs transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                title="Volver a la cuadrícula de mesas y pedidos"
+              >
+                <span>⬅️</span>
+                <span>VOLVER AL PANEL</span>
+              </button>
+              <h2 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                <IoReaderOutline className="text-yellow-600 text-sm" />
+                <span>ESTADO DE COMANDAS ACTIVAS</span>
+              </h2>
+            </div>
             <div className="flex items-center gap-2">
               {/* Selector de Modo de Vista (Tarea 4) */}
               <button
@@ -640,47 +671,52 @@ export const MeseroPage: React.FC = () => {
         </div>
       )}
 
-      {/* FULLSCREEN / MODAL DE TOMA DE PEDIDOS (DESCENTRALIZADO) */}
+      {/* FULLSCREEN / PANTALLA DE TOMA DE PEDIDOS */}
       {activeOrderTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-5xl h-[92vh] border border-gray-200 shadow-2xl flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-yellow-400 text-black text-sm font-black">
-                  {activeOrderTarget.type === 'delivery' ? '🛵' : activeOrderTarget.type === 'pickup' ? '🛍️' : '🍽️'}
+        <div className="fixed inset-0 z-50 flex flex-col bg-stone-100 text-gray-900 w-screen h-screen overflow-hidden animate-in fade-in select-none">
+          {/* Header */}
+          <div className="bg-white px-4 py-2 border-b-2 border-yellow-400 flex items-center justify-between shrink-0 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-xl bg-yellow-400 text-black text-lg font-black shadow-xs">
+                {activeOrderTarget.type === 'delivery' ? '🛵' : activeOrderTarget.type === 'pickup' ? '🛍️' : '🍽️'}
+              </span>
+              <div>
+                <h3 className="font-black text-base sm:text-lg text-gray-900 leading-tight">
+                  {activeOrderTarget.title}
+                </h3>
+                <span className="text-[11px] text-gray-500 font-bold uppercase">
+                  Selección de Hamburguesas, Bebidas y Acompañantes
                 </span>
-                <div>
-                  <h3 className="font-black text-sm text-gray-900 leading-tight">
-                    {activeOrderTarget.title}
-                  </h3>
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">
-                    Selección de Hamburguesas, Bebidas y Acompañantes
-                  </span>
-                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveOrderTarget(null)}
-                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-black transition-colors"
-              >
-                <IoClose className="text-xl" />
-              </button>
             </div>
 
-            {/* Error Message */}
-            {orderError && (
-              <div className="bg-red-50 text-red-700 px-3 py-1.5 text-xs font-bold border-b border-red-200 flex items-center gap-1.5 shrink-0">
-                <IoWarningOutline />
-                <span>{orderError}</span>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveOrderTarget(null);
+                setSelectedBurger(null);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors flex items-center gap-1.5 font-black text-xs cursor-pointer border border-gray-200"
+            >
+              <IoClose className="text-xl" />
+              <span>Cerrar Pedido</span>
+            </button>
+          </div>
 
-            {/* Body: Split View (Catalog on Left 62%, Cart on Right 38%) */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-              {/* LEFT: 100% TEXT CATALOG */}
-              <div className="flex-1 md:w-[62%] p-3 border-r border-gray-200 flex flex-col overflow-hidden min-h-0">
+          {/* Error Message */}
+          {orderError && (
+            <div className="bg-red-50 text-red-700 px-3 py-1.5 text-xs font-bold border-b border-red-200 flex items-center gap-1.5 shrink-0">
+              <IoWarningOutline />
+              <span>{orderError}</span>
+            </div>
+          )}
+
+          {/* Body: Split View (Catalog + Inline Customizer on Left 65%, Cart on Right 35%) */}
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
+            {/* LEFT: 100% TEXT CATALOG & INLINE BURGER BUILDER */}
+            <div className="flex-1 md:w-[65%] p-2.5 sm:p-3 border-r border-gray-200 flex flex-col overflow-hidden min-h-0">
+              {/* Product Catalog */}
+              <div className={selectedBurger ? "h-[36%] shrink-0 flex flex-col overflow-hidden pb-1.5" : "flex-1 flex flex-col overflow-hidden min-h-0"}>
                 <ProductTextCatalog
                   products={activeProducts}
                   onSelectProduct={handleSelectProduct}
@@ -692,8 +728,28 @@ export const MeseroPage: React.FC = () => {
                 />
               </div>
 
-              {/* RIGHT: COMPACT CART & ORDER FORM */}
-              <div className="md:w-[38%] p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0">
+              {/* INLINE BURGER BUILDER (Sin popup, sección abajo) */}
+              {selectedBurger && (
+                <div className="flex-1 min-h-0 border-t-2 border-yellow-400 pt-1.5 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+                  <BurgerBuilderModal
+                    burger={selectedBurger}
+                    availableExtras={availableExtras}
+                    isOpen={true}
+                    inline={true}
+                    onClose={() => setSelectedBurger(null)}
+                    onConfirm={(config) => {
+                      handleConfirmBurgerAdd(config);
+                      setSelectedBurger(null);
+                    }}
+                    defaultTakeaway={activeOrderTarget.type === 'pickup' || activeOrderTarget.type === 'delivery'}
+                    exchangeRates={exchangeRates}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT: COMPACT CART & ORDER FORM */}
+            <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
                   {/* Customer and General Notes Inputs */}
                   <div className="space-y-1.5 shrink-0 bg-white p-2.5 rounded-xl border border-gray-200">
@@ -970,19 +1026,20 @@ export const MeseroPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       )}
 
-      {/* MODAL 2: CONFIGURADOR DE HAMBURGUESAS */}
-      <BurgerBuilderModal
-        burger={selectedBurger}
-        availableExtras={availableExtras}
-        isOpen={!!selectedBurger}
-        onClose={() => setSelectedBurger(null)}
-        onConfirm={handleConfirmBurgerAdd}
-        defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
-        exchangeRates={exchangeRates}
-      />
+      {/* MODAL 2: CONFIGURADOR DE HAMBURGUESAS (Solo fallback si no hay activeOrderTarget) */}
+      {!activeOrderTarget && (
+        <BurgerBuilderModal
+          burger={selectedBurger}
+          availableExtras={availableExtras}
+          isOpen={!!selectedBurger}
+          onClose={() => setSelectedBurger(null)}
+          onConfirm={handleConfirmBurgerAdd}
+          defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
+          exchangeRates={exchangeRates}
+        />
+      )}
 
       {/* MODAL 3: SELECTOR DE BEBIDAS / JUGOS */}
       <DrinkSelectorModal
@@ -1014,18 +1071,56 @@ export const MeseroPage: React.FC = () => {
       {/* MODAL 6: VER DETALLE DE COMANDA */}
       {orderDetailModalOrder && (
         <OrderDetailModal
-          order={orderDetailModalOrder}
+          order={orders.find((o) => o.id === orderDetailModalOrder.id) || orderDetailModalOrder}
           isOpen={!!orderDetailModalOrder}
           onClose={() => setOrderDetailModalOrder(null)}
           exchangeRates={exchangeRates}
           onPayOrder={userSession?.role === 'caja' || userSession?.role === 'admin' ? (ord) => setActiveOrderForPay(ord) : undefined}
+          onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
+          onEditOrder={(ord) => setOrderEditModalOrder(ord)}
+          onChangeTable={(ord) => setTableChangeOrder(ord)}
+          onToggleDelivered={async (ord) => {
+            const newStatus = ord.status === 'entregada' ? 'preparada' : 'entregada';
+            await updateOrderStatus(ord.id, newStatus);
+            setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+          }}
+          onCancelOrder={async (ord) => {
+            if (!window.confirm(`¿Seguro que deseas anular y eliminar la comanda #${ord.orderNumber}?`)) return;
+            try {
+              await deleteOrder(ord.id);
+              setOrderDetailModalOrder(null);
+            } catch (err) {
+              alert(err instanceof Error ? err.message : 'No se pudo anular la comanda');
+            }
+          }}
+          onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+          userRole={userSession?.role}
+        />
+      )}
+
+      {/* MODAL DE EDICIÓN DE COMANDA */}
+      {orderEditModalOrder && (
+        <OrderEditModal
+          order={orders.find((o) => o.id === orderEditModalOrder.id) || orderEditModalOrder}
+          isOpen={!!orderEditModalOrder}
+          onClose={() => setOrderEditModalOrder(null)}
+          products={products}
+          ingredients={ingredients}
+          onSaveEdit={async (orderId, payload) => {
+            await editOrder(orderId, {
+              ...payload,
+              type: payload.type === 'llevar' ? 'pickup' : payload.type,
+            });
+            setOrderEditModalOrder(null);
+          }}
+          onDeleteOrder={deleteOrder}
         />
       )}
 
       {/* MODAL 7: COBRO DIRECTO DESDE MESAS (TAREA 5) */}
       {activeOrderForPay && (
         <PaymentLedgerModal
-          order={activeOrderForPay}
+          order={orders.find((o) => o.id === activeOrderForPay.id) || activeOrderForPay}
           onClose={() => setActiveOrderForPay(null)}
           onViewOrder={(ord) => setOrderDetailModalOrder(ord)}
         />

@@ -82,7 +82,7 @@ interface AppContextType {
     paymentMethod: PaymentMethod;
     payerName?: string;
     itemIds?: string[];
-  }) => Promise<void>;
+  }) => Promise<Order>;
   finalizeOrder: (orderId: string) => Promise<void>;
   closeOrderAsCredit: (orderId: string, debtorName: string, notes?: string) => Promise<Order>;
   reopenOrder: (orderId: string) => Promise<void>;
@@ -418,7 +418,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     socket.on('order:cancelled_sound', () => {
-      soundService.playOrderCancelledSound();
+      // Silenciado a petición del cliente
     });
 
     socket.on('order:cancelled', (cancelledOrder: any) => {
@@ -428,19 +428,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setOrders((prev) => prev.filter((o) => o.id !== cancelledOrder.id));
       }
-      soundService.playOrderCancelledSound();
     });
 
     socket.on('order:deleted', (deletedData: { id: string }) => {
       if (deletedData && deletedData.id) {
         setOrders((prev) => prev.filter((o) => o.id !== deletedData.id));
-        soundService.playOrderCancelledSound();
       }
     });
 
     socket.on('order:edited', (editedOrder: Order) => {
       setOrders((prev) => prev.map((o) => (o.id === editedOrder.id ? editedOrder : o)));
-      soundService.playOrderEditedSound();
     });
 
     socket.on('order:print_failed', (printFailure: { orderNumber?: string; message?: string }) => {
@@ -522,7 +519,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const data = await requireApiSuccess(res, 'No se pudo cancelar la comanda.');
     setOrders((prev) => prev.map((order) => (order.id === orderId ? data.order : order)));
-    soundService.playOrderCancelledSound();
   };
 
   const deleteOrder = async (orderId: string) => {
@@ -531,7 +527,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     await requireApiSuccess(res, 'No se pudo anular la comanda.');
     setOrders((prev) => prev.filter((order) => order.id !== orderId));
-    soundService.playOrderCancelledSound();
   };
 
   const editOrder = async (orderId: string, editData: { items: OrderItem[]; kitchenNotes?: string; totalUSD: number; deliveryFeeUSD?: number; customerName?: string; tableNumber?: number; type?: 'mesa' | 'delivery' | 'pickup' | 'credito' | 'llevar'; }) => {
@@ -611,6 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const response = await requireApiSuccess(res, 'No se pudo registrar el movimiento.');
     setOrders((prev) => prev.map((order) => (order.id === orderId ? response : order)));
     fetchCajaChica();
+    return response as Order;
   };
 
   const finalizeOrder = async (orderId: string) => {

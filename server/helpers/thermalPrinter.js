@@ -306,7 +306,7 @@ function areProteinsDefault(burgerName, proteins) {
 function abbreviateFreeTopping(name = '') {
   const n = String(name).trim().toLowerCase();
   if (n.includes('jalape')) return 'JAL';
-  if (n.includes('cebolla')) return 'CEB';
+  if (n.includes('cebolla')) return 'CC';
   if (n.includes('relish')) return 'REL';
   if (n.includes('pepinillo')) return 'PEP';
   if (n.includes('maiz') || n.includes('maíz')) return 'MAIZ';

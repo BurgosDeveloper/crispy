@@ -59,6 +59,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   onEditPaymentScope,
 }) => {
   const {
+    orders,
     exchangeRates,
     registerLedgerEntry,
     deletePaymentEntry,
@@ -110,17 +111,28 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     }, 120);
   }, [order, paymentScope?.payerName]);
 
-  const history = order?.paymentHistory || [];
-  const scopedItems = paymentScope
-    ? (order?.items || []).filter((item) => paymentScope.itemIds.includes(item.id))
-    : (order?.items || []);
+  const liveOrder = orders.find((o: Order) => o.id === order?.id) || order;
+  const [localHistory, setLocalHistory] = useState<Order['paymentHistory']>(order?.paymentHistory || []);
 
+  useEffect(() => {
+    if (liveOrder?.paymentHistory) {
+      setLocalHistory(liveOrder.paymentHistory);
+    }
+  }, [liveOrder?.paymentHistory]);
+
+  const history = localHistory || [];
+  const currentItems = liveOrder?.items || order?.items || [];
+  const scopedItems = paymentScope
+    ? currentItems.filter((item: Order['items'][number]) => paymentScope.itemIds.includes(item.id))
+    : currentItems;
+
+  const currentTotalUSD = liveOrder?.totalUSD ?? order?.totalUSD ?? 0;
   const scopeTotalUSD = paymentScope
-    ? scopedItems.reduce((total, item) => total + item.price * item.quantity, 0)
-    : (order?.totalUSD || 0);
+    ? scopedItems.reduce((total: number, item: Order['items'][number]) => total + item.price * item.quantity, 0)
+    : currentTotalUSD;
 
   const scopedHistory = paymentScope
-    ? history.filter((entry) => entry.itemIds?.some((itemId) => paymentScope.itemIds.includes(itemId)))
+    ? history.filter((entry: Order['paymentHistory'][number]) => entry.itemIds?.some((itemId: string) => paymentScope.itemIds.includes(itemId)))
     : history;
 
   const getEntryTenderedUSD = (item: Order['paymentHistory'][number]) => {
@@ -206,7 +218,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     setError('');
 
     try {
-      await registerLedgerEntry(order.id, {
+      const updated = await registerLedgerEntry(order.id, {
         entryType,
         currency,
         amountLocal: val,
@@ -214,6 +226,9 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
         payerName: payerName.trim() || 'Cliente General',
         itemIds: paymentScope?.itemIds,
       });
+      if (updated && updated.paymentHistory) {
+        setLocalHistory(updated.paymentHistory);
+      }
       setAmountLocal('');
     } catch (err: any) {
       setError(err?.message || 'Error al registrar el movimiento.');
@@ -226,9 +241,17 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     if (isSubmitting) return;
     setIsSubmitting(true);
     setError('');
+    // Actualización inmediata para que el pago no se quede dibujado en la modal
+    setLocalHistory((prev) => (prev || []).filter((p) => p.id !== paymentId));
     try {
-      await deletePaymentEntry(order.id, paymentId);
+      const updated = await deletePaymentEntry(order.id, paymentId);
+      if (updated && updated.paymentHistory) {
+        setLocalHistory(updated.paymentHistory);
+      }
     } catch (err: any) {
+      if (liveOrder?.paymentHistory) {
+        setLocalHistory(liveOrder.paymentHistory);
+      }
       setError(err?.message || 'Error al anular el movimiento.');
     } finally {
       setIsSubmitting(false);
@@ -783,7 +806,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 type="button"
                 onClick={() => {
                   setShowReceiptPrompt(false);
-                  reportService.generatePreCuentaTicket(order, exchangeRates);
+                  reportService.generatePreCuentaTicket(liveOrder, exchangeRates);
                   onClose();
                 }}
                 className="px-3 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 shadow-xs transition-all text-center"

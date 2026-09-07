@@ -37,6 +37,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
   const [type, setType] = useState<'mesa' | 'llevar' | 'delivery' | 'pickup' | 'credito'>('mesa');
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<Order['paymentHistory']>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedProductToAdd, setSelectedProductToAdd] = useState<string>('');
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number | ''>('');
@@ -54,6 +55,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
       setKitchenNotes(order.kitchenNotes || '');
       setDeliveryFeeUSD(order.deliveryFeeUSD || 0);
       setItems(JSON.parse(JSON.stringify(order.items || [])));
+      setPaymentHistory(order.paymentHistory ? [...order.paymentHistory] : []);
       setExpandedItemId(null);
       setError('');
     }
@@ -61,7 +63,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
 
   if (!isOpen || !order) return null;
 
-  const hasPaymentHistory = (order.paymentHistory?.length || 0) > 0;
+  const hasPaymentHistory = (paymentHistory?.length || 0) > 0;
 
   const calculateItemPrice = (item: OrderItem) => {
     const prod = products.find(p => p.id === item.productId);
@@ -686,13 +688,13 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
           </div>
 
           {/* Payment History Audit & Correction Section */}
-          {order.paymentHistory && order.paymentHistory.length > 0 && onDeletePaymentEntry && (
+          {paymentHistory && paymentHistory.length > 0 && onDeletePaymentEntry && (
             <div className="p-4 rounded-2xl bg-amber-900/20 border border-amber-500/50 space-y-2">
               <h4 className="text-xs font-black uppercase text-amber-400 tracking-wider">Historial de Pagos y Vueltos</h4>
               <p className="text-[11px] text-amber-200/80">Anula primero cada pago o vuelto para poder cambiar los productos sin alterar el historial financiero.</p>
 
               <div className="space-y-1.5 pt-1">
-                {order.paymentHistory.map((pm) => {
+                {paymentHistory.map((pm) => {
                   const isChange = (pm.changeGivenUSD || 0) > 0 || (pm.changeGivenCOP || 0) > 0 || (pm.changeGivenBs || 0) > 0;
                   const amount = isChange
                     ? pm.changeGivenUSD || pm.changeGivenCOP || pm.changeGivenBs || 0
@@ -710,9 +712,16 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
                       <button
                         onClick={async () => {
                           if (!window.confirm(`¿Seguro que deseas anular este ${isChange ? 'vuelto' : 'pago'}?`)) return;
+                          setPaymentHistory((prev) => (prev || []).filter((p) => p.id !== pm.id));
                           try {
-                            await onDeletePaymentEntry(order.id, pm.id);
+                            const updated = await onDeletePaymentEntry(order.id, pm.id);
+                            if (updated && updated.paymentHistory) {
+                              setPaymentHistory(updated.paymentHistory);
+                            }
                           } catch (deletionError) {
+                            if (order?.paymentHistory) {
+                              setPaymentHistory(order.paymentHistory);
+                            }
                             setError(deletionError instanceof Error ? deletionError.message : 'No se pudo anular el movimiento.');
                           }
                         }}

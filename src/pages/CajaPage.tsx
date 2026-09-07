@@ -8,6 +8,7 @@ import { AdminPinModal } from '../components/AdminPinModal';
 import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
+import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
@@ -51,6 +52,7 @@ function paymentMovementLabels(payment: Order['paymentHistory'][number]) {
 
 export const CajaPage: React.FC = () => {
   const {
+    tables,
     orders,
     exchangeRates,
     cajaChicaApertura,
@@ -75,6 +77,7 @@ export const CajaPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'comandas';
+  const [cajaViewMode, setCajaViewMode] = useState<'tablero' | 'lista'>('tablero');
 
   const filteredCajaTransactions = cajaChicaTransactions.filter(t => !t.shift || t.shift === 'ambos' || t.shift === userSession?.shift);
   const filteredApertura = cajaChicaApertura.shift && cajaChicaApertura.shift !== 'ambos' && cajaChicaApertura.shift !== userSession?.shift ? { usdCash: 0, copCash: 0 } : cajaChicaApertura;
@@ -343,31 +346,28 @@ export const CajaPage: React.FC = () => {
   const saldoEfectivoCOP = filteredApertura.copCash + cashIngresosCOP - cashEgresosCOP;
 
   return (
-    <div className="p-3 sm:p-6 space-y-6 max-w-7xl mx-auto text-gray-900">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-yellow-400 border border-yellow-500 flex items-center justify-center text-black shadow-xs">
-            <IoCard className="text-2xl" />
+    <div className="p-2.5 sm:p-3 w-full h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-gray-100 text-gray-900 space-y-2">
+      {/* Header & Sub-Tabs Compact Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white border border-gray-200 shadow-xs shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-yellow-400 border border-yellow-500 flex items-center justify-center text-black shadow-xs font-black">
+            <IoCard className="text-lg" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight text-black">Caja POS</h1>
-              <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-900 border border-green-300 text-[10px] font-black uppercase">
+            <div className="flex items-center gap-1.5 leading-none">
+              <h1 className="text-sm font-black tracking-tight text-black">Caja POS</h1>
+              <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-900 border border-green-300 text-[9px] font-black uppercase">
                 EN VIVO
               </span>
             </div>
-            <p className="text-xs text-gray-500 font-semibold mt-0.5">
-              Cobro de comandas, caja chica, arqueo de cierre y reportes de ventas.
-            </p>
           </div>
         </div>
 
         {/* Sub-Tab Selector & Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
-            onClick={() => setSearchParams({ tab: 'comandas' })}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            onClick={() => { setSearchParams({ tab: 'comandas' }); setCajaViewMode('tablero'); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'comandas' || activeSubTab === 'default'
                 ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
                 : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
@@ -379,7 +379,7 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'cajachica' })}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'cajachica'
                 ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
                 : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
@@ -391,7 +391,7 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'historico' })}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'historico'
                 ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
                 : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
@@ -403,7 +403,7 @@ export const CajaPage: React.FC = () => {
 
           <button
             onClick={() => setSearchParams({ tab: 'reportes' })}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'reportes'
                 ? 'bg-yellow-400 text-black border border-yellow-500 shadow-xs'
                 : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
@@ -413,31 +413,51 @@ export const CajaPage: React.FC = () => {
             <span>REPORTES & CIERRE</span>
           </button>
 
-          <button
-            onClick={() => navigate('/mesonero')}
-            className="px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 shadow-xs cursor-pointer"
-            title="Crear y tomar pedidos (Modo Mesero)"
-          >
-            <span className="text-sm">🍽️</span>
-            <span>NUEVO PEDIDO / MESERO</span>
-          </button>
-
           {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
             <button
               onClick={() => setIsExchangeModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-xs"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 shadow-xs cursor-pointer"
               title="Actualizar tasas de cambio del turno (COP y Bs)"
             >
               <IoSwapHorizontal className="text-yellow-600" />
-              <span>💱 TASAS: COP ${exchangeRates.COP.toLocaleString()} | {exchangeRates.Bs.toFixed(2)} Bs</span>
+              <span>💱 TASAS</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* SUB-TAB 1: COMANDAS CON ESTADOS DUALES Y DETALLE ULTRA-COMPLETO */}
+      {/* SUB-TAB 1: COMANDAS (TABLERO UNIFICADO EN 3 SECCIONES O VISTA DETALLADA) */}
       {(activeSubTab === 'comandas' || activeSubTab === 'default') && (
-        <div className="space-y-6">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {cajaViewMode === 'tablero' ? (
+            <TableCompactGrid
+              tables={tables}
+              orders={orders}
+              onSelectTarget={(type, tableNumber) => {
+                navigate(`/mesonero?type=${type}${tableNumber ? `&table=${tableNumber}` : ''}`);
+              }}
+              onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
+              onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
+              canPay={true}
+              onPayOrder={(ord) => handleOpenPayModal(ord)}
+              onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+              onViewHistory={() => setCajaViewMode('lista')}
+            />
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto space-y-4 pr-1">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setCajaViewMode('tablero')}
+                  className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white font-black text-xs transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>⬅️</span>
+                  <span>VOLVER AL TABLERO (MESAS Y PEDIDOS)</span>
+                </button>
+                <div className="text-xs font-bold text-gray-500">
+                  Total de Comandas: {activeComandas.length}
+                </div>
+              </div>
           {/* Order merge action bar */}
           {selectedOrderIdsForMultiPay.length > 0 && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-black flex items-center justify-between shadow-2xl">
@@ -1300,12 +1320,14 @@ export const CajaPage: React.FC = () => {
               })}
             </div>
           )}
+            </div>
+          )}
         </div>
       )}
 
       {/* SUB-TAB HISTÓRICO DE COBROS DEL DÍA */}
       {activeSubTab === 'historico' && (
-        <div className="space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-xs">
             <h2 className="text-lg font-black text-black flex items-center gap-2">
               <IoTimeOutline className="text-yellow-600 text-xl" />
@@ -1459,7 +1481,7 @@ export const CajaPage: React.FC = () => {
 
       {/* SUB-TAB 2: CAJA CHICA & CONTROL DE FLUJO */}
       {activeSubTab === 'cajachica' && (
-        <div className="space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-2">
               <span className="text-xs text-gray-500 font-bold block uppercase">APERTURA EN CAJA (USD / COP)</span>
@@ -1605,7 +1627,7 @@ export const CajaPage: React.FC = () => {
 
       {/* SUB-TAB 3: REPORTES DE VENTAS & ARQUEO DE CIERRE DE CAJA */}
       {activeSubTab === 'reportes' && (
-        <div className="space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-lg font-black text-black flex items-center gap-2">
@@ -2276,11 +2298,43 @@ export const CajaPage: React.FC = () => {
       {/* Componentes Modulares de Detalle y Edicion Completa */}
       {orderDetailModalOrder && (
         <OrderDetailModal
-          order={orderDetailModalOrder}
+          order={orders.find(o => o.id === orderDetailModalOrder.id) || orderDetailModalOrder}
           isOpen={!!orderDetailModalOrder}
           onClose={() => setOrderDetailModalOrder(null)}
           exchangeRates={exchangeRates}
           onPayOrder={(ord) => handleOpenPayModal(ord)}
+          onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
+          onEditOrder={(ord) => {
+            requireAdminPin(
+              `Editar Comanda #${ord.orderNumber}`,
+              'Autorizar Edición de Comanda',
+              () => setOrderEditModalOrder(ord)
+            );
+          }}
+          onChangeTable={(ord) => setTableChangeOrder(ord)}
+          onSplitPayment={(ord) => handleOpenSplitItemsModal(ord)}
+          onToggleDelivered={async (ord) => {
+            const newStatus = ord.status === 'entregada' ? 'preparada' : 'entregada';
+            await updateOrderStatus(ord.id, newStatus);
+            setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+          }}
+          onCancelOrder={(ord) => {
+            requireAdminPin(
+              `Anular Comanda #${ord.orderNumber}`,
+              'Autorizar Anulación de Comanda',
+              async () => {
+                if (!window.confirm(`¿Seguro que deseas anular y eliminar completamente la comanda #${ord.orderNumber}? Se liberará su número correlativo y se borrarán todos sus registros.`)) return;
+                try {
+                  await deleteOrder(ord.id);
+                  setOrderDetailModalOrder(null);
+                } catch (delError) {
+                  alert(delError instanceof Error ? delError.message : 'No se pudo anular la comanda');
+                }
+              }
+            );
+          }}
+          onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+          userRole={userSession?.role}
         />
       )}
 
