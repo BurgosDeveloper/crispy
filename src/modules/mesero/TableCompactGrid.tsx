@@ -7,6 +7,7 @@ import {
   IoEyeOutline,
   IoRestaurant,
   IoCashOutline,
+  IoPrintOutline,
 } from 'react-icons/io5';
 
 interface TableCompactGridProps {
@@ -16,6 +17,7 @@ interface TableCompactGridProps {
   onViewActiveOrder?: (order: Order) => void;
   onAppendOrder?: (order: Order) => void;
   onPayOrder?: (order: Order) => void;
+  onPrintReceipt?: (order: Order) => void;
   canPay?: boolean;
 }
 
@@ -26,6 +28,7 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onViewActiveOrder,
   onAppendOrder,
   onPayOrder,
+  onPrintReceipt,
   canPay = false,
 }) => {
   const activeOrders = orders.filter(
@@ -183,6 +186,21 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                       title="Adicionar productos a esta comanda"
                     >
                       <IoAdd className="text-xs" />
+                    </button>
+                  )}
+
+                  {onPrintReceipt && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPrintReceipt(activeOrder);
+                      }}
+                      className="p-1 sm:px-1.5 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 font-black text-[10px] flex items-center justify-center gap-0.5 shadow-xs transition-all cursor-pointer"
+                      title="Imprimir pre-cuenta del cliente"
+                    >
+                      <IoPrintOutline className="text-xs" />
+                      <span className="hidden xl:inline">Cuenta</span>
                     </button>
                   )}
 

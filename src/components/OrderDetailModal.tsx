@@ -28,11 +28,30 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   onConfirmItemSelection,
   onPayOrder,
 }) => {
-  const { reprintKitchenOrder } = useApp();
+  const { reprintKitchenOrder, printOrderReceipt } = useApp();
   const [isReprinting, setIsReprinting] = useState(false);
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
   const [reprintMessage, setReprintMessage] = useState('');
 
   if (!isOpen || !order) return null;
+
+  const handlePrintReceipt = async () => {
+    setIsPrintingReceipt(true);
+    setReprintMessage('');
+    try {
+      reportService.generatePreCuentaTicket(order, exchangeRates);
+      if (printOrderReceipt) {
+        await printOrderReceipt(order.id, 'caja');
+        setReprintMessage('✅ Pre-cuenta enviada a Caja');
+        setTimeout(() => setReprintMessage(''), 3000);
+      }
+    } catch (e: any) {
+      setReprintMessage(`⚠️ Ticket abierto (${e.message || 'Sin impresora térmica'})`);
+      setTimeout(() => setReprintMessage(''), 4000);
+    } finally {
+      setIsPrintingReceipt(false);
+    }
+  };
 
   const handleReprint = async () => {
     setIsReprinting(true);
@@ -315,17 +334,16 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               CERRAR
             </button>
 
-            {/* BOTÓN PRE-CUENTA CLIENTE (Tarea 11) */}
+            {/* BOTÓN PRE-CUENTA CLIENTE */}
             <button
               type="button"
-              onClick={() => {
-                reportService.generatePreCuentaTicket(order, exchangeRates);
-              }}
-              className="px-3.5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-1.5 border border-yellow-500 transition-all cursor-pointer shadow-xs"
+              onClick={handlePrintReceipt}
+              disabled={isPrintingReceipt}
+              className="px-3.5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-1.5 border border-yellow-500 transition-all cursor-pointer shadow-xs disabled:opacity-50"
               title="Emitir pre-cuenta con todos los productos y las 3 monedas para el cliente"
             >
               <IoPrintOutline className="text-base" />
-              <span>🧾 PRE-CUENTA CLIENTE</span>
+              <span>{isPrintingReceipt ? 'IMPRIMIENDO...' : '🧾 PRE-CUENTA CLIENTE'}</span>
             </button>
 
             {onPayOrder && order.paymentStatus !== 'pagado' && (

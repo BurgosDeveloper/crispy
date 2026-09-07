@@ -10,6 +10,8 @@ import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
 import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
+import { PrinterSelectModal } from '../components/PrinterSelectModal';
+import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 
 import {
@@ -32,6 +34,7 @@ export const MeseroPage: React.FC = () => {
     exchangeRates,
     userSession,
     reprintKitchenOrder,
+    printOrderReceipt,
   } = useApp();
 
   const [searchParams] = useSearchParams();
@@ -62,6 +65,7 @@ export const MeseroPage: React.FC = () => {
   const [tableChangeOrder, setTableChangeOrder] = useState<Order | null>(null);
   const [orderAppendModalOrder, setOrderAppendModalOrder] = useState<Order | null>(null);
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
+  const [printerSelectOrder, setPrinterSelectOrder] = useState<Order | null>(null);
   const [activeOrderForPay, setActiveOrderForPay] = useState<Order | null>(null);
   const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_mesero_view_mode') !== 'expanded';
@@ -266,6 +270,7 @@ export const MeseroPage: React.FC = () => {
             onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
             canPay={userSession?.role === 'caja' || userSession?.role === 'admin'}
             onPayOrder={(ord) => setActiveOrderForPay(ord)}
+            onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
           />
         </div>
       )}
@@ -337,14 +342,24 @@ export const MeseroPage: React.FC = () => {
                             <span className="font-black text-xs text-black truncate" title={titleText}>
                               {titleText}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => toggleExpandOrder(ord.id)}
-                              className="px-1.5 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all shadow-xs border border-yellow-500 cursor-pointer shrink-0"
-                              title="Expandir comanda"
-                            >
-                              👁️ Ver
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setPrinterSelectOrder(ord)}
+                                className="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-black transition-all shadow-xs border border-amber-300 cursor-pointer"
+                                title="Imprimir pre-cuenta del cliente"
+                              >
+                                🧾
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandOrder(ord.id)}
+                                className="px-1.5 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all shadow-xs border border-yellow-500 cursor-pointer shrink-0"
+                                title="Expandir comanda"
+                              >
+                                👁️ Ver
+                              </button>
+                            </div>
                           </div>
 
                           <div className="pt-1.5 space-y-0.5">
@@ -435,6 +450,16 @@ export const MeseroPage: React.FC = () => {
                             title="Adicionar ítem"
                           >
                             + Ítem
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPrinterSelectOrder(ord)}
+                            className="px-2 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                            title="Imprimir pre-cuenta del cliente"
+                          >
+                            <IoPrintOutline className="text-sm" />
+                            <span>Cuenta</span>
                           </button>
 
                           <button
@@ -962,6 +987,23 @@ export const MeseroPage: React.FC = () => {
           onViewOrder={(ord) => setOrderDetailModalOrder(ord)}
         />
       )}
+
+      {/* MODAL 8: IMPRIMIR PRE-CUENTA CLIENTE */}
+      <PrinterSelectModal
+        isOpen={printerSelectOrder !== null}
+        title={`🖨️ PRE-CUENTA COMANDA #${(printerSelectOrder?.orderNumber || '').toString().replace(/^#+/, '')}`}
+        jobDescription="Selecciona la impresora térmica donde deseas emitir la pre-cuenta del cliente"
+        defaultTarget="caja"
+        onClose={() => setPrinterSelectOrder(null)}
+        onSelectPrinter={async (target) => {
+          if (printerSelectOrder) {
+            reportService.generatePreCuentaTicket(printerSelectOrder, exchangeRates);
+            await printOrderReceipt(printerSelectOrder.id, target);
+            setSentAlert(`🧾 Pre-cuenta de la comanda #${printerSelectOrder.orderNumber} enviada a imprimir.`);
+            setTimeout(() => setSentAlert(null), 4000);
+          }
+        }}
+      />
     </div>
   );
 };
