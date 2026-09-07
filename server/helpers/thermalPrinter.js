@@ -1072,13 +1072,24 @@ function sendRawTicket(payload, config) {
       }
 
       const scriptPath = path.join(__dirname, 'rawPrinter.ps1');
-      const escapedPrinter = printerName.replace(/"/g, '`"');
-      const escapedTempPath = tempPath.replace(/"/g, '`"');
-      const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -PrinterName "${escapedPrinter}" -FilePath "${escapedTempPath}"`;
+      const { execFile } = require('child_process');
 
-      require('child_process').exec(
-        cmd,
-        { timeout: config.timeoutMs || 8000 },
+      execFile(
+        'powershell.exe',
+        [
+          '-WindowStyle', 'Hidden',
+          '-NoLogo',
+          '-NonInteractive',
+          '-NoProfile',
+          '-ExecutionPolicy', 'Bypass',
+          '-File', scriptPath,
+          '-PrinterName', printerName,
+          '-FilePath', tempPath,
+        ],
+        {
+          timeout: config.timeoutMs || 8000,
+          windowsHide: true,
+        },
         (err, stdout, stderr) => {
           try { fs.unlinkSync(tempPath); } catch (_) {}
           if (err) {
