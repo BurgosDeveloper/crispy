@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSearchParams } from 'react-router-dom';
 import { Order } from '../data/mockData';
-import { areProteinsDefault } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
 import {
   IoFlame,
   IoTimeOutline,
@@ -208,12 +208,12 @@ export const CocinaPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {ord.kitchenNotes && (
+                    {getCleanItemNote(ord.kitchenNotes) && (
                       <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-200 text-amber-200 text-xs font-bold space-y-0.5">
                         <div className="text-[9px] uppercase tracking-wider text-amber-600 font-black flex items-center gap-1">
                           <IoDocumentTextOutline /> 📝 NOTA GENERAL PARA COCINA:
                         </div>
-                        <p className="break-words">{ord.kitchenNotes}</p>
+                        <p className="break-words">{getCleanItemNote(ord.kitchenNotes)}</p>
                       </div>
                     )}
 
@@ -307,9 +307,9 @@ export const CocinaPage: React.FC = () => {
                             </div>
                           )}
 
-                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                          {getCleanItemNote(it.notes) && (
                             <div className="ml-8 text-xs font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
-                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
+                              📝 NOTA: {getCleanItemNote(it.notes)}
                             </div>
                           )}
                         </div>

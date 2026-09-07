@@ -213,39 +213,94 @@ function isKitchenItem(item) {
 
 function normalizeProteinName(name = '') {
   const n = String(name || '').trim().toLowerCase();
-  if (n.includes('novillo') || (n.includes('carne') && !n.includes('mechada') && !n.includes('smash'))) return 'carne de novillo';
-  if (n.includes('crispy') || (n.includes('pollo') && !n.includes('plancha'))) return 'pollo crispy';
-  if (n.includes('plancha') || n.includes('grill') || (n.includes('pechuga'))) return 'pechuga de pollo a la plancha';
-  if (n.includes('chuleta') || n.includes('pork') || n.includes('cerdo')) return 'chuleta de cerdo ahumada';
   if (n.includes('mechada') || n.includes('street')) return 'carne mechada';
-  if (n.includes('smash')) return 'doble smash de carne';
+  if (n.includes('smash')) return 'smash';
+  if (n.includes('chuleta') || n.includes('pork') || n.includes('cerdo')) return 'chuleta de cerdo ahumada';
+  if (n.includes('plancha') || n.includes('grill') || n.includes('pechuga')) return 'pechuga de pollo a la plancha';
+  if (n.includes('crispy') || (n.includes('pollo') && !n.includes('plancha'))) return 'pollo crispy';
+  if (n.includes('novillo') || n.includes('carne') || n.includes('res')) return 'carne de novillo';
   return n;
 }
 
-function getDefaultProteins(burgerName = '') {
-  const nameLower = String(burgerName || '').toLowerCase().trim();
-  if (nameLower.includes('papas') || nameLower.includes('nugget')) return [];
-  if (nameLower.includes('3.0') || nameLower.includes('triple')) return ['carne de novillo', 'pollo crispy', 'chuleta de cerdo ahumada'];
-  if (nameLower.includes('mixtura')) return ['carne de novillo', 'pollo crispy'];
-  if (nameLower.includes('house')) return ['pollo crispy', 'chuleta de cerdo ahumada'];
-  if (nameLower.includes('super smash') || nameLower.includes('tasty')) return ['doble smash de carne'];
-  if (nameLower.includes('mr pork') || nameLower.includes('pork')) return ['chuleta de cerdo ahumada'];
-  if (nameLower.includes('street')) return ['carne mechada'];
-  if (nameLower.includes('chicken grill') || nameLower.includes('grill')) return ['pechuga de pollo a la plancha'];
-  if (nameLower.includes('crispy') || nameLower.includes('crispys')) return ['pollo crispy'];
-  if (nameLower.includes('bistro')) return ['carne de novillo'];
-  return ['carne de novillo'];
+function getCleanItemNote(rawNotes) {
+  if (!rawNotes || typeof rawNotes !== 'string') return '';
+  const cleaned = rawNotes
+    .replace(/\[#\d+\]/g, '')
+    .replace(/^[*•-]\s*/g, '')
+    .replace(/^(nota|notas):?\s*/gi, '')
+    .trim();
+  const lower = cleaned.toLowerCase();
+  if (
+    !cleaned ||
+    lower === 'null' ||
+    lower === 'undefined' ||
+    lower === 'sin notas' ||
+    lower === 'sin nota' ||
+    lower === 'nota' ||
+    lower === 'notas' ||
+    lower === 'ninguna' ||
+    lower === '-' ||
+    lower === '.'
+  ) {
+    return '';
+  }
+  return cleaned;
 }
 
 function areProteinsDefault(burgerName, proteins) {
   if (!proteins || !Array.isArray(proteins) || proteins.length === 0) return true;
-  const defaultList = getDefaultProteins(burgerName);
-  if (defaultList.length === 0 && proteins.length === 0) return true;
-  if (proteins.length !== defaultList.length) return false;
+  const nameLower = String(burgerName || '').toLowerCase().trim();
+  if (nameLower.includes('papas') || nameLower.includes('nugget')) return true;
 
   const pSorted = [...proteins].map(normalizeProteinName).sort();
-  const dSorted = [...defaultList].map(normalizeProteinName).sort();
-  return pSorted.every((p, idx) => p === dSorted[idx]);
+
+  // 1. Super Smash o Tasty: ambas o única proteína son smash
+  if (nameLower.includes('super smash') || nameLower.includes('tasty') || nameLower.includes('smash')) {
+    return pSorted.length > 0 && pSorted.every((p) => p === 'smash');
+  }
+
+  // 2. 3.0 / Triple: 3 proteínas (carne novillo + pollo crispy + chuleta ahumada)
+  if (nameLower.includes('3.0') || nameLower.includes('triple')) {
+    const expected = ['carne de novillo', 'chuleta de cerdo ahumada', 'pollo crispy'];
+    return pSorted.length === 3 && pSorted.every((p, i) => p === expected[i]);
+  }
+
+  // 3. Mixtura: 2 proteínas (carne novillo + pollo crispy)
+  if (nameLower.includes('mixtura')) {
+    const expected = ['carne de novillo', 'pollo crispy'];
+    return pSorted.length === 2 && pSorted.every((p, i) => p === expected[i]);
+  }
+
+  // 4. House: 2 proteínas (pollo crispy + chuleta ahumada)
+  if (nameLower.includes('house')) {
+    const expected = ['chuleta de cerdo ahumada', 'pollo crispy'];
+    return pSorted.length === 2 && pSorted.every((p, i) => p === expected[i]);
+  }
+
+  // 5. Doble (2 carnes de novillo)
+  if (nameLower.includes('doble')) {
+    return pSorted.length === 2 && pSorted.every((p) => p === 'carne de novillo');
+  }
+
+  // 6. Hamburguesas individuales de 1 carne
+  if (nameLower.includes('mr pork') || nameLower.includes('pork')) {
+    return pSorted.length === 1 && pSorted[0] === 'chuleta de cerdo ahumada';
+  }
+  if (nameLower.includes('street')) {
+    return pSorted.length === 1 && pSorted[0] === 'carne mechada';
+  }
+  if (nameLower.includes('chicken grill') || nameLower.includes('grill')) {
+    return pSorted.length === 1 && pSorted[0] === 'pechuga de pollo a la plancha';
+  }
+  if (nameLower.includes('crispy') || nameLower.includes('crispys')) {
+    return pSorted.length === 1 && pSorted[0] === 'pollo crispy';
+  }
+  if (nameLower.includes('bistro')) {
+    return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
+  }
+
+  // Default general: 1 carne de novillo
+  return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
 }
 
 function abbreviateFreeTopping(name = '') {
@@ -290,14 +345,14 @@ function itemDetails(item, order = {}) {
   const prodName = item.productName || item.name || '';
   if (item.proteins && Array.isArray(item.proteins) && item.proteins.length > 0) {
     if (!areProteinsDefault(prodName, item.proteins)) {
-      details.push(`PROTEINAS: ${item.proteins.join(' + ')}`);
+      details.push(`PROTEINAS: ${[...item.proteins].sort().join(' + ')}`);
     }
   }
 
   // 4. Ingredientes removidos (SIN)
   const removed = item.removedIngredients || item.removed_ingredients;
   if (Array.isArray(removed) && removed.length > 0) {
-    details.push(`SIN: ${removed.join(', ')}`);
+    details.push(`SIN: ${[...removed].sort().join(', ')}`);
   }
 
   // 5. Toppings gratis abreviados y adicionales pagos con ADD:
@@ -325,8 +380,9 @@ function itemDetails(item, order = {}) {
   }
 
   if (freeToppings.length > 0) {
-    details.push(freeToppings.join(', '));
+    details.push(freeToppings.sort().join(', '));
   }
+  paidExtras.sort();
   for (const paid of paidExtras) {
     details.push(`ADD: ${paid}`);
   }
@@ -336,12 +392,10 @@ function itemDetails(item, order = {}) {
     details.push(`Azucar: ${item.sugarPreference}`);
   }
 
-  // 7. Notas del ítem: ÚNICAMENTE si el usuario escribió una nota real (sin tags artificiales [#1])
-  if (item.notes && typeof item.notes === 'string') {
-    const cleanNote = item.notes.replace(/\[#\d+\]/g, '').trim();
-    if (cleanNote && cleanNote !== 'null' && cleanNote !== 'undefined' && cleanNote !== 'Sin notas') {
-      details.push(`NOTA: ${cleanNote}`);
-    }
+  // 7. Notas del ítem: ÚNICAMENTE si el usuario escribió una nota real (sin tags artificiales [#1] ni textos vacíos)
+  const cleanNote = getCleanItemNote(item.notes);
+  if (cleanNote) {
+    details.push(`NOTA: ${cleanNote}`);
   }
 
   return details;
@@ -1009,13 +1063,11 @@ function buildKitchenTicket(order) {
     lines.push(kitchenDivider('-'));
   }
 
-  if (order.kitchenNotes && typeof order.kitchenNotes === 'string') {
-    const cleanKitchenNote = order.kitchenNotes.replace(/\[#\d+\]/g, '').trim();
-    if (cleanKitchenNote && cleanKitchenNote !== 'null' && cleanKitchenNote !== 'undefined' && cleanKitchenNote !== 'Sin notas') {
-      lines.push('NOTA COCINA:');
-      lines.push(...kitchenWrap(cleanKitchenNote));
-      lines.push(kitchenDivider('-'));
-    }
+  const cleanKitchenNote = getCleanItemNote(order.kitchenNotes);
+  if (cleanKitchenNote) {
+    lines.push('NOTA COCINA:');
+    lines.push(...kitchenWrap(cleanKitchenNote));
+    lines.push(kitchenDivider('-'));
   }
 
   lines.push(`ITEMS COCINA: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);

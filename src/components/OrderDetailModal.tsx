@@ -3,7 +3,7 @@ import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
 import { IoClose, IoReceiptOutline, IoPersonOutline, IoCheckmarkCircleOutline, IoBicycleOutline, IoPrintOutline, IoCashOutline } from 'react-icons/io5';
 
 interface OrderDetailModalProps {
@@ -257,9 +257,9 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     </div>
                   )}
 
-                  {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
+                  {getCleanItemNote(item.notes) && (
                     <div className="text-xs font-semibold italic pl-2 mt-1.5 text-slate-600">
-                      📝 Nota: "{item.notes.replace(/\[#\d+\]/g, '').trim()}"
+                      📝 Nota: "{getCleanItemNote(item.notes)}"
                     </div>
                   )}
                 </div>

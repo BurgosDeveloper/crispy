@@ -14,7 +14,7 @@ import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
 import {
   IoCard,
   IoCashOutline,
@@ -780,9 +780,9 @@ export const CajaPage: React.FC = () => {
                             </div>
                           )}
 
-                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                          {getCleanItemNote(it.notes) && (
                             <p className="text-[10px] text-amber-900 font-bold ml-2">
-                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
+                              📝 NOTA: {getCleanItemNote(it.notes)}
                             </p>
                           )}
                         </div>
@@ -1089,9 +1089,9 @@ export const CajaPage: React.FC = () => {
                             </div>
                           )}
 
-                          {it.notes && it.notes.replace(/\[#\d+\]/g, '').trim() && (
+                          {getCleanItemNote(it.notes) && (
                             <p className="text-[10px] text-amber-900 font-bold ml-2">
-                              📝 NOTA: {it.notes.replace(/\[#\d+\]/g, '').trim()}
+                              📝 NOTA: {getCleanItemNote(it.notes)}
                             </p>
                           )}
                         </div>

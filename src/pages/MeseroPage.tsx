@@ -13,7 +13,7 @@ import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, normalizeProteinName } from '../utils/burgerProteins';
 
 import {
   IoReaderOutline,
@@ -104,6 +104,42 @@ export const MeseroPage: React.FC = () => {
     setOrderError(null);
   };
 
+  const areCartItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
+    if (a.productId !== b.productId) return false;
+    if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
+    if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
+    if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
+
+    const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
+    const bProt = [...(b.proteins || [])].map(normalizeProteinName).sort().join('|');
+    if (aProt !== bProt) return false;
+
+    const aRem = [...(a.removedIngredients || [])].sort().join('|');
+    const bRem = [...(b.removedIngredients || [])].sort().join('|');
+    if (aRem !== bRem) return false;
+
+    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    if (aExtras !== bExtras) return false;
+
+    return Math.abs(a.price - b.price) < 0.01;
+  };
+
+  const mergeCartItem = (cart: OrderItem[], item: OrderItem): OrderItem[] => {
+    const matchIndex = cart.findIndex((existing) => areCartItemsIdentical(existing, item));
+    if (matchIndex !== -1) {
+      const updated = [...cart];
+      updated[matchIndex] = {
+        ...updated[matchIndex],
+        quantity: updated[matchIndex].quantity + item.quantity,
+      };
+      return updated;
+    }
+    return [...cart, item];
+  };
+
   // Product Selection Click
   const handleSelectProduct = (product: Product) => {
     const isTargetTakeaway = activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery';
@@ -125,7 +161,7 @@ export const MeseroPage: React.FC = () => {
         isTakeaway: isTargetTakeaway,
         isNewOrModified: false,
       };
-      setCartItems((prev) => [...prev, newItem]);
+      setCartItems((prev) => mergeCartItem(prev, newItem));
     }
   };
 
@@ -134,23 +170,29 @@ export const MeseroPage: React.FC = () => {
     configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
   ) => {
     const list = Array.isArray(configOrList) ? configOrList : [configOrList];
-    const newItems: OrderItem[] = list.map((config) => ({
-      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      productId: config.burger.id,
-      productName: config.burger.name,
-      price: config.finalPrice,
-      quantity: config.quantity,
-      category: config.burger.category,
-      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
-      removedIngredients: config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
-      extras: config.extras.length > 0 ? config.extras : undefined,
-      isTakeaway: config.isTakeaway,
-      isCut: config.isCut,
-      cutPreference: config.cutPreference,
-      notes: config.notes,
-      isNewOrModified: false,
-    }));
-    setCartItems((prev) => [...prev, ...newItems]);
+    setCartItems((prev) => {
+      let current = [...prev];
+      for (const config of list) {
+        const item: OrderItem = {
+          id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          productId: config.burger.id,
+          productName: config.burger.name,
+          price: config.finalPrice,
+          quantity: config.quantity,
+          category: config.burger.category,
+          proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+          removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
+          extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
+          isTakeaway: config.isTakeaway,
+          isCut: config.isCut,
+          cutPreference: config.cutPreference,
+          notes: getCleanItemNote(config.notes) || undefined,
+          isNewOrModified: false,
+        };
+        current = mergeCartItem(current, item);
+      }
+      return current;
+    });
   };
 
   // Confirm Drink Add
@@ -171,10 +213,10 @@ export const MeseroPage: React.FC = () => {
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
       isTakeaway: config.isTakeaway,
-      notes: config.notes,
+      notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: false,
     };
-    setCartItems((prev) => [...prev, newItem]);
+    setCartItems((prev) => mergeCartItem(prev, newItem));
   };
 
   // Cart quantity adjustment
@@ -228,7 +270,7 @@ export const MeseroPage: React.FC = () => {
         type: activeOrderTarget.type,
         tableNumber: activeOrderTarget.tableNumber,
         customerName: customerName.trim() || undefined,
-        kitchenNotes: kitchenNotes.trim() || undefined,
+        kitchenNotes: getCleanItemNote(kitchenNotes) || undefined,
         items: cartItems,
         totalUSD: cartTotalUSD,
         deliveryFeeUSD: activeOrderTarget.type === 'delivery' ? deliveryFeeUSD : 0,
@@ -802,9 +844,9 @@ export const MeseroPage: React.FC = () => {
                           )}
 
                           {/* Item Note */}
-                          {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
+                          {getCleanItemNote(item.notes) && (
                             <div className="text-[10px] text-gray-500 italic">
-                              📝 Nota: {item.notes.replace(/\[#\d+\]/g, '').trim()}
+                              📝 Nota: {getCleanItemNote(item.notes)}
                             </div>
                           )}
 

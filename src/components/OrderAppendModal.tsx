@@ -6,7 +6,7 @@ import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mese
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { AdminPinModal } from './AdminPinModal';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, normalizeProteinName } from '../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -82,6 +82,42 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     (p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift
   );
 
+  const areAppendItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
+    if (a.productId !== b.productId) return false;
+    if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
+    if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
+    if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
+
+    const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
+    const bProt = [...(b.proteins || [])].map(normalizeProteinName).sort().join('|');
+    if (aProt !== bProt) return false;
+
+    const aRem = [...(a.removedIngredients || [])].sort().join('|');
+    const bRem = [...(b.removedIngredients || [])].sort().join('|');
+    if (aRem !== bRem) return false;
+
+    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    if (aExtras !== bExtras) return false;
+
+    return Math.abs(a.price - b.price) < 0.01;
+  };
+
+  const mergeAppendItem = (list: OrderItem[], item: OrderItem): OrderItem[] => {
+    const matchIndex = list.findIndex((existing) => areAppendItemsIdentical(existing, item));
+    if (matchIndex !== -1) {
+      const updated = [...list];
+      updated[matchIndex] = {
+        ...updated[matchIndex],
+        quantity: (updated[matchIndex].quantity || 1) + (item.quantity || 1),
+      };
+      return updated;
+    }
+    return [...list, item];
+  };
+
   // Manejo de clic en producto desde el catálogo
   const handleSelectProduct = (prod: Product) => {
     const isBurger =
@@ -105,7 +141,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
         isTakeaway: order.type === 'pickup' || order.type === 'delivery',
         isNewOrModified: true,
       };
-      setItemsToAdd((prev) => [...prev, newItem]);
+      setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
       setSuccessToast(`¡${prod.name} agregado!`);
       setTimeout(() => setSuccessToast(''), 3000);
     }
@@ -116,23 +152,29 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
   ) => {
     const list = Array.isArray(configOrList) ? configOrList : [configOrList];
-    const newItems: OrderItem[] = list.map((config) => ({
-      id: `add-bg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      productId: config.burger.id,
-      productName: config.burger.name,
-      price: config.finalPrice,
-      quantity: config.quantity,
-      category: config.burger.category || 'Hamburguesas',
-      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
-      removedIngredients: config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
-      extras: config.extras.length > 0 ? config.extras : undefined,
-      isTakeaway: config.isTakeaway,
-      isCut: config.isCut,
-      cutPreference: config.cutPreference,
-      notes: config.notes,
-      isNewOrModified: true,
-    }));
-    setItemsToAdd((prev) => [...prev, ...newItems]);
+    setItemsToAdd((prev) => {
+      let current = [...prev];
+      for (const config of list) {
+        const item: OrderItem = {
+          id: `add-bg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          productId: config.burger.id,
+          productName: config.burger.name,
+          price: config.finalPrice,
+          quantity: config.quantity,
+          category: config.burger.category || 'Hamburguesas',
+          proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+          removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
+          extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
+          isTakeaway: config.isTakeaway,
+          isCut: config.isCut,
+          cutPreference: config.cutPreference,
+          notes: getCleanItemNote(config.notes) || undefined,
+          isNewOrModified: true,
+        };
+        current = mergeAppendItem(current, item);
+      }
+      return current;
+    });
     setConfiguringBurger(null);
     setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
     setTimeout(() => setSuccessToast(''), 3000);
@@ -156,10 +198,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
       isTakeaway: config.isTakeaway,
-      notes: config.notes,
+      notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: true,
     };
-    setItemsToAdd((prev) => [...prev, newItem]);
+    setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
     setConfiguringDrink(null);
     setSuccessToast(`¡${config.drink.name} agregado!`);
     setTimeout(() => setSuccessToast(''), 3000);
@@ -448,8 +490,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                       {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
                                     </div>
                                   )}
-                                  {item.notes && item.notes.replace(/\[#\d+\]/g, '').trim() && (
-                                    <div className="italic text-gray-600">"{item.notes.replace(/\[#\d+\]/g, '').trim()}"</div>
+                                  {getCleanItemNote(item.notes) && (
+                                    <div className="italic text-gray-600">"{getCleanItemNote(item.notes)}"</div>
                                   )}
                                 </div>
                               </div>

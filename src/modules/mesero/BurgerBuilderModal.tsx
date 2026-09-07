@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Product, Ingredient, BurgerUnitConfig } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { roundCOP } from '../../utils/currencyRounding';
+import { getCleanItemNote, normalizeProteinName, areProteinsDefault } from '../../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -106,18 +107,18 @@ function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
   if (a.isTakeaway !== b.isTakeaway) return false;
   if (a.isCut !== b.isCut) return false;
   if (a.cutPreference !== b.cutPreference) return false;
-  if ((a.notes || '').trim() !== (b.notes || '').trim()) return false;
+  if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
 
-  const aProt = [...(a.proteins || [])].sort().join('|');
-  const bProt = [...(b.proteins || [])].sort().join('|');
+  const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
+  const bProt = [...(b.proteins || [])].map(normalizeProteinName).sort().join('|');
   if (aProt !== bProt) return false;
 
-  const aRem = [...(a.removedIngredients || [])].sort().join('|');
-  const bRem = [...(b.removedIngredients || [])].sort().join('|');
+  const aRem = [...a.removedIngredients].sort().join('|');
+  const bRem = [...b.removedIngredients].sort().join('|');
   if (aRem !== bRem) return false;
 
-  const aFree = [...(a.selectedFreeToppings || [])].sort().join('|');
-  const bFree = [...(b.selectedFreeToppings || [])].sort().join('|');
+  const aFree = [...a.selectedFreeToppings].sort().join('|');
+  const bFree = [...b.selectedFreeToppings].sort().join('|');
   if (aFree !== bFree) return false;
 
   const aPaid = (a.selectedPaidExtras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
@@ -344,7 +345,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
       // NOTA: Únicamente si el usuario escribió una nota real en el input.
       // NUNCA agregar tags artificiales como [#1], [#2] si el usuario no escribió nada.
-      const userNote = u.notes ? u.notes.trim() : '';
+      const userNote = getCleanItemNote(u.notes);
 
       return {
         burger,
@@ -556,7 +557,8 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   u.selectedPaidExtras.length > 0 ||
                   u.isCut ||
                   u.isTakeaway !== defaultTakeaway ||
-                  Boolean(u.notes.trim());
+                  !areProteinsDefault(burger.name, u.proteins) ||
+                  Boolean(getCleanItemNote(u.notes));
 
                 const unitExtrasSum = u.selectedPaidExtras.reduce((s, e) => s + e.price, 0);
 
