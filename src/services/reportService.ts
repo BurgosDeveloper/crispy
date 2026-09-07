@@ -759,28 +759,51 @@ export class ReportService {
       }
     });
 
-    // Desglose de Adicionales / Extras por precio de Comandas al Contado
-    const extrasTierMap = new Map<number, { count: number; totalUSD: number }>();
+    // Extracción de Adicionales Pagos, Toppings Gratis y Productos Base
+    const paidExtrasMap = new Map<string, { name: string; quantity: number; subtotalUSD: number; unitPrice: number }>();
+    let freeToppingsCount = 0;
+    const productMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+
     cashItems.forEach((it: any) => {
       const itQty = Number(it.quantity) || 1;
+      const rawName = it.productName || it.name || 'Producto';
+      const cleanName = rawName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '').trim();
+
       const extrasList: any[] = [];
       if (Array.isArray(it.extras)) {
         extrasList.push(...it.extras);
       } else if (it.extrasJson && Array.isArray(it.extrasJson)) {
         extrasList.push(...it.extrasJson);
+      } else if (typeof it.extrasJson === 'string') {
+        try {
+          const parsed = JSON.parse(it.extrasJson);
+          if (Array.isArray(parsed)) extrasList.push(...parsed);
+        } catch (e) {}
       }
 
+      let paidExtrasUnitCost = 0;
       extrasList.forEach((extra) => {
         const price = Number(extra.price) || 0;
+        const extraName = (extra.name || 'Adicional').trim();
         if (price > 0) {
-          const count = itQty;
-          const subtotal = price * count;
-          const current = extrasTierMap.get(price) || { count: 0, totalUSD: 0 };
-          current.count += count;
-          current.totalUSD += subtotal;
-          extrasTierMap.set(price, current);
+          paidExtrasUnitCost += price;
+          const current = paidExtrasMap.get(extraName) || { name: `ADD ${extraName}`, quantity: 0, subtotalUSD: 0, unitPrice: price };
+          current.quantity += itQty;
+          current.subtotalUSD += price * itQty;
+          paidExtrasMap.set(extraName, current);
+        } else {
+          freeToppingsCount += itQty;
         }
       });
+
+      const rawPrice = Number(it.price) || 0;
+      const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
+      const baseSubtotal = baseUnitPrice * itQty;
+
+      const prevProd = productMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
+      prevProd.quantity += itQty;
+      prevProd.subtotalUSD += baseSubtotal;
+      productMap.set(cleanName, prevProd);
     });
 
     const totalVentaFacturadaUSD = billedTotals.usd + (billedTotals.cop / copRateGlobal) + (billedTotals.bs / bsRateGlobal);
@@ -830,54 +853,60 @@ export class ReportService {
       `;
     }).join('');
 
-    // Consolidación de Ítems Facturados al Contado (Sin tamaño, sin mitades)
-    const itemMap = new Map<string, { category: string; name: string; quantity: number; subtotalUSD: number }>();
+    // Construcción de la Lista Única Unificada de Ítems Facturados
+    const unifiedItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = [];
 
-    cashItems.forEach((item) => {
-      const rawName = item.productName || (item as any).name || 'Producto';
-      const cleanName = rawName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
-      const category = item.category || 'General';
-      const catLower = category.toLowerCase();
-      const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
-      const effectiveCategory = isBurger ? 'Hamburguesas' : category;
-      const key = `${effectiveCategory}|${cleanName}`;
-      const prev = itemMap.get(key) || { category: effectiveCategory, name: cleanName, quantity: 0, subtotalUSD: 0 };
-      const qty = Number(item.quantity) || 1;
-      const price = Number(item.price) || 0;
-      prev.quantity += qty;
-      prev.subtotalUSD += price * qty;
-      itemMap.set(key, prev);
-    });
-
-    // Agregar Deliverys a Ítems Facturados
-    deliveryTierMap.forEach((count, fee) => {
+    // 1. Deliverys por tarifa
+    const sortedFees = Array.from(deliveryTierMap.keys()).sort((a, b) => a - b);
+    sortedFees.forEach((fee) => {
+      const count = deliveryTierMap.get(fee) || 0;
       if (fee > 0 && count > 0) {
-        const key = `Delivery|Servicio Delivery de $${fee.toFixed(2)}`;
-        const prev = itemMap.get(key) || { category: 'Delivery', name: `Servicio Delivery de $${fee.toFixed(2)}`, quantity: 0, subtotalUSD: 0 };
-        prev.quantity += count;
-        prev.subtotalUSD += fee * count;
-        itemMap.set(key, prev);
+        unifiedItems.push({
+          name: `Delivery ($${fee.toFixed(2)})`,
+          quantity: count,
+          subtotalUSD: fee * count,
+        });
       }
     });
 
-    // Agregar Adicionales a Ítems Facturados
-    extrasTierMap.forEach((info, price) => {
-      if (info.count > 0 && price > 0) {
-        const key = `Adicionales|Adicional de $${price.toFixed(2)}`;
-        const prev = itemMap.get(key) || { category: 'Adicionales', name: `Adicional de $${price.toFixed(2)}`, quantity: 0, subtotalUSD: 0 };
-        prev.quantity += info.count;
-        prev.subtotalUSD += info.totalUSD;
-        itemMap.set(key, prev);
+    // 2. Adicionales Pagos (ADD <Nombre>)
+    const sortedExtras = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    sortedExtras.forEach((extra) => {
+      if (extra.quantity > 0) {
+        unifiedItems.push({
+          name: extra.name,
+          quantity: extra.quantity,
+          subtotalUSD: extra.subtotalUSD,
+        });
       }
     });
 
-    const sortedItems = Array.from(itemMap.values()).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-    const totalItemsUSD = sortedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
-    const totalItemsUnits = sortedItems.reduce((sum, it) => sum + it.quantity, 0);
+    // 3. Toppings Gratis (conteo acumulado sin costo)
+    if (freeToppingsCount > 0) {
+      unifiedItems.push({
+        name: 'Toppings Gratis',
+        quantity: freeToppingsCount,
+        subtotalUSD: 0,
+      });
+    }
 
-    const itemRows = sortedItems.map((item) => `
+    // 4. Hamburguesas y Productos de Menú (a precio base)
+    const sortedProds = Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    sortedProds.forEach((prod) => {
+      if (prod.quantity > 0) {
+        unifiedItems.push({
+          name: prod.name,
+          quantity: prod.quantity,
+          subtotalUSD: prod.subtotalUSD,
+        });
+      }
+    });
+
+    const totalItemsUSD = unifiedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
+    const totalItemsUnits = unifiedItems.reduce((sum, it) => sum + it.quantity, 0);
+
+    const itemRows = unifiedItems.map((item) => `
       <tr>
-        <td>${this.escapeHtml(item.category)}</td>
         <td><strong>${this.escapeHtml(item.name)}</strong></td>
         <td style="text-align:center;">${item.quantity}</td>
         <td style="text-align:right; font-weight:700;">$${item.subtotalUSD.toFixed(2)}</td>
@@ -1070,19 +1099,18 @@ export class ReportService {
       <table>
         <thead>
           <tr>
-            <th>Categoría</th>
-            <th>Ítem / Producto</th>
+            <th>Ítem / Concepto</th>
             <th style="text-align:center;">Cant.</th>
             <th style="text-align:right;">Subtotal USD</th>
           </tr>
         </thead>
         <tbody>
-          ${itemRows || '<tr><td colspan="4" style="text-align:center;">Sin ítems facturados.</td></tr>'}
+          ${itemRows || '<tr><td colspan="3" style="text-align:center;">Sin ítems facturados.</td></tr>'}
         </tbody>
-        ${sortedItems.length > 0 ? `
+        ${unifiedItems.length > 0 ? `
         <tfoot>
           <tr style="background:#f0fdf4; border-top:2px solid #059669; font-weight:900;">
-            <td colspan="2" style="color:#065f46; font-size:11px;">TOTAL PRODUCTOS FACTURADOS:</td>
+            <td style="color:#065f46; font-size:11px;">TOTAL PRODUCTOS FACTURADOS:</td>
             <td style="text-align:center; color:#065f46;">${totalItemsUnits}</td>
             <td style="text-align:right; color:#047857; font-size:12px;">$${totalItemsUSD.toFixed(2)} USD</td>
           </tr>
@@ -1102,86 +1130,139 @@ export class ReportService {
     const totalBs = (totalUSD * bsRate).toFixed(2);
     const cleanOrderNumber = (order.orderNumber || '').toString().replace(/^#+/, '');
 
-    const itemsHtml = (order.items || []).map((it) => {
-      const subtotal = it.price * it.quantity;
-      const details = [];
-      if (it.isTakeaway) details.push('PARA LLEVAR');
-      if (it.proteins?.length) details.push(`Proteína: ${it.proteins.join(' + ')}`);
-      if (it.removedIngredients?.length) details.push(`Sin: ${it.removedIngredients.join(', ')}`);
-      if (it.extras?.length) details.push(`Extra: ${it.extras.map((e) => e.name).join(', ')}`);
-      if (it.notes) details.push(`Nota: ${it.notes}`);
+    // Consolidar productos a precio base de menú y separar adicionales pagos
+    const productsMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+    const paidExtrasMap = new Map<string, { name: string; quantity: number; totalUSD: number }>();
 
+    (order.items || []).forEach((it) => {
+      const itQty = it.quantity || 1;
       const cleanName = (it.productName || 'Producto')
-        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
         .trim();
 
-      return `
-        <tr>
-          <td style="padding: 4px 0; border-bottom: 1px dashed #e5e7eb;">
-            <div style="font-weight: 800; font-size: 11px; color: #111827;">${it.quantity}x ${cleanName}</div>
-            ${details.length > 0 ? `<div style="font-size: 9px; color: #4b5563; margin-left: 6px;">${details.join('<br>')}</div>` : ''}
-          </td>
-          <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 11px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
-            $${subtotal.toFixed(2)}
-          </td>
-        </tr>
-      `;
-    }).join('');
+      const extrasList: any[] = [];
+      if (Array.isArray(it.extras)) {
+        extrasList.push(...it.extras);
+      } else if ((it as any).extrasJson && Array.isArray((it as any).extrasJson)) {
+        extrasList.push(...(it as any).extrasJson);
+      } else if (typeof (it as any).extrasJson === 'string') {
+        try {
+          const parsed = JSON.parse((it as any).extrasJson);
+          if (Array.isArray(parsed)) extrasList.push(...parsed);
+        } catch (e) {}
+      }
+
+      let paidExtrasUnitCost = 0;
+      extrasList.forEach((extra) => {
+        const extraPrice = Number(extra.price) || 0;
+        const extraName = (extra.name || 'Adicional').trim();
+        if (extraPrice > 0) {
+          paidExtrasUnitCost += extraPrice;
+          const current = paidExtrasMap.get(extraName) || { name: extraName, quantity: 0, totalUSD: 0 };
+          current.quantity += itQty;
+          current.totalUSD += extraPrice * itQty;
+          paidExtrasMap.set(extraName, current);
+        }
+      });
+
+      const rawPrice = Number(it.price) || 0;
+      const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
+      const baseSubtotal = baseUnitPrice * itQty;
+
+      const prev = productsMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
+      prev.quantity += itQty;
+      prev.subtotalUSD += baseSubtotal;
+      productsMap.set(cleanName, prev);
+    });
+
+    const productsList = Array.from(productsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    const paidExtrasList = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    const itemsHtml = productsList.map((p) => `
+      <tr>
+        <td style="padding: 5px 0; font-weight: 800; font-size: 13px; color: #111827; border-bottom: 1px dashed #e5e7eb;">
+          ${p.quantity}x ${this.escapeHtml(p.name)}
+        </td>
+        <td style="padding: 5px 0; text-align: right; font-weight: 800; font-size: 13px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
+          $${p.subtotalUSD.toFixed(2)}
+        </td>
+      </tr>
+    `).join('');
+
+    const extrasHtml = paidExtrasList.map((e) => `
+      <tr>
+        <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #374151; border-bottom: 1px dashed #e5e7eb;">
+          ${e.quantity}x ADD ${this.escapeHtml(e.name)}
+        </td>
+        <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
+          $${e.totalUSD.toFixed(2)}
+        </td>
+      </tr>
+    `).join('');
+
+    const deliveryFee = Number(order.deliveryFeeUSD) || 0;
+    const deliveryHtml = order.type === 'delivery' && deliveryFee > 0 ? `
+      <tr>
+        <td style="padding: 5px 0; font-weight: 800; font-size: 13px; color: #111827; border-bottom: 1px dashed #e5e7eb;">1x Servicio Delivery</td>
+        <td style="padding: 5px 0; text-align: right; font-weight: 800; font-size: 13px; border-bottom: 1px dashed #e5e7eb;">$${deliveryFee.toFixed(2)}</td>
+      </tr>
+    ` : '';
 
     const content = `
-      <div class="header" style="text-align: center;">
-        <div class="logo-title" style="font-size: 16px; font-weight: 900; color: #111827;">🍔 CRISPY BURGER POS</div>
-        <div style="font-size: 11px; font-weight: 900; color: #b45309; margin-top: 2px;">PRE-CUENTA / TICKET DE CONSUMO</div>
-        <div style="font-size: 8px; color: #6b7280; margin-top: 2px;">DOCUMENTO INFORMATIVO PARA EL CLIENTE</div>
+      <div class="header" style="text-align: center; border-bottom: 2px solid #111827; padding-bottom: 6px;">
+        <div class="logo-title" style="font-size: 17px; font-weight: 900; color: #111827;">🍔 CRISPY BURGER</div>
+        <div style="font-size: 12px; font-weight: 900; color: #b45309; margin-top: 2px;">PRE-CUENTA / CONSUMO</div>
       </div>
 
-      <div class="meta-card" style="font-size: 10px; margin: 8px 0; padding: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
-        <div style="display: flex; justify-content: space-between; font-weight: 800; color: #111827;">
+      <div class="meta-card" style="font-size: 11px; margin: 8px 0; padding: 7px; background: #f9fafb; border: 1.5px solid #d1d5db; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; color: #111827; font-size: 13px;">
           <span>COMANDA: #${cleanOrderNumber}</span>
-          <span style="background: #fef08a; padding: 1px 6px; border-radius: 4px; border: 1px solid #facc15;">${order.type === 'mesa' ? `MESA #${order.tableNumber}` : order.type === 'delivery' ? 'DELIVERY' : 'PICKUP'}</span>
+          <span style="background: #fef08a; padding: 2px 8px; border-radius: 4px; border: 1px solid #facc15; font-size: 11px;">
+            ${order.type === 'mesa' ? `MESA #${order.tableNumber}` : order.type === 'delivery' ? 'DELIVERY' : 'PICKUP'}
+          </span>
         </div>
-        <div style="margin-top: 4px;"><strong>Cliente:</strong> ${order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General')}</div>
-        <div><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-VE')}</div>
+        <div style="margin-top: 5px; font-weight: 700; font-size: 11px;"><strong>Cliente:</strong> ${this.escapeHtml(order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General'))}</div>
+        <div style="font-size: 10px; color: #4b5563;"><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-VE')}</div>
       </div>
 
-      <div class="section-title" style="font-size: 10px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-bottom: 4px;">DETALLE DE CONSUMO</div>
+      <div class="section-title" style="font-size: 11px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-bottom: 4px;">--- CONSUMO ---</div>
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="border-bottom: 1px solid #d1d5db; font-size: 9px; color: #4b5563;">
+          <tr style="border-bottom: 1px solid #9ca3af; font-size: 10px; color: #4b5563;">
             <th style="text-align: left; padding-bottom: 3px;">DESCRIPCIÓN</th>
             <th style="text-align: right; padding-bottom: 3px;">TOTAL USD</th>
           </tr>
         </thead>
         <tbody>
           ${itemsHtml}
-          ${order.type === 'delivery' && (order.deliveryFeeUSD || 0) > 0 ? `
-            <tr>
-              <td style="padding: 4px 0; font-weight: 800; font-size: 11px;">1x Servicio Delivery</td>
-              <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 11px;">$${Number(order.deliveryFeeUSD).toFixed(2)}</td>
-            </tr>
-          ` : ''}
+          ${deliveryHtml}
         </tbody>
       </table>
 
+      ${paidExtrasList.length > 0 ? `
+        <div class="section-title" style="font-size: 11px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-top: 8px; margin-bottom: 4px;">--- ADICIONALES ---</div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tbody>
+            ${extrasHtml}
+          </tbody>
+        </table>
+      ` : ''}
+
       <!-- CAJA TOTALIZADORA CON LAS 3 MONEDAS SIMULTÁNEAS -->
-      <div class="total-box" style="margin-top: 10px; padding: 8px; background: #fffbeb; border: 1.5px solid #facc15; border-radius: 8px;">
-        <div style="font-size: 10px; font-weight: 900; color: #78350f; text-transform: uppercase;">TOTAL A PAGAR:</div>
-        <div style="font-size: 20px; font-weight: 900; color: #111827; text-align: right; line-height: 1.1;">
-          $${totalUSD.toFixed(2)} <span style="font-size: 11px; font-weight: 800;">USD</span>
+      <div class="total-box" style="margin-top: 12px; padding: 10px; background: #fffbeb; border: 2px solid #facc15; border-radius: 8px;">
+        <div style="font-size: 11px; font-weight: 900; color: #78350f; text-transform: uppercase;">TOTAL A PAGAR:</div>
+        <div style="font-size: 24px; font-weight: 900; color: #111827; text-align: right; line-height: 1.1;">
+          $${totalUSD.toFixed(2)} <span style="font-size: 12px; font-weight: 800;">USD</span>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #facc15;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed #facc15;">
           <span style="color: #0369a1;">🇨🇴 COP: $${totalCOP.toLocaleString()}</span>
           <span style="color: #111827;">🇻🇪 Bs: ${totalBs}</span>
         </div>
       </div>
 
-      <div style="font-size: 8px; color: #6b7280; text-align: center; margin-top: 8px;">
-        Tasas de cambio vigentes: 1 USD = ${copRate.toLocaleString()} COP | ${bsRate.toFixed(2)} Bs
-      </div>
-
-      <div class="footer" style="text-align: center; margin-top: 10px; border-top: 1px dashed #9ca3af; padding-top: 6px; font-size: 9px; font-weight: 800;">
+      <div class="footer" style="text-align: center; margin-top: 12px; border-top: 1px dashed #9ca3af; padding-top: 8px; font-size: 10px; font-weight: 900;">
         ¡GRACIAS POR SU PREFERENCIA!<br>
-        <span style="font-size: 8px; font-weight: 700; color: #4b5563;">CRISPY BURGER POS</span>
+        <span style="font-size: 8.5px; font-weight: 700; color: #4b5563;">CRISPY BURGER POS</span>
       </div>
     `;
 

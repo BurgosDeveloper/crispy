@@ -269,73 +269,112 @@ export function exportToExcel(data: ReporteIntervaloData): void {
   ws2['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 15 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Cuentas');
 
-  // --- Hoja 3: Ítems Vendidos al Contado ---
-  const itemTally: Record<string, { category: string; name: string; quantity: number; totalUSD: number }> = {};
-  cashItems.forEach((it) => {
-    const rawCategory = it.category || 'General';
-    const cleanName = (it.productName || 'Producto')
-      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
+  // --- Hoja 3: Ítems Vendidos al Contado (Lista Única Unificada) ---
+  const paidExtrasMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+  let freeToppingsCount = 0;
+  const productMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+
+  cashItems.forEach((it: any) => {
+    const itQty = Number(it.quantity) || 1;
+    const rawName = it.productName || it.name || 'Producto';
+    const cleanName = rawName
+      .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
       .trim();
-    const catLower = rawCategory.toLowerCase();
-    const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
-    const category = isBurger ? 'Hamburguesas' : rawCategory;
 
-    const key = `${category}|${cleanName}`;
-    if (!itemTally[key]) {
-      itemTally[key] = { category, name: cleanName, quantity: 0, totalUSD: 0 };
+    const extrasList: any[] = [];
+    if (Array.isArray(it.extras)) extrasList.push(...it.extras);
+    else if (it.extrasJson && Array.isArray(it.extrasJson)) extrasList.push(...it.extrasJson);
+    else if (typeof it.extrasJson === 'string') {
+      try {
+        const parsed = JSON.parse(it.extrasJson);
+        if (Array.isArray(parsed)) extrasList.push(...parsed);
+      } catch (e) {}
     }
-    const qty = Number(it.quantity) || 1;
-    const price = Number(it.price) || 0;
-    itemTally[key].quantity += qty;
-    itemTally[key].totalUSD += price * qty;
-  });
 
-  // Agregar Deliverys
-  Object.entries(deliveryMap).forEach(([feeStr, count]) => {
-    const fee = Number(feeStr) || 0;
-    if (fee > 0 && count > 0) {
-      const key = `Delivery|Servicio Delivery de $${fee.toFixed(2)}`;
-      itemTally[key] = {
-        category: 'Delivery',
-        name: `Servicio Delivery de $${fee.toFixed(2)}`,
-        quantity: count,
-        totalUSD: fee * count,
-      };
-    }
-  });
-
-  // Agregar Adicionales
-  Object.entries(extrasMap).forEach(([priceStr, info]) => {
-    const price = Number(priceStr) || 0;
-    if (info.count > 0 && price > 0) {
-      const key = `Adicionales|Adicional de $${price.toFixed(2)}`;
-      itemTally[key] = {
-        category: 'Adicionales',
-        name: `Adicional de $${price.toFixed(2)}`,
-        quantity: info.count,
-        totalUSD: info.totalUSD,
-      };
-    }
-  });
-
-  const itemEntries = Object.values(itemTally)
-    .sort((a, b) => {
-      const catCmp = a.category.localeCompare(b.category);
-      return catCmp !== 0 ? catCmp : a.name.localeCompare(b.name);
+    let paidExtrasUnitCost = 0;
+    extrasList.forEach((extra) => {
+      const price = Number(extra.price) || 0;
+      const extraName = (extra.name || 'Adicional').trim();
+      if (price > 0) {
+        paidExtrasUnitCost += price;
+        const current = paidExtrasMap.get(extraName) || { name: `ADD ${extraName}`, quantity: 0, subtotalUSD: 0 };
+        current.quantity += itQty;
+        current.subtotalUSD += price * itQty;
+        paidExtrasMap.set(extraName, current);
+      } else {
+        freeToppingsCount += itQty;
+      }
     });
 
-  const totalItemsUnits = itemEntries.reduce((sum, it) => sum + it.quantity, 0);
-  const totalItemsUSD = itemEntries.reduce((sum, it) => sum + it.totalUSD, 0);
+    const rawPrice = Number(it.price) || 0;
+    const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
+    const baseSubtotal = baseUnitPrice * itQty;
 
-  const itemsHeader = ['Categoría', 'Producto', 'Cantidad', 'Total USD'];
-  const itemsRows = itemEntries.map((info) => [
-    info.category,
+    const prev = productMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
+    prev.quantity += itQty;
+    prev.subtotalUSD += baseSubtotal;
+    productMap.set(cleanName, prev);
+  });
+
+  const unifiedItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = [];
+
+  // 1. Deliverys
+  const sortedDeliveryFees = Object.keys(deliveryMap).map(Number).sort((a, b) => a - b);
+  sortedDeliveryFees.forEach((fee) => {
+    const count = deliveryMap[fee] || 0;
+    if (fee > 0 && count > 0) {
+      unifiedItems.push({
+        name: `Delivery ($${fee.toFixed(2)})`,
+        quantity: count,
+        subtotalUSD: fee * count,
+      });
+    }
+  });
+
+  // 2. Adicionales Pagos (ADD <Nombre>)
+  const sortedExtras = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  sortedExtras.forEach((extra) => {
+    if (extra.quantity > 0) {
+      unifiedItems.push({
+        name: extra.name,
+        quantity: extra.quantity,
+        subtotalUSD: extra.subtotalUSD,
+      });
+    }
+  });
+
+  // 3. Toppings Gratis
+  if (freeToppingsCount > 0) {
+    unifiedItems.push({
+      name: 'Toppings Gratis',
+      quantity: freeToppingsCount,
+      subtotalUSD: 0,
+    });
+  }
+
+  // 4. Hamburguesas y Productos de Menú (a precio base)
+  const sortedProds = Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  sortedProds.forEach((prod) => {
+    if (prod.quantity > 0) {
+      unifiedItems.push({
+        name: prod.name,
+        quantity: prod.quantity,
+        subtotalUSD: prod.subtotalUSD,
+      });
+    }
+  });
+
+  const totalItemsUnits = unifiedItems.reduce((sum, it) => sum + it.quantity, 0);
+  const totalItemsUSD = unifiedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
+
+  const itemsHeader = ['Ítem / Concepto', 'Cantidad', 'Total USD'];
+  const itemsRows = unifiedItems.map((info) => [
     info.name,
     info.quantity.toString(),
-    info.totalUSD.toFixed(2),
+    info.subtotalUSD.toFixed(2),
   ]);
 
-  itemsRows.push(['TOTAL', 'TOTAL PRODUCTOS FACTURADOS', totalItemsUnits.toString(), totalItemsUSD.toFixed(2)]);
+  itemsRows.push(['TOTAL ÍTEMS FACTURADOS', totalItemsUnits.toString(), totalItemsUSD.toFixed(2)]);
 
   const itemsData = [
     ['ÍTEMS FACTURADOS EN EL INTERVALO (CONTADO)'],
@@ -345,7 +384,7 @@ export function exportToExcel(data: ReporteIntervaloData): void {
     ...itemsRows,
   ];
   const ws3 = XLSX.utils.aoa_to_sheet(itemsData);
-  ws3['!cols'] = [{ wch: 20 }, { wch: 35 }, { wch: 12 }, { wch: 15 }];
+  ws3['!cols'] = [{ wch: 38 }, { wch: 12 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'Items Vendidos');
 
   // --- Hoja 4: Historial de Pagos ---
