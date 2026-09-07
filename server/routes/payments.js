@@ -204,7 +204,7 @@ module.exports = function(io) {
     try {
       client = await getClient();
       await client.query('BEGIN');
-      const { rows: orderRows } = await client.query('SELECT total_usd, status, shift FROM orders WHERE id = $1 FOR UPDATE', [id]);
+      const { rows: orderRows } = await client.query('SELECT total_usd, status, shift, type, table_number FROM orders WHERE id = $1 FOR UPDATE', [id]);
       const order = orderRows[0];
       if (!order) {
         await client.query('ROLLBACK');
@@ -226,18 +226,37 @@ module.exports = function(io) {
         });
       }
 
+      // Si la comanda es de mesa: se cierra automáticamente marcándola como 'entregada'
+      // Para delivery y pickup se mantiene su estado actual y requiere confirmación manual
+      const isMesa = order.type === 'mesa' || !order.type;
+      const nextStatus = isMesa ? 'entregada' : (order.status || 'preparada');
+
       await client.query(
-        `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [Math.min(totals.paidUSD, totalUSD), id]
+        `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+        [Math.min(totals.paidUSD, totalUSD), nextStatus, id]
       );
+
+      // Si es mesa, liberar la mesa en tables_config si no hay otras comandas activas
+      if (isMesa && order.table_number) {
+        const { rows: otherOrders } = await client.query(
+          `SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito'`,
+          [order.table_number, id]
+        );
+        if (otherOrders.length === 0) {
+          await client.query(`UPDATE tables_config SET status = 'libre' WHERE number = $1`, [order.table_number]);
+        }
+      }
+
       const cashLedgerResult = await postCompletedOrderCashMovements(client, id);
       await client.query('COMMIT');
       client.release();
       client = null;
 
       const allOrders = await fetchAllOrders(req.user);
+      const allTables = await fetchAllTables(req.user);
       const updatedOrder = allOrders.find((currentOrder) => currentOrder.id === id);
       io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
       if (cashLedgerResult.posted || cashLedgerResult.removed) io.emit('caja:updated');
       return res.json(updatedOrder);
     } catch (error) {

@@ -1082,7 +1082,11 @@ export const MeseroPage: React.FC = () => {
           onToggleDelivered={async (ord) => {
             const newStatus = ord.status === 'entregada' ? 'preparada' : 'entregada';
             await updateOrderStatus(ord.id, newStatus);
-            setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+            if (newStatus === 'entregada') {
+              setOrderDetailModalOrder(null);
+            } else {
+              setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+            }
           }}
           onCancelOrder={async (ord) => {
             if (!window.confirm(`¿Seguro que deseas anular y eliminar la comanda #${ord.orderNumber}?`)) return;

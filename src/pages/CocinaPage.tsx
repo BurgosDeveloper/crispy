@@ -249,7 +249,7 @@ export const CocinaPage: React.FC = () => {
                               )}
                               {(it.isCut || it.cutPreference === 'Picada') ? (
                                 <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-300 text-[9px] font-black">
-                                  🔪 PICADA (EN 2)
+                                  🔪 PICADA
                                 </span>
                               ) : (
                                 <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300 text-[9px] font-black">

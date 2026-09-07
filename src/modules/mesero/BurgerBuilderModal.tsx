@@ -501,7 +501,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                     : 'text-gray-600 hover:text-black'
                 }`}
               >
-                <span>🔪 PICADA (EN 2)</span>
+                <span>🔪 PICADA</span>
               </button>
             </div>
           </div>

@@ -498,7 +498,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 {onToggleDelivered && (
                   <button
                     type="button"
-                    onClick={() => onToggleDelivered(order)}
+                    onClick={() => {
+                      if (!isDelivered) {
+                        onClose();
+                      }
+                      onToggleDelivered(order);
+                    }}
                     className={`py-2.5 px-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 ${
                       !isDelivered
                         ? isPaid

@@ -2316,7 +2316,11 @@ export const CajaPage: React.FC = () => {
           onToggleDelivered={async (ord) => {
             const newStatus = ord.status === 'entregada' ? 'preparada' : 'entregada';
             await updateOrderStatus(ord.id, newStatus);
-            setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+            if (newStatus === 'entregada') {
+              setOrderDetailModalOrder(null);
+            } else {
+              setOrderDetailModalOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+            }
           }}
           onCancelOrder={(ord) => {
             requireAdminPin(

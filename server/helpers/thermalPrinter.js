@@ -338,7 +338,7 @@ function itemDetails(item, order = {}) {
   // 2. Picada: Solo si está marcada como picada (sin ENTERA)
   const isCut = !!(item.isCut || item.is_cut || item.cutPreference === 'Picada' || item.cut_preference === 'Picada');
   if (isCut) {
-    details.push('🔪 PICADA (CORTADA EN DOS)');
+    details.push('🔪 PICADA');
   }
 
   // 3. Proteínas: Solo si cambiaron respecto a la receta original
