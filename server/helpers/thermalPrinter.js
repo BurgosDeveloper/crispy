@@ -1062,7 +1062,7 @@ function sendRawTicket(payload, config) {
         }
       }
 
-      // 2. Impresora USB en Windows (Spooler o recurso compartido)
+      // 2. Impresora USB en Windows (Spooler WinSpool directo con winspool.drv)
       const os = require('os');
       const tempPath = path.join(os.tmpdir(), `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
       try {
@@ -1071,36 +1071,22 @@ function sendRawTicket(payload, config) {
         return reject(err);
       }
 
-      const escapedTempPath = tempPath.replace(/'/g, "''");
-      const escapedPrinter = printerName.replace(/'/g, "''");
-
-      // Script PowerShell para enviar bytes RAW directamente a la cola de impresión de Windows
-      const psScript = `
-        $printer = '${escapedPrinter}';
-        $file = '${escapedTempPath}';
-        try {
-          # Intento 1: Copiar a puerto de red local/compartido
-          Copy-Item -Path $file -Destination "\\\\localhost\\$printer" -Force -ErrorAction Stop
-          exit 0
-        } catch {
-          try {
-            # Intento 2: Usar comando copy de cmd
-            cmd.exe /c "copy /b \`"$file\`" \`"\\\\localhost\\$printer\`"" | Out-Null
-            exit 0
-          } catch {
-            exit 1
-          }
-        }
-      `;
+      const scriptPath = path.join(__dirname, 'rawPrinter.ps1');
+      const escapedPrinter = printerName.replace(/"/g, '`"');
+      const escapedTempPath = tempPath.replace(/"/g, '`"');
+      const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -PrinterName "${escapedPrinter}" -FilePath "${escapedTempPath}"`;
 
       require('child_process').exec(
-        `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/\n/g, ' ')}"`,
-        { timeout: config.timeoutMs || 5000 },
-        (err) => {
+        cmd,
+        { timeout: config.timeoutMs || 8000 },
+        (err, stdout, stderr) => {
           try { fs.unlinkSync(tempPath); } catch (_) {}
           if (err) {
-            // Fallback a socket LAN si host y puerto están configurados
-            if (config.host && Number.isInteger(config.port) && config.port > 0) {
+            const detail = (stderr || stdout || err.message).trim();
+            console.warn(`⚠️ [USB SPOOLER] Error en ${printerName}:`, detail);
+
+            // Fallback a socket LAN si host y puerto están configurados explícitamente
+            if (config.connectionType === 'lan' && config.host && Number.isInteger(config.port) && config.port > 0) {
               const socket = net.createConnection({ host: config.host, port: config.port });
               socket.setTimeout(config.timeoutMs || 5000);
               socket.once('connect', () => socket.end(payload, () => resolve()));
@@ -1108,7 +1094,7 @@ function sendRawTicket(payload, config) {
               socket.once('error', (netErr) => reject(new Error(`Fallo spooler USB (${printerName}) y fallback LAN falló: ${netErr.message}`)));
               return;
             }
-            return reject(new Error(`No se pudo imprimir en USB "${printerName}". Verifique que la impresora esté conectada o compartida en Windows.`));
+            return reject(new Error(`No se pudo imprimir en USB "${printerName}". Detalle: ${detail}`));
           }
           resolve();
         }
