@@ -15,20 +15,21 @@ module.exports = function(io) {
       const userClean = (username || '').trim().toLowerCase();
       const passClean = (password || '').trim().toLowerCase();
 
-      // Atajos de acceso directo para Crispy
-      const DEFAULT_ACCOUNTS = {
-        'admin': { username: 'Administrador General', role: 'admin' },
-        'caja': { username: 'Cajero Principal', role: 'caja' },
-        'mesero': { username: 'Mesero Principal', role: 'mesero' },
-        'cocina': { username: 'Jefe de Cocina', role: 'cocina' },
-      };
-
-      if (DEFAULT_ACCOUNTS[userClean] && (passClean === userClean || passClean === 'crispy1.' || passClean === 'admin')) {
-        return loginResponse(res, DEFAULT_ACCOUNTS[userClean]);
+      // Cuentas oficiales Crispy
+      if (userClean === 'carlos' && passClean === 'carloscrispys') {
+        return loginResponse(res, { username: 'Carlos', role: 'admin' });
       }
 
-      if (userClean === 'crispy' && (passClean === 'crispy1.' || passClean === 'admin')) {
-        return loginResponse(res, { username: 'Administrador Crispy', role: 'admin' });
+      if (userClean === 'cajeroa' && passClean === 'cajero') {
+        return loginResponse(res, { username: 'Cajero Principal', role: 'caja' });
+      }
+
+      if (userClean === 'mesero' && (passClean === 'mesero' || passClean === 'carloscrispys')) {
+        return loginResponse(res, { username: 'Mesero Principal', role: 'mesero' });
+      }
+
+      if (userClean === 'cocina' && (passClean === 'cocina' || passClean === 'carloscrispys')) {
+        return loginResponse(res, { username: 'Jefe de Cocina', role: 'cocina' });
       }
 
       const { rows } = await query(`SELECT * FROM users WHERE LOWER(username) = $1 AND LOWER(password) = $2`, [userClean, passClean]);

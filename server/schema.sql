@@ -212,11 +212,11 @@ INSERT INTO system_settings (key, value) VALUES ('admin_pin', '1234') ON CONFLIC
 
 -- Inserción Inicial de Usuarios Crispy
 INSERT INTO users (id, username, password, role, name, shift) VALUES
-('u-admin', 'admin', 'admin', 'admin', 'Administrador General', 'ambos'),
-('u-caja', 'caja', 'caja', 'caja', 'Cajero Principal', 'ambos'),
+('u-admin', 'carlos', 'carloscrispys', 'admin', 'Carlos', 'ambos'),
+('u-caja', 'cajeroa', 'cajero', 'caja', 'Cajero Principal', 'ambos'),
 ('u-mesero', 'mesero', 'mesero', 'mesero', 'Mesero Principal', 'ambos'),
 ('u-cocina', 'cocina', 'cocina', 'cocina', 'Jefe de Cocina', 'ambos')
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, role = EXCLUDED.role, name = EXCLUDED.name;
 
 -- Inserción Inicial de Mesas
 INSERT INTO tables_config (id, number, name, capacity, status, zone) VALUES

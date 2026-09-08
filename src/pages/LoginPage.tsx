@@ -10,7 +10,7 @@ import {
 
 export const LoginPage: React.FC = () => {
   const { login } = useApp();
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -96,43 +96,12 @@ export const LoginPage: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm border border-yellow-500 transition-all shadow-sm flex items-center justify-center gap-2 transform active:scale-[0.99]"
+            className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm border border-yellow-500 transition-all shadow-sm flex items-center justify-center gap-2 transform active:scale-[0.99] cursor-pointer"
           >
             <span>INGRESAR AL SISTEMA</span>
             <IoArrowForward className="text-base" />
           </button>
         </form>
-
-        {/* Access Quick Roles Info & Buttons */}
-        <div className="pt-2 border-t border-gray-100 space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block text-center">
-            Acceso Rápido por Rol:
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { role: 'admin', label: '👑 Administrador', pass: 'admin' },
-              { role: 'caja', label: '💳 Cajero (POS)', pass: 'caja' },
-              { role: 'mesero', label: '🍽️ Mesero', pass: 'mesero' },
-              { role: 'cocina', label: '🍳 Cocina (KDS)', pass: 'cocina' },
-            ].map((r) => (
-              <button
-                key={r.role}
-                type="button"
-                onClick={() => {
-                  setUsername(r.role);
-                  setPassword(r.pass);
-                }}
-                className={`p-2 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                  username === r.role
-                    ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs ring-2 ring-yellow-400/50'
-                    : 'bg-stone-50 hover:bg-yellow-50 text-gray-800 border-gray-200'
-                }`}
-              >
-                <span>{r.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
       </div>
     </div>

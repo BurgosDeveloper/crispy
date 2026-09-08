@@ -178,9 +178,12 @@ async function initDb() {
       `INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('noche', 3950.00, 36.50, 'Compatibilidad') ON CONFLICT (shift) DO NOTHING;`,
       `INSERT INTO system_settings (key, value) VALUES ('admin_pin', '1234') ON CONFLICT (key) DO NOTHING;`,
 
+      `DELETE FROM users WHERE (username = 'carlos' AND id != 'u-admin') OR (username = 'cajeroa' AND id != 'u-caja');`,
+      `UPDATE users SET username = 'carlos', password = 'carloscrispys', name = 'Carlos', role = 'admin' WHERE id = 'u-admin' OR username = 'admin';`,
+      `INSERT INTO users (id, username, password, role, name, shift) VALUES ('u-admin', 'carlos', 'carloscrispys', 'admin', 'Carlos', 'ambos') ON CONFLICT (username) DO UPDATE SET password = 'carloscrispys', role = 'admin', name = 'Carlos';`,
+      `UPDATE users SET username = 'cajeroa', password = 'cajero', name = 'Cajero Principal', role = 'caja' WHERE id = 'u-caja' OR username = 'caja';`,
+      `INSERT INTO users (id, username, password, role, name, shift) VALUES ('u-caja', 'cajeroa', 'cajero', 'caja', 'Cajero Principal', 'ambos') ON CONFLICT (username) DO UPDATE SET password = 'cajero', role = 'caja', name = 'Cajero Principal';`,
       `INSERT INTO users (id, username, password, role, name, shift) VALUES
-        ('u-admin', 'admin', 'admin', 'admin', 'Administrador General', 'ambos'),
-        ('u-caja', 'caja', 'caja', 'caja', 'Cajero Principal', 'ambos'),
         ('u-mesero', 'mesero', 'mesero', 'mesero', 'Mesero Principal', 'ambos'),
         ('u-cocina', 'cocina', 'cocina', 'cocina', 'Jefe de Cocina', 'ambos')
         ON CONFLICT (username) DO NOTHING;`,

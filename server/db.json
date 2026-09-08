@@ -2,22 +2,22 @@
   "users": [
     {
       "id": "u-admin",
-      "username": "admin",
-      "password": "admin",
+      "username": "carlos",
+      "password": "carloscrispys",
       "role": "admin",
-      "name": "Administrador General"
+      "name": "Carlos"
     },
     {
       "id": "u-mesero",
-      "username": "basilico",
+      "username": "mesero",
       "password": "mesero",
       "role": "mesero",
       "name": "Mesero Principal"
     },
     {
       "id": "u-caja",
-      "username": "basilico_caja",
-      "password": "caja",
+      "username": "cajeroa",
+      "password": "cajero",
       "role": "caja",
       "name": "Cajero Principal"
     },
