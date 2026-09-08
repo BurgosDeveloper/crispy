@@ -15,6 +15,7 @@ import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
+import { isCustomizableProduct } from '../utils/productClassifier';
 
 import {
   IoReaderOutline,
@@ -165,10 +166,10 @@ export const MeseroPage: React.FC = () => {
   const handleSelectProduct = (product: Product) => {
     const isTargetTakeaway = activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery';
 
-    if (product.category === 'Hamburguesas') {
+    if (isCustomizableProduct(product)) {
       setSelectedBurger(product);
     } else {
-      // Direct add to cart for drinks, sides or combos (1 solo clic, suma cantidades si se repite)
+      // Direct add to cart for drinks, sides or potatoes (1 solo clic, suma cantidades si se repite)
       const newItem: OrderItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         productId: product.id,

@@ -6,6 +6,7 @@ import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mese
 import { AdminPinModal } from './AdminPinModal';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
+import { isCustomizableProduct } from '../utils/productClassifier';
 import {
   IoClose,
   IoAdd,
@@ -119,14 +120,9 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     return [...list, item];
   };
 
-  // Manejo de selección de producto: Hamburguesas abren sección inline; Bebidas y contornos se agregan en 1 clic
+  // Manejo de selección de producto: Hamburguesas abren sección inline; Bebidas, papas y acompañantes directos se agregan en 1 clic
   const handleSelectProduct = (prod: Product) => {
-    const isBurger =
-      prod.category === 'Hamburguesas' ||
-      (prod.baseIngredients && prod.baseIngredients.length > 0) ||
-      /burger|hamburguesa|sencilla|doble|triple|smash|tasty|mixtura/i.test(prod.name);
-
-    if (isBurger) {
+    if (isCustomizableProduct(prod)) {
       setSelectedBurger(prod);
     } else {
       // Producto directo (1 solo clic, suma cantidades si se repite)
