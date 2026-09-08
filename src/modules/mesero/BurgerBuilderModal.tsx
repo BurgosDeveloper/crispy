@@ -442,10 +442,11 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 sm:p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-600 hover:text-black transition-colors cursor-pointer"
-          title={inline ? "Cerrar personalización" : "Cerrar modal"}
+          className="px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-700 hover:text-black transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs shadow-2xs"
+          title={inline ? "Volver al catálogo" : "Cerrar modal"}
         >
-          <IoClose className={inline ? "text-xl" : "text-2xl"} />
+          <IoClose className={inline ? "text-lg text-gray-600" : "text-2xl"} />
+          <span className="hidden sm:inline">Volver al Menú</span>
         </button>
       </header>
 
