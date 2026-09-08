@@ -23,7 +23,7 @@ interface TableCompactGridProps {
 
 function cleanOrderNum(orderNumber?: string | number): string {
   if (!orderNumber) return '';
-  return orderNumber.toString().replace(/^#+/, '');
+  return orderNumber.toString().replace(/^#+/, '').replace(/\.+$/, '').trim();
 }
 
 function parseOrderNumberForSort(orderNumber?: string | number): number {

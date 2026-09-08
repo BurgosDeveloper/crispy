@@ -334,6 +334,7 @@ export const MeseroPage: React.FC = () => {
             onPayOrder={(ord) => setActiveOrderForPay(ord)}
             onMarkDelivered={async (ord) => {
               await updateOrderStatus(ord.id, 'entregada');
+              setOrderDetailModalOrder(null);
             }}
             onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
             onViewHistory={() => setSearchParams({ tab: 'comandas' })}
