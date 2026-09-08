@@ -396,6 +396,7 @@ const NativeAppContent: React.FC = () => {
 
   const requiresKitchenPrepNative = (order: any): boolean => {
     if (!order || !order.items || order.items.length === 0) return false;
+    if (order.type === 'delivery' || order.type === 'pickup') return true;
     return order.items.some((it: any) => {
       const nameLower = (it.productName || '').toLowerCase();
       const isSoda =
@@ -855,7 +856,22 @@ const NativeAppContent: React.FC = () => {
 
                   {/* Items Cards List */}
                   <View style={{ gap: 8, marginVertical: 4 }}>
-                    {ord.items.map((it) => (
+                    {((ord.type === 'delivery' || ord.type === 'pickup')
+                      ? (ord.items || [])
+                      : (ord.items || []).filter((it: any) => {
+                          const nameLower = (it.productName || '').toLowerCase();
+                          const isSoda =
+                            nameLower.includes('coca') ||
+                            nameLower.includes('pepsi') ||
+                            nameLower.includes('refresco') ||
+                            nameLower.includes('gaseosa') ||
+                            nameLower.includes('nestea') ||
+                            nameLower.includes('agua') ||
+                            nameLower.includes('7up') ||
+                            nameLower.includes('sprite');
+                          return !isSoda;
+                        })
+                    ).map((it) => (
                       <View key={it.id} style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(216,230,223,0.15)', padding: 10, gap: 4 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>

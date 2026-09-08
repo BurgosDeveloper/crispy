@@ -406,7 +406,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     socket.on('order:created', (newOrder: Order) => {
       setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]);
-      soundService.playNewOrderSound();
+      // Silenciado totalmente a petición del cliente
     });
 
     socket.on('order:status_updated', (updatedOrder: Order) => {
@@ -499,7 +499,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const created = await requireApiSuccess(res, 'No se pudo crear la comanda en el servidor.');
     setOrders((prev) => [created, ...prev.filter((order) => order.id !== created.id)]);
-    soundService.playNewOrderSound();
+    // Silenciado totalmente a petición del cliente
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {

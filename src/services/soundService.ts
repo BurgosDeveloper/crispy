@@ -28,31 +28,10 @@ class SoundService {
     return this.audioCtx;
   }
 
-  // Sonido de Nueva Comanda a Cocina (Campana suave y profunda)
+  // Sonido de Nueva Comanda a Cocina (Silenciado permanentemente a petición del cliente)
   playNewOrderSound() {
-    this.triggerVibration([0, 500, 200, 500]);
-    try {
-      const ctx = this.getContext();
-      if (!ctx) return;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3); // A5
-
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.8);
-    } catch (e) {
-      console.warn('Audio feedback failed:', e);
-    }
+    // Silenciado totalmente a petición del cliente (no reproducir sonido ni vibración al enviar pedido)
+    return;
   }
 
   // Sonido de Comanda Lista en Mesero & Caja (Doble tono alegre de aviso)

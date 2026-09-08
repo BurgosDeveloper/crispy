@@ -17,22 +17,40 @@ import {
   IoTimerOutline,
 } from 'react-icons/io5';
 
+export const isKitchenProduct = (it: any) => {
+  const nameLower = (it.productName || it.name || '').toLowerCase();
+  const category = (it.category || '').toLowerCase();
+  const drinkType = (it.drinkType || it.drink_type || '').toLowerCase();
+  const isJuiceOrShake = (
+    drinkType === 'jugo' ||
+    drinkType === 'merengada' ||
+    drinkType === 'malteada' ||
+    drinkType === 'batido' ||
+    nameLower.includes('jugo') ||
+    nameLower.includes('merengada') ||
+    nameLower.includes('malteada') ||
+    nameLower.includes('batido')
+  );
+  if (['bebidas', 'bebida', 'licores', 'licor', 'cervezas', 'cerveza', 'gaseosas', 'refrescos', 'bebidas comerciales', 'bebida comercial'].includes(category)) {
+    return isJuiceOrShake;
+  }
+  const isSoda =
+    nameLower.includes('coca') ||
+    nameLower.includes('pepsi') ||
+    nameLower.includes('refresco') ||
+    nameLower.includes('gaseosa') ||
+    nameLower.includes('nestea') ||
+    nameLower.includes('agua') ||
+    nameLower.includes('7up') ||
+    nameLower.includes('sprite') ||
+    ['refresco', 'gaseosa', 'licor', 'cerveza', 'comercial', 'soda', 'agua', 'te'].includes(drinkType);
+  return !isSoda;
+};
+
 export const requiresKitchenPrep = (order: Order): boolean => {
   if (!order || !order.items || order.items.length === 0) return false;
-  return order.items.some((it) => {
-    const nameLower = (it.productName || '').toLowerCase();
-    const isSoda =
-      nameLower.includes('coca') ||
-      nameLower.includes('pepsi') ||
-      nameLower.includes('refresco') ||
-      nameLower.includes('gaseosa') ||
-      nameLower.includes('nestea') ||
-      nameLower.includes('agua') ||
-      nameLower.includes('7up') ||
-      nameLower.includes('sprite');
-    if (isSoda) return false;
-    return true;
-  });
+  if (order.type === 'delivery' || order.type === 'pickup') return true;
+  return order.items.some(isKitchenProduct);
 };
 
 export const CocinaPage: React.FC = () => {
@@ -221,7 +239,10 @@ export const CocinaPage: React.FC = () => {
                       <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-1">
                         DETALLE DE PREPARACIÓN
                       </div>
-                      {(ord.items || []).map((it) => (
+                      {((ord.type === 'delivery' || ord.type === 'pickup')
+                        ? (ord.items || [])
+                        : (ord.items || []).filter(isKitchenProduct)
+                      ).map((it) => (
                         <div
                           key={it.id}
                           className={`space-y-1.5 p-2.5 rounded-xl border transition-all ${

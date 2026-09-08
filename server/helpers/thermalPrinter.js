@@ -316,7 +316,7 @@ function abbreviateFreeTopping(name = '') {
   const n = String(name).trim().toLowerCase();
   if (n.includes('jalape')) return 'JAL';
   if (n.includes('cebolla')) return 'CC';
-  if (n.includes('relish')) return 'REL';
+  if (n.includes('relish')) return 'SR';
   if (n.includes('pepinillo')) return 'PEP';
   if (n.includes('maiz') || n.includes('maíz')) return 'MAIZ';
   return null;
@@ -1038,7 +1038,9 @@ function consolidateKitchenItems(items, order) {
 
 function buildKitchenTicket(order) {
   const allItems = order.items || [];
-  const kitchenItems = allItems.filter(isKitchenItem);
+  const orderType = (order.type || '').toLowerCase();
+  const isPickupOrDelivery = orderType === 'delivery' || orderType === 'pickup';
+  const kitchenItems = isPickupOrDelivery ? allItems : allItems.filter(isKitchenItem);
 
   if (kitchenItems.length === 0) {
     return null;
@@ -1053,7 +1055,6 @@ function buildKitchenTicket(order) {
     `HORA: ${formatKitchenTime(order.createdAt)}`,
   ];
 
-  const orderType = (order.type || '').toLowerCase();
   if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
   } else if (orderType === 'delivery') {
@@ -1066,7 +1067,7 @@ function buildKitchenTicket(order) {
     lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
   }
 
-  if (orderType === 'delivery' || orderType === 'pickup') {
+  if (isPickupOrDelivery) {
     lines.push('PEDIDO PARA LLEVAR COMPLETO');
   }
 
@@ -1089,7 +1090,7 @@ function buildKitchenTicket(order) {
     lines.push(kitchenDivider('-'));
   }
 
-  lines.push(`ITEMS COCINA: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
+  lines.push(`ITEMS ${isPickupOrDelivery ? 'TOTALES' : 'COCINA'}: ${kitchenItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
   lines.push('');
   lines.push('\x1Ba\x01');
   lines.push('REVISAR ORDEN');
@@ -1101,7 +1102,9 @@ function buildKitchenTicket(order) {
 
 function buildKitchenAdditionTicket(order, addedItems) {
   const allItems = addedItems || [];
-  const kitchenItems = allItems.filter(isKitchenItem);
+  const orderType = (order.type || '').toLowerCase();
+  const isPickupOrDelivery = orderType === 'delivery' || orderType === 'pickup';
+  const kitchenItems = isPickupOrDelivery ? allItems : allItems.filter(isKitchenItem);
 
   if (kitchenItems.length === 0) {
     return null;
@@ -1117,7 +1120,6 @@ function buildKitchenAdditionTicket(order, addedItems) {
     `HORA: ${formatKitchenTime(new Date())}`,
   ];
 
-  const orderType = (order.type || '').toLowerCase();
   if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
   } else if (orderType === 'delivery') {
@@ -1130,7 +1132,7 @@ function buildKitchenAdditionTicket(order, addedItems) {
     lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
   }
 
-  if (orderType === 'delivery' || orderType === 'pickup') {
+  if (isPickupOrDelivery) {
     lines.push('PEDIDO PARA LLEVAR COMPLETO');
   }
 
@@ -1442,12 +1444,12 @@ function buildReceiptTicket(order, rates = {}) {
   }
 
   lines.push(divider('-'));
-  lines.push('\x1BE\x01');
-  lines.push(formatTwoColumns('TOTAL USD:', `$${totalUSD.toFixed(2)} USD`));
-  lines.push(formatTwoColumns('TOTAL COP:', `${roundCOP(totalUSD * copRate).toLocaleString('en-US')} COP`));
-  lines.push(formatTwoColumns('TOTAL Bs:', `${(totalUSD * bsRate).toFixed(2)} Bs`));
-  lines.push('\x1BE\x00');
-
+  // Montos gigantes tamaño comanda de cocina (Doble Alto + Doble Ancho + Negrita)
+  lines.push('\x1B \x00\x1B3\x26\x1BM\x00\x1D!\x11\x1BE\x01');
+  lines.push(formatTwoColumns('TOTAL USD:', `$${totalUSD.toFixed(2)}`, KITCHEN_LINE_WIDTH));
+  lines.push(formatTwoColumns('TOTAL COP:', `${roundCOP(totalUSD * copRate).toLocaleString('en-US')}`, KITCHEN_LINE_WIDTH));
+  lines.push(formatTwoColumns('TOTAL Bs:', `${(totalUSD * bsRate).toFixed(2)}`, KITCHEN_LINE_WIDTH));
+  lines.push('\x1D!\x00\x1BE\x00', PRINT_FORMAT_RESET, PRINT_FORMAT_SETUP);
   lines.push(divider('-'));
   lines.push('\x1Ba\x01');
   lines.push('¡GRACIAS POR SU PREFERENCIA!');

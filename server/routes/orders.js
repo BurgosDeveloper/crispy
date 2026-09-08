@@ -94,10 +94,11 @@ module.exports = function(io) {
       }
       const orderNumber = `#${nextNum}`;
 
-      const requiresKitchen = (items || []).some(it => isKitchenItem(it));
+      const isPickupOrDelivery = type === 'delivery' || type === 'pickup';
+      const requiresKitchen = isPickupOrDelivery || (items || []).some(it => isKitchenItem(it));
       const initialStatus = requiresKitchen ? 'en_preparacion' : 'preparada';
 
-      console.log(`📝 [COMANDA RECIBIDA] ${orderNumber} (${type.toUpperCase()}) | Cliente: ${customerName || 'N/A'} | Items: ${items?.length || 0} | Total: $${totalUSD} | Requiere Cocina: ${requiresKitchen}`);
+      console.log(`📝 [COMANDA RECIBIDA] ${orderNumber} (${(type || 'mesa').toUpperCase()}) | Cliente: ${customerName || 'N/A'} | Items: ${items?.length || 0} | Total: $${totalUSD} | Requiere Cocina: ${requiresKitchen}`);
 
       await client.query(
         `INSERT INTO orders (id, order_number, type, table_number, customer_name, kitchen_notes, status, payment_status, total_usd, waiter_name, shift, delivery_fee_usd)
@@ -825,8 +826,9 @@ module.exports = function(io) {
       const deliveryFee = order.type === 'delivery' ? (Number(order.delivery_fee_usd) || 0) : 0;
       const newTotalUSD = Number((itemsTotalUSD + deliveryFee).toFixed(2));
 
-      // Si la orden estaba como lista o entregada pero se le añadieron ítems de cocina, reabrir a 'en_preparacion'
-      const kitchenItemsAdded = (addedItems || []).filter(isKitchenItem);
+      // Si la orden estaba como lista o entregada pero se le añadieron ítems de cocina (o cualquier ítem en delivery/pickup), reabrir a 'en_preparacion'
+      const isPickupOrDelivery = order.type === 'delivery' || order.type === 'pickup';
+      const kitchenItemsAdded = isPickupOrDelivery ? (addedItems || []) : (addedItems || []).filter(isKitchenItem);
 
       let nextStatus = order.status;
       if (kitchenItemsAdded.length > 0 && (order.status === 'preparada' || order.status === 'lista')) {
