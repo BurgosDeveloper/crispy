@@ -440,6 +440,9 @@ export const CajaPage: React.FC = () => {
               onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
               canPay={true}
               onPayOrder={(ord) => handleOpenPayModal(ord)}
+              onMarkDelivered={async (ord) => {
+                await updateOrderStatus(ord.id, 'entregada');
+              }}
               onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
               onViewHistory={() => setCajaViewMode('lista')}
             />

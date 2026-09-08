@@ -5,6 +5,7 @@ import {
   IoWalk,
   IoCashOutline,
   IoTimeOutline,
+  IoCheckmarkDone,
 } from 'react-icons/io5';
 
 interface TableCompactGridProps {
@@ -14,9 +15,21 @@ interface TableCompactGridProps {
   onViewActiveOrder?: (order: Order) => void;
   onAppendOrder?: (order: Order) => void;
   onPayOrder?: (order: Order) => void;
+  onMarkDelivered?: (order: Order) => void;
   onPrintReceipt?: (order: Order) => void;
   onViewHistory?: () => void;
   canPay?: boolean;
+}
+
+function cleanOrderNum(orderNumber?: string | number): string {
+  if (!orderNumber) return '';
+  return orderNumber.toString().replace(/^#+/, '');
+}
+
+function parseOrderNumberForSort(orderNumber?: string | number): number {
+  if (!orderNumber) return 0;
+  const match = orderNumber.toString().match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
 }
 
 function formatOrderTime(dateValue?: string | Date): string {
@@ -36,6 +49,7 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onViewActiveOrder,
   onAppendOrder,
   onPayOrder,
+  onMarkDelivered,
   onPrintReceipt,
   onViewHistory,
   canPay = false,
@@ -48,9 +62,24 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
       !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito'))
   );
 
-  // Separación por tipo de servicio
-  const activeDeliveryOrders = activeOrders.filter((o) => o.type === 'delivery');
-  const activePickupOrders = activeOrders.filter((o) => o.type === 'pickup' || (o.type as any) === 'llevar');
+  // Separación por tipo de servicio con orden ascendente (más antigua primero, ej: #35 antes de #40)
+  const activeDeliveryOrders = activeOrders
+    .filter((o) => o.type === 'delivery')
+    .sort((a, b) => {
+      const numA = parseOrderNumberForSort(a.orderNumber);
+      const numB = parseOrderNumberForSort(b.orderNumber);
+      if (numA && numB && numA !== numB) return numA - numB;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+  const activePickupOrders = activeOrders
+    .filter((o) => o.type === 'pickup' || (o.type as any) === 'llevar')
+    .sort((a, b) => {
+      const numA = parseOrderNumberForSort(a.orderNumber);
+      const numB = parseOrderNumberForSort(b.orderNumber);
+      if (numA && numB && numA !== numB) return numA - numB;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
 
   const occupiedCount = tables.filter((t) =>
     activeOrders.some((o) => o.type === 'mesa' && o.tableNumber === t.number)
@@ -142,7 +171,7 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                       onViewActiveOrder(activeOrder);
                     }
                   }}
-                  className={`relative rounded-xl border p-1.5 flex flex-col justify-between transition-all cursor-pointer select-none min-h-[74px] hover:shadow-md active:scale-[0.98] ${
+                  className={`relative rounded-xl border p-2 flex flex-col justify-between transition-all cursor-pointer select-none min-h-[86px] hover:shadow-md active:scale-[0.98] ${
                     isOccupied
                       ? isReady
                         ? 'bg-amber-300/90 border-amber-500 shadow-sm ring-2 ring-amber-400'
@@ -151,17 +180,17 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                   }`}
                   title={
                     isOccupied
-                      ? `Mesa #${table.number} - Comanda #${activeOrder?.orderNumber} ($${activeOrder?.totalUSD.toFixed(2)}) - Click para opciones`
+                      ? `Mesa #${table.number} - Comanda #${cleanOrderNum(activeOrder?.orderNumber)} ($${activeOrder?.totalUSD.toFixed(2)}) - Click para opciones`
                       : `Mesa #${table.number} - Libre (Click para tomar pedido)`
                   }
                 >
                   {/* Cabecera: Nombre de Mesa */}
                   <div className="flex items-center justify-between leading-none">
-                    <span className="font-black text-[11px] sm:text-xs tracking-tight text-stone-900 truncate">
+                    <span className="font-black text-xs sm:text-sm tracking-tight text-stone-900 truncate">
                       Mesa {table.number}
                     </span>
                     {isOccupied && isReady && (
-                      <span className="text-[7px] font-black px-1 py-0.5 rounded bg-green-600 text-white animate-pulse">
+                      <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded bg-green-600 text-white animate-pulse">
                         ¡LISTA!
                       </span>
                     )}
@@ -170,25 +199,25 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                   {/* Cuerpo: Si ocupada muestra Comanda, Hora y Total */}
                   {isOccupied && activeOrder ? (
                     <div className="my-auto text-center py-0.5">
-                      <div className="text-xs sm:text-sm font-black text-stone-950 tracking-wide leading-none">
-                        -#{activeOrder.orderNumber}-
+                      <div className="text-sm sm:text-base font-black text-stone-950 tracking-wider leading-none">
+                        -#{cleanOrderNum(activeOrder.orderNumber)}-
                       </div>
-                      <div className="text-[9px] sm:text-[10px] font-extrabold text-stone-800 leading-tight mt-0.5">
+                      <div className="text-[10px] sm:text-xs font-black text-stone-800 leading-tight mt-0.5">
                         {formatOrderTime(activeOrder.createdAt)}
                       </div>
-                      <div className="text-[11px] sm:text-xs font-black text-stone-950 mt-0.5 leading-none">
+                      <div className="text-xs sm:text-sm font-black text-stone-950 mt-0.5 leading-none">
                         ${activeOrder.totalUSD.toFixed(2)}
                       </div>
                     </div>
                   ) : (
-                    <div className="my-auto text-center text-[9px] sm:text-[10px] font-bold text-emerald-800/70">
+                    <div className="my-auto text-center text-[10px] sm:text-xs font-bold text-emerald-800/70">
                       Cap: {table.capacity}p
                     </div>
                   )}
 
                   {/* Pie de Tarjeta: Info / Cobro rápido */}
                   {isOccupied && activeOrder ? (
-                    <div className="flex items-center justify-between pt-0.5 border-t border-black/10 shrink-0 text-[8px] sm:text-[9px]">
+                    <div className="flex items-center justify-between pt-1 border-t border-black/10 shrink-0 text-[10px] sm:text-xs">
                       <span className="font-bold text-stone-800 truncate">
                         {activeOrder.items.length} itm
                       </span>
@@ -199,19 +228,19 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                             e.stopPropagation();
                             onPayOrder(activeOrder);
                           }}
-                          className="px-1 py-0.5 rounded bg-stone-900 hover:bg-black text-white font-black text-[8px] flex items-center gap-0.5 cursor-pointer shadow-xs"
+                          className="px-1.5 py-0.5 rounded bg-stone-900 hover:bg-black text-white font-black text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs active:scale-95"
                           title="Cobrar comanda directamente"
                         >
                           <span>Cobrar</span>
                         </button>
                       ) : (
-                        <span className="font-black text-stone-900 uppercase">
+                        <span className="font-black text-stone-900 uppercase text-[10px]">
                           {activeOrder.paymentStatus === 'pagado' ? 'PAGADO' : 'VER'}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <div className="text-[8px] sm:text-[9px] font-black text-emerald-800 text-center pt-0.5 border-t border-green-200 uppercase tracking-wide leading-none">
+                    <div className="text-[10px] sm:text-xs font-black text-emerald-800 text-center pt-1 border-t border-green-200 uppercase tracking-wide leading-none">
                       Libre
                     </div>
                   )}
@@ -257,24 +286,24 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         if (onViewActiveOrder) onViewActiveOrder(ord);
                         else if (canPay && onPayOrder) onPayOrder(ord);
                       }}
-                      className="rounded-xl p-2.5 bg-[#1d4ed8] hover:bg-blue-800 text-white shadow-xs border border-blue-900 transition-all cursor-pointer flex flex-col justify-between min-h-[105px] select-none hover:shadow-md active:scale-[0.98]"
-                      title={`Comanda #${ord.orderNumber} - ${ord.customerName || 'Cliente'} - Click para opciones`}
+                      className="rounded-xl p-2.5 bg-[#1d4ed8] hover:bg-blue-800 text-white shadow-xs border border-blue-900 transition-all cursor-pointer flex flex-col justify-between min-h-[118px] select-none hover:shadow-md active:scale-[0.98]"
+                      title={`Comanda #${cleanOrderNum(ord.orderNumber)} - ${ord.customerName || 'Cliente'} - Click para opciones`}
                     >
                       {/* Cabecera */}
-                      <div className="flex items-center justify-between leading-none">
-                        <span className="font-black text-[10px] uppercase tracking-wider text-blue-200 flex items-center gap-1">
-                          <IoCar className="text-xs" /> Delivery
+                      <div className="flex items-center justify-between leading-none pb-0.5">
+                        <span className="font-black text-xs sm:text-sm uppercase tracking-wider text-blue-200 flex items-center gap-1.5">
+                          <IoCar className="text-sm text-blue-300" /> Delivery
                         </span>
                         {isReady ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-500 text-white animate-pulse">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-500 text-white animate-pulse">
                             ¡LISTA!
                           </span>
                         ) : isPaid ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-400 text-stone-900">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-400 text-stone-900">
                             PAGADO
                           </span>
                         ) : (
-                          <span className="text-[10px] font-black text-yellow-300">
+                          <span className="text-xs sm:text-sm font-black text-yellow-300">
                             ${ord.totalUSD.toFixed(2)}
                           </span>
                         )}
@@ -282,40 +311,56 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
 
                       {/* Cuerpo */}
                       <div className="text-center py-1">
-                        <div className="font-black text-base text-yellow-300 tracking-wider leading-none">
-                          -#{ord.orderNumber}-
+                        <div className="font-black text-lg sm:text-xl text-yellow-300 tracking-wider leading-none">
+                          -#{cleanOrderNum(ord.orderNumber)}-
                         </div>
-                        <div className="font-bold text-xs truncate text-white mt-1 leading-tight" title={ord.customerName}>
+                        <div className="font-black text-sm sm:text-base truncate text-white mt-1 leading-tight" title={ord.customerName}>
                           {ord.customerName || 'Cliente Delivery'}
                         </div>
-                        <div className="text-[10px] font-semibold text-blue-200 mt-0.5 leading-none">
+                        <div className="text-xs sm:text-sm font-bold text-blue-200 mt-0.5 leading-none">
                           {formatOrderTime(ord.createdAt)}
                         </div>
                       </div>
 
-                      {/* Pie con total y botón Cobrar rápido */}
-                      <div className="flex items-center justify-between pt-1 border-t border-blue-700/60 shrink-0 text-[10px]">
-                        <span className="font-bold text-blue-100 truncate">
-                          {ord.items.length} {ord.items.length === 1 ? 'ítem' : 'ítems'}
+                      {/* Pie con total y botones Cobrar y Entregar */}
+                      <div className="flex items-center justify-between pt-1 border-t border-blue-700/60 shrink-0 gap-1 text-xs">
+                        <span className="font-bold text-blue-100 truncate text-[11px] sm:text-xs">
+                          {ord.items.length} {ord.items.length === 1 ? 'itm' : 'itms'}
                         </span>
-                        {canPay && onPayOrder && !isPaid ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPayOrder(ord);
-                            }}
-                            className="px-2 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[9px] flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
-                            title="Cobrar comanda"
-                          >
-                            <IoCashOutline className="text-xs" />
-                            <span>Cobrar</span>
-                          </button>
-                        ) : (
-                          <span className="font-black text-white">
-                            ${ord.totalUSD.toFixed(2)}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {canPay && onPayOrder && !isPaid && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPayOrder(ord);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
+                              title="Cobrar comanda"
+                            >
+                              <IoCashOutline className="text-sm" />
+                              <span>Cobrar</span>
+                            </button>
+                          )}
+                          {onMarkDelivered && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkDelivered(ord);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg font-black text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                isPaid
+                                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse'
+                                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
+                              }`}
+                              title="Marcar pedido como entregado"
+                            >
+                              <IoCheckmarkDone className="text-sm" />
+                              <span>Entregar</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -356,24 +401,24 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         if (onViewActiveOrder) onViewActiveOrder(ord);
                         else if (canPay && onPayOrder) onPayOrder(ord);
                       }}
-                      className="rounded-xl p-2.5 bg-[#b91c1c] hover:bg-red-800 text-white shadow-xs border border-red-900 transition-all cursor-pointer flex flex-col justify-between min-h-[105px] select-none hover:shadow-md active:scale-[0.98]"
-                      title={`Comanda #${ord.orderNumber} - ${ord.customerName || 'Cliente'} - Click para opciones`}
+                      className="rounded-xl p-2.5 bg-[#b91c1c] hover:bg-red-800 text-white shadow-xs border border-red-900 transition-all cursor-pointer flex flex-col justify-between min-h-[118px] select-none hover:shadow-md active:scale-[0.98]"
+                      title={`Comanda #${cleanOrderNum(ord.orderNumber)} - ${ord.customerName || 'Cliente'} - Click para opciones`}
                     >
                       {/* Cabecera */}
-                      <div className="flex items-center justify-between leading-none">
-                        <span className="font-black text-[10px] uppercase tracking-wider text-red-200 flex items-center gap-1">
-                          <IoWalk className="text-xs" /> Pickup
+                      <div className="flex items-center justify-between leading-none pb-0.5">
+                        <span className="font-black text-xs sm:text-sm uppercase tracking-wider text-red-200 flex items-center gap-1">
+                          <IoWalk className="text-sm text-red-300" /> Pickup
                         </span>
                         {isReady ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-500 text-white animate-pulse">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-500 text-white animate-pulse">
                             ¡LISTA!
                           </span>
                         ) : isPaid ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-400 text-stone-900">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-400 text-stone-900">
                             PAGADO
                           </span>
                         ) : (
-                          <span className="text-[10px] font-black text-yellow-300">
+                          <span className="text-xs sm:text-sm font-black text-yellow-300">
                             ${ord.totalUSD.toFixed(2)}
                           </span>
                         )}
@@ -381,40 +426,56 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
 
                       {/* Cuerpo */}
                       <div className="text-center py-1">
-                        <div className="font-black text-base text-yellow-300 tracking-wider leading-none">
-                          -#{ord.orderNumber}-
+                        <div className="font-black text-lg sm:text-xl text-yellow-300 tracking-wider leading-none">
+                          -#{cleanOrderNum(ord.orderNumber)}-
                         </div>
-                        <div className="font-bold text-xs truncate text-white mt-1 leading-tight" title={ord.customerName}>
+                        <div className="font-black text-sm sm:text-base truncate text-white mt-1 leading-tight" title={ord.customerName}>
                           {ord.customerName || 'Cliente Pickup'}
                         </div>
-                        <div className="text-[10px] font-semibold text-red-200 mt-0.5 leading-none">
+                        <div className="text-xs sm:text-sm font-bold text-red-200 mt-0.5 leading-none">
                           {formatOrderTime(ord.createdAt)}
                         </div>
                       </div>
 
-                      {/* Pie con total y botón Cobrar rápido */}
-                      <div className="flex items-center justify-between pt-1 border-t border-red-700/60 shrink-0 text-[10px]">
-                        <span className="font-bold text-red-100 truncate">
-                          {ord.items.length} {ord.items.length === 1 ? 'ítem' : 'ítems'}
+                      {/* Pie con total y botones Cobrar y Entregar */}
+                      <div className="flex items-center justify-between pt-1 border-t border-red-700/60 shrink-0 gap-1 text-xs">
+                        <span className="font-bold text-red-100 truncate text-[11px] sm:text-xs">
+                          {ord.items.length} {ord.items.length === 1 ? 'itm' : 'itms'}
                         </span>
-                        {canPay && onPayOrder && !isPaid ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPayOrder(ord);
-                            }}
-                            className="px-2 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black font-black text-[9px] flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
-                            title="Cobrar comanda"
-                          >
-                            <IoCashOutline className="text-xs" />
-                            <span>Cobrar</span>
-                          </button>
-                        ) : (
-                          <span className="font-black text-white">
-                            ${ord.totalUSD.toFixed(2)}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {canPay && onPayOrder && !isPaid && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPayOrder(ord);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
+                              title="Cobrar comanda"
+                            >
+                              <IoCashOutline className="text-sm" />
+                              <span>Cobrar</span>
+                            </button>
+                          )}
+                          {onMarkDelivered && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkDelivered(ord);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg font-black text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                isPaid
+                                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse'
+                                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
+                              }`}
+                              title="Marcar pedido como entregado"
+                            >
+                              <IoCheckmarkDone className="text-sm" />
+                              <span>Entregar</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

@@ -65,7 +65,7 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
   const cleanTitle = title.replace(/##+/g, '#');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in select-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in select-none">
       <div className="relative w-full max-w-lg bg-white border-2 border-yellow-400 rounded-3xl p-6 shadow-2xl space-y-5 text-gray-900">
         
         {/* HEADER */}

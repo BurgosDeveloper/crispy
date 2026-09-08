@@ -705,44 +705,6 @@ export class ReportService {
       else if (val.currency === 'Bs') val.netUSD = val.netNative / bsRateGlobal;
     });
 
-    // Calcular Egresos y Vueltos para la auditoría de Caja Chica (gaveta física)
-    const expenses = (data.transactions || []).filter((transaction) => transaction.type === 'egreso');
-
-    // Cálculo exclusivo para CAJA CHICA DEL EFECTIVO ESPERADA
-    const aperturaUSD = data.apertura?.usdCash || 0;
-    const aperturaCOP = data.apertura?.copCash || 0;
-
-    // Ingresos en Efectivo USD (Cobros en Efectivo USD de comandas + Ingresos manuales en Efectivo USD)
-    const orderCashUSD = data.payments
-      .filter((p) => p.paymentMethod === 'Efectivo USD')
-      .reduce((sum, p) => sum + (this.registeredPaymentAmounts(p).usd || 0), 0);
-    const manualCashUSD = (data.transactions || [])
-      .filter((t) => t.type === 'ingreso' && !t.orderId && t.paymentMethod === 'Efectivo USD')
-      .reduce((sum, t) => sum + (t.amountUSD || 0), 0);
-    const totalIngresosEfectivoUSD = orderCashUSD + manualCashUSD;
-
-    // Ingresos en Efectivo COP (Cobros en Efectivo COP de comandas + Ingresos manuales en Efectivo COP)
-    const orderCashCOP = data.payments
-      .filter((p) => p.paymentMethod === 'Efectivo COP')
-      .reduce((sum, p) => sum + (this.registeredPaymentAmounts(p).cop || 0), 0);
-    const manualCashCOP = (data.transactions || [])
-      .filter((t) => t.type === 'ingreso' && !t.orderId && t.paymentMethod === 'Efectivo COP')
-      .reduce((sum, t) => sum + (t.amountCOP || 0), 0);
-    const totalIngresosEfectivoCOP = orderCashCOP + manualCashCOP;
-
-    // Egresos y Vueltos en Efectivo USD
-    const totalEgresosEfectivoUSD = expenses
-      .filter((t) => t.paymentMethod === 'Efectivo USD' || (t.amountUSD > 0 && !t.paymentMethod?.includes('COP') && !t.paymentMethod?.includes('Bs') && !t.paymentMethod?.includes('Móvil') && !t.paymentMethod?.includes('Tarjeta')))
-      .reduce((sum, t) => sum + (t.amountUSD || 0), 0);
-
-    // Egresos y Vueltos en Efectivo COP
-    const totalEgresosEfectivoCOP = expenses
-      .filter((t) => t.paymentMethod === 'Efectivo COP' || (t.amountCOP > 0 && !t.paymentMethod?.includes('USD') && !t.paymentMethod?.includes('Bs') && !t.paymentMethod?.includes('Móvil') && !t.paymentMethod?.includes('Tarjeta')))
-      .reduce((sum, t) => sum + (t.amountCOP || 0), 0);
-
-    // Saldo Final de Caja Chica del Efectivo Esperada
-    const cajaChicaEsperadaUSD = aperturaUSD + totalIngresosEfectivoUSD - totalEgresosEfectivoUSD;
-    const cajaChicaEsperadaCOP = aperturaCOP + totalIngresosEfectivoCOP - totalEgresosEfectivoCOP;
 
     // Separación Estricta de Contado y Crédito
     const creditOrders = data.orders.filter((order) => order.paymentStatus === 'credito' || order.paymentMethod === 'Crédito');
@@ -1030,41 +992,8 @@ export class ReportService {
         </tbody>
       </table>
 
-      <div class="section-title">SECCIÓN 4 — CAJA CHICA DEL EFECTIVO ESPERADA</div>
-      <table>
-        <thead>
-          <tr>
-            <th>Concepto / Desglose de Caja Chica</th>
-            <th style="text-align:right;">Efectivo en Dólares (USD)</th>
-            <th style="text-align:right;">Efectivo en Pesos (COP)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>1. Fondo Inicial de Apertura:</strong></td>
-            <td style="text-align:right; font-weight:700;">$${aperturaUSD.toFixed(2)} USD</td>
-            <td style="text-align:right; font-weight:700;">$${Math.round(aperturaCOP).toLocaleString()} COP</td>
-          </tr>
-          <tr>
-            <td><strong>2. (+) Ingresos y Cobros en Efectivo:</strong></td>
-            <td style="text-align:right; font-weight:700; color:#047857;">+$${totalIngresosEfectivoUSD.toFixed(2)} USD</td>
-            <td style="text-align:right; font-weight:700; color:#047857;">+$${Math.round(totalIngresosEfectivoCOP).toLocaleString()} COP</td>
-          </tr>
-          <tr>
-            <td><strong>3. (-) Vueltos y Egresos en Efectivo:</strong></td>
-            <td style="text-align:right; font-weight:700; color:#dc2626;">-$${totalEgresosEfectivoUSD.toFixed(2)} USD</td>
-            <td style="text-align:right; font-weight:700; color:#dc2626;">-$${Math.round(totalEgresosEfectivoCOP).toLocaleString()} COP</td>
-          </tr>
-          <tr style="background:#f0fdf4; border-top:2px solid #059669;">
-            <td><strong>4. (=) EFECTIVO ESPERADO EN CAJA CHICA:</strong></td>
-            <td style="text-align:right; font-weight:900; color:#047857; font-size:12px;">$${cajaChicaEsperadaUSD.toFixed(2)} USD</td>
-            <td style="text-align:right; font-weight:900; color:#047857; font-size:12px;">$${Math.round(cajaChicaEsperadaCOP).toLocaleString()} COP</td>
-          </tr>
-        </tbody>
-      </table>
-
       ${creditOrders.length > 0 ? `
-        <div class="section-title">SECCIÓN 5 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR</div>
+        <div class="section-title">SECCIÓN 4 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR</div>
         <table>
           <thead>
             <tr>
@@ -1084,7 +1013,7 @@ export class ReportService {
           <div class="total-val" style="color:#b45309;">$${totalCreditUSD.toFixed(2)} USD</div>
         </div>
       ` : `
-        <div class="section-title">SECCIÓN 5 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR</div>
+        <div class="section-title">SECCIÓN 4 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR</div>
         <table>
           <tbody>
             <tr><td style="text-align:center; color:#9ca3af; padding:8px;">Sin comandas a crédito en el intervalo.</td></tr>
@@ -1092,10 +1021,10 @@ export class ReportService {
         </table>
       `}
 
-      <div class="section-title">SECCIÓN 6 — HISTORIAL POR MÉTODO DE PAGO</div>
+      <div class="section-title">SECCIÓN 5 — HISTORIAL POR MÉTODO DE PAGO</div>
       ${historyByMethod || '<p style="font-size:10px; color:#6b7280; text-align:center;">Sin pagos en el intervalo.</p>'}
 
-      <div class="section-title">SECCIÓN 7 — ÍTEMS FACTURADOS</div>
+      <div class="section-title">SECCIÓN 6 — ÍTEMS FACTURADOS</div>
       <table>
         <thead>
           <tr>

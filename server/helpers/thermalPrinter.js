@@ -824,55 +824,10 @@ function buildReportTicket(reportType, data) {
       }
     }
 
-    // SECCIÓN 4 — CAJA CHICA DEL EFECTIVO ESPERADA
-    const aperturaUSD = Number(data.apertura?.usdCash) || 0;
-    const aperturaCOP = Number(data.apertura?.copCash) || 0;
-
-    let totalIngresosEfectivoUSD = 0;
-    let totalIngresosEfectivoCOP = 0;
-    for (const payment of data.payments || []) {
-      const amounts = reportAmounts(payment);
-      if (payment.paymentMethod === 'Efectivo USD') totalIngresosEfectivoUSD += amounts.usd;
-      if (payment.paymentMethod === 'Efectivo COP') totalIngresosEfectivoCOP += amounts.cop;
-    }
-    for (const t of (data.transactions || [])) {
-      if (t.type === 'ingreso' && !t.orderId) {
-        if (t.paymentMethod === 'Efectivo USD') totalIngresosEfectivoUSD += (Number(t.amountUSD) || 0);
-        if (t.paymentMethod === 'Efectivo COP') totalIngresosEfectivoCOP += (Number(t.amountCOP) || 0);
-      }
-    }
-
-    let totalEgresosEfectivoUSD = 0;
-    let totalEgresosEfectivoCOP = 0;
-    for (const tx of expenses) {
-      if (tx.paymentMethod === 'Efectivo USD' || (Number(tx.amountUSD) > 0 && !tx.paymentMethod?.includes('COP') && !tx.paymentMethod?.includes('Bs') && !tx.paymentMethod?.includes('Móvil') && !tx.paymentMethod?.includes('Tarjeta'))) {
-        totalEgresosEfectivoUSD += (Number(tx.amountUSD) || 0);
-      }
-      if (tx.paymentMethod === 'Efectivo COP' || (Number(tx.amountCOP) > 0 && !tx.paymentMethod?.includes('USD') && !tx.paymentMethod?.includes('Bs') && !tx.paymentMethod?.includes('Móvil') && !tx.paymentMethod?.includes('Tarjeta'))) {
-        totalEgresosEfectivoCOP += (Number(tx.amountCOP) || 0);
-      }
-    }
-
-    const cajaChicaEsperadaUSD = aperturaUSD + totalIngresosEfectivoUSD - totalEgresosEfectivoUSD;
-    const cajaChicaEsperadaCOP = aperturaCOP + totalIngresosEfectivoCOP - totalEgresosEfectivoCOP;
-
-    addSection(lines, 'SECCION 4: CAJA CHICA', reportWidth);
-    lines.push(...wrapText('EFECTIVO USD:', reportWidth));
-    lines.push(...wrapText(` 1.Apertura:  $${aperturaUSD.toFixed(2)}`, reportWidth));
-    lines.push(...wrapText(` 2.(+)Cobros: +$${totalIngresosEfectivoUSD.toFixed(2)}`, reportWidth));
-    lines.push(...wrapText(` 3.(-)Egresos:-$${totalEgresosEfectivoUSD.toFixed(2)}`, reportWidth));
-    lines.push(...wrapText(` 4.ESPERADO:  $${cajaChicaEsperadaUSD.toFixed(2)}`, reportWidth));
-    lines.push('');
-    lines.push(...wrapText('EFECTIVO COP:', reportWidth));
-    lines.push(...wrapText(` 1.Apertura:  $${Math.round(aperturaCOP).toLocaleString('en-US')}`, reportWidth));
-    lines.push(...wrapText(` 2.(+)Cobros: +$${Math.round(totalIngresosEfectivoCOP).toLocaleString('en-US')}`, reportWidth));
-    lines.push(...wrapText(` 3.(-)Egresos:-$${Math.round(totalEgresosEfectivoCOP).toLocaleString('en-US')}`, reportWidth));
-    lines.push(...wrapText(` 4.ESPERADO:  $${Math.round(cajaChicaEsperadaCOP).toLocaleString('en-US')}`, reportWidth));
-
-    // SECCIÓN 5 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR (SI APLICA)
+    // SECCIÓN 4 — DESGLOSE DE CRÉDITOS Y CUENTAS POR COBRAR (SI APLICA)
     if (creditOrders.length > 0) {
       const totalCreditUSD = creditOrders.reduce((sum, o) => sum + (Number(o.totalUSD) || 0), 0);
-      addSection(lines, 'SECCION 5: CUENTAS POR COBRAR', reportWidth);
+      addSection(lines, 'SECCION 4: CUENTAS POR COBRAR', reportWidth);
       for (const ord of creditOrders) {
         lines.push('', ...wrapText(`#${ord.orderNumber} | ${ord.customerName || 'Cliente'}`, reportWidth));
         lines.push(...wrapText(`  DEUDA: $${(Number(ord.totalUSD) || 0).toFixed(2)} USD`, reportWidth));
@@ -976,7 +931,7 @@ function buildReportTicket(reportType, data) {
       }
     }
 
-    addSection(lines, 'SECCION 6: ITEMS FACTURADOS', reportWidth);
+    addSection(lines, creditOrders.length > 0 ? 'SECCION 5: ITEMS FACTURADOS' : 'SECCION 4: ITEMS FACTURADOS', reportWidth);
     if (unifiedItems.length === 0) {
       lines.push('SIN ITEMS FACTURADOS');
     } else {
