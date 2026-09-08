@@ -1130,107 +1130,76 @@ export class ReportService {
     const totalBs = (totalUSD * bsRate).toFixed(2);
     const cleanOrderNumber = (order.orderNumber || '').toString().replace(/^#+/, '');
 
-    // Consolidar productos a precio base de menú y separar adicionales pagos
-    const productsMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
-    const paidExtrasMap = new Map<string, { name: string; quantity: number; totalUSD: number }>();
-
-    (order.items || []).forEach((it) => {
-      const itQty = it.quantity || 1;
+    // Renderizar cada ítem del pedido de forma sencilla y directa
+    const itemsHtml = (order.items || []).map((it) => {
+      const qty = it.quantity || 1;
       const cleanName = (it.productName || 'Producto')
         .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
         .trim();
+      const lineTotalUSD = (Number(it.price) || 0) * qty;
 
+      let extrasDetail = '';
       const extrasList: any[] = [];
-      if (Array.isArray(it.extras)) {
-        extrasList.push(...it.extras);
-      } else if ((it as any).extrasJson && Array.isArray((it as any).extrasJson)) {
-        extrasList.push(...(it as any).extrasJson);
-      } else if (typeof (it as any).extrasJson === 'string') {
+      if (Array.isArray(it.extras)) extrasList.push(...it.extras);
+      else if ((it as any).extrasJson && Array.isArray((it as any).extrasJson)) extrasList.push(...(it as any).extrasJson);
+      else if (typeof (it as any).extrasJson === 'string') {
         try {
           const parsed = JSON.parse((it as any).extrasJson);
           if (Array.isArray(parsed)) extrasList.push(...parsed);
         } catch (e) {}
       }
 
-      let paidExtrasUnitCost = 0;
-      extrasList.forEach((extra) => {
-        const extraPrice = Number(extra.price) || 0;
-        const extraName = (extra.name || 'Adicional').trim();
-        if (extraPrice > 0) {
-          paidExtrasUnitCost += extraPrice;
-          const current = paidExtrasMap.get(extraName) || { name: extraName, quantity: 0, totalUSD: 0 };
-          current.quantity += itQty;
-          current.totalUSD += extraPrice * itQty;
-          paidExtrasMap.set(extraName, current);
-        }
-      });
+      const paidExtras = extrasList.filter((e) => Number(e.price) > 0);
+      if (paidExtras.length > 0) {
+        extrasDetail = `<div style="font-size: 10px; color: #4b5563; font-weight: 600; padding-left: 6px;">` +
+          paidExtras.map((e) => `+ ADD ${this.escapeHtml(e.name)} ($${(Number(e.price) * qty).toFixed(2)})`).join(', ') +
+          `</div>`;
+      }
 
-      const rawPrice = Number(it.price) || 0;
-      const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
-      const baseSubtotal = baseUnitPrice * itQty;
-
-      const prev = productsMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
-      prev.quantity += itQty;
-      prev.subtotalUSD += baseSubtotal;
-      productsMap.set(cleanName, prev);
-    });
-
-    const productsList = Array.from(productsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    const paidExtrasList = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-
-    const itemsHtml = productsList.map((p) => `
-      <tr>
-        <td style="padding: 5px 0; font-weight: 800; font-size: 13px; color: #111827; border-bottom: 1px dashed #e5e7eb;">
-          ${p.quantity}x ${this.escapeHtml(p.name)}
-        </td>
-        <td style="padding: 5px 0; text-align: right; font-weight: 800; font-size: 13px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
-          $${p.subtotalUSD.toFixed(2)}
-        </td>
-      </tr>
-    `).join('');
-
-    const extrasHtml = paidExtrasList.map((e) => `
-      <tr>
-        <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #374151; border-bottom: 1px dashed #e5e7eb;">
-          ${e.quantity}x ADD ${this.escapeHtml(e.name)}
-        </td>
-        <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
-          $${e.totalUSD.toFixed(2)}
-        </td>
-      </tr>
-    `).join('');
+      return `
+        <tr>
+          <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #111827; border-bottom: 1px dashed #e5e7eb;">
+            ${qty}x ${this.escapeHtml(cleanName)}
+            ${extrasDetail}
+          </td>
+          <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
+            $${lineTotalUSD.toFixed(2)}
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     const deliveryFee = Number(order.deliveryFeeUSD) || 0;
     const deliveryHtml = order.type === 'delivery' && deliveryFee > 0 ? `
       <tr>
-        <td style="padding: 5px 0; font-weight: 800; font-size: 13px; color: #111827; border-bottom: 1px dashed #e5e7eb;">1x Servicio Delivery</td>
-        <td style="padding: 5px 0; text-align: right; font-weight: 800; font-size: 13px; border-bottom: 1px dashed #e5e7eb;">$${deliveryFee.toFixed(2)}</td>
+        <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #111827; border-bottom: 1px dashed #e5e7eb;">1x Servicio Delivery</td>
+        <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; border-bottom: 1px dashed #e5e7eb;">$${deliveryFee.toFixed(2)}</td>
       </tr>
     ` : '';
 
     const content = `
-      <div class="header" style="text-align: center; border-bottom: 2px solid #111827; padding-bottom: 6px;">
-        <div class="logo-title" style="font-size: 17px; font-weight: 900; color: #111827;">🍔 CRISPY BURGER</div>
-        <div style="font-size: 12px; font-weight: 900; color: #b45309; margin-top: 2px;">PRE-CUENTA / CONSUMO</div>
+      <div class="header" style="text-align: center; border-bottom: 2px solid #111827; padding-bottom: 4px;">
+        <div class="logo-title" style="font-size: 16px; font-weight: 900; color: #111827;">CRISPY BURGER</div>
+        <div style="font-size: 11px; font-weight: 900; color: #b45309; margin-top: 1px;">PRE-CUENTA / CONSUMO</div>
       </div>
 
-      <div class="meta-card" style="font-size: 11px; margin: 8px 0; padding: 7px; background: #f9fafb; border: 1.5px solid #d1d5db; border-radius: 6px;">
-        <div style="display: flex; justify-content: space-between; font-weight: 900; color: #111827; font-size: 13px;">
+      <div class="meta-card" style="font-size: 11px; margin: 6px 0; padding: 6px; background: #f9fafb; border: 1.5px solid #d1d5db; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; color: #111827; font-size: 12px;">
           <span>COMANDA: #${cleanOrderNumber}</span>
-          <span style="background: #fef08a; padding: 2px 8px; border-radius: 4px; border: 1px solid #facc15; font-size: 11px;">
+          <span style="background: #fef08a; padding: 1px 6px; border-radius: 4px; border: 1px solid #facc15; font-size: 10px;">
             ${order.type === 'mesa' ? `MESA #${order.tableNumber}` : order.type === 'delivery' ? 'DELIVERY' : 'PICKUP'}
           </span>
         </div>
-        <div style="margin-top: 5px; font-weight: 700; font-size: 11px;"><strong>Cliente:</strong> ${this.escapeHtml(order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General'))}</div>
+        <div style="margin-top: 4px; font-weight: 700; font-size: 11px;"><strong>Cliente:</strong> ${this.escapeHtml(order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General'))}</div>
         <div style="font-size: 10px; color: #4b5563;"><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-VE')}</div>
       </div>
 
-      <div class="section-title" style="font-size: 11px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-bottom: 4px;">--- CONSUMO ---</div>
+      <div class="section-title" style="font-size: 11px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-bottom: 4px;">DETALLE DE CONSUMO</div>
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 1px solid #9ca3af; font-size: 10px; color: #4b5563;">
-            <th style="text-align: left; padding-bottom: 3px;">DESCRIPCIÓN</th>
-            <th style="text-align: right; padding-bottom: 3px;">TOTAL USD</th>
+            <th style="text-align: left; padding-bottom: 2px;">DESCRIPCIÓN</th>
+            <th style="text-align: right; padding-bottom: 2px;">TOTAL USD</th>
           </tr>
         </thead>
         <tbody>
@@ -1238,15 +1207,6 @@ export class ReportService {
           ${deliveryHtml}
         </tbody>
       </table>
-
-      ${paidExtrasList.length > 0 ? `
-        <div class="section-title" style="font-size: 11px; font-weight: 900; border-bottom: 1.5px solid #111827; padding-bottom: 2px; margin-top: 8px; margin-bottom: 4px;">--- ADICIONALES ---</div>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tbody>
-            ${extrasHtml}
-          </tbody>
-        </table>
-      ` : ''}
 
       <!-- CAJA TOTALIZADORA CON LAS 3 MONEDAS SIMULTÁNEAS -->
       <div class="total-box" style="margin-top: 12px; padding: 10px; background: #fffbeb; border: 2px solid #facc15; border-radius: 8px;">

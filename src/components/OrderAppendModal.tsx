@@ -5,7 +5,7 @@ import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { AdminPinModal } from './AdminPinModal';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault, getCleanItemNote, normalizeProteinName } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -328,7 +328,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
           <div className="flex-1 md:w-[65%] p-2.5 sm:p-3 border-r border-gray-200 flex flex-col overflow-hidden min-h-0">
             
             {/* Contenedor del Catálogo de Productos */}
-            <div className={selectedBurger ? "h-[36%] shrink-0 flex flex-col overflow-hidden pb-1.5" : "flex-1 flex flex-col overflow-hidden min-h-0"}>
+            <div className={selectedBurger ? "h-[18%] max-h-[95px] shrink-0 flex flex-col overflow-hidden pb-1" : "flex-1 flex flex-col overflow-hidden min-h-0"}>
               <ProductTextCatalog
                 products={activeProducts}
                 onSelectProduct={handleSelectProduct}
@@ -487,7 +487,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                   )}
                                   {item.removedIngredients && item.removedIngredients.length > 0 && (
                                     <div className="text-red-600 font-bold">
-                                      🚫 SIN {item.removedIngredients.join(', ')}
+                                      🚫 SIN {formatRemovedIngredients(item.removedIngredients).join(', ')}
                                     </div>
                                   )}
                                   {item.extras && item.extras.length > 0 && (

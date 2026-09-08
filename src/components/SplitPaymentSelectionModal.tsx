@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { IoCheckmarkCircle, IoClose, IoPersonOutline, IoReceiptOutline } from 'react-icons/io5';
 import { Order } from '../data/mockData';
 import { roundCOP } from '../utils/currencyRounding';
+import { formatRemovedIngredients } from '../utils/burgerProteins';
 
 interface SplitPaymentSelectionModalProps {
   order: Order | null;
@@ -194,7 +195,7 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
 
                     {item.removedIngredients && item.removedIngredients.length > 0 && (
                       <p className="text-xs text-red-600 font-bold mt-0.5">
-                        🚫 SIN: {item.removedIngredients.join(', ')}
+                        🚫 SIN: {formatRemovedIngredients(item.removedIngredients).join(', ')}
                       </p>
                     )}
 

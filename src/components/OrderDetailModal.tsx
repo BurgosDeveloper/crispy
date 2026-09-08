@@ -3,7 +3,7 @@ import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
 import {
   IoClose,
   IoReceiptOutline,
@@ -321,7 +321,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       )}
                       {item.removedIngredients && item.removedIngredients.length > 0 && (
                         <div className="text-xs font-bold pl-2 mt-1 text-red-600">
-                          🚫 Sin: {item.removedIngredients.join(', ')}
+                          🚫 Sin: {formatRemovedIngredients(item.removedIngredients).join(', ')}
                         </div>
                       )}
                       {item.extras && item.extras.length > 0 && (

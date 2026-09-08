@@ -14,7 +14,7 @@ import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault, getCleanItemNote, normalizeProteinName } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
 
 import {
   IoReaderOutline,
@@ -716,7 +716,7 @@ export const MeseroPage: React.FC = () => {
             {/* LEFT: 100% TEXT CATALOG & INLINE BURGER BUILDER */}
             <div className="flex-1 md:w-[65%] p-2.5 sm:p-3 border-r border-gray-200 flex flex-col overflow-hidden min-h-0">
               {/* Product Catalog */}
-              <div className={selectedBurger ? "h-[36%] shrink-0 flex flex-col overflow-hidden pb-1.5" : "flex-1 flex flex-col overflow-hidden min-h-0"}>
+              <div className={selectedBurger ? "h-[18%] max-h-[95px] shrink-0 flex flex-col overflow-hidden pb-1" : "flex-1 flex flex-col overflow-hidden min-h-0"}>
                 <ProductTextCatalog
                   products={activeProducts}
                   onSelectProduct={handleSelectProduct}
@@ -876,7 +876,7 @@ export const MeseroPage: React.FC = () => {
                           {/* Removed ingredients (SIN) */}
                           {item.removedIngredients && item.removedIngredients.length > 0 && (
                             <div className="text-[10px] text-red-600 font-bold">
-                              🚫 SIN: {item.removedIngredients.join(', ')}
+                              🚫 SIN: {formatRemovedIngredients(item.removedIngredients).join(', ')}
                             </div>
                           )}
 

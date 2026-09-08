@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Product, Ingredient, BurgerUnitConfig } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { roundCOP } from '../../utils/currencyRounding';
-import { getCleanItemNote, normalizeProteinName, areProteinsDefault } from '../../utils/burgerProteins';
+import { getCleanItemNote, normalizeProteinName, areProteinsDefault, formatRemovedIngredients } from '../../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -287,6 +287,36 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     }));
   };
 
+  const isAllVegetablesRemoved =
+    currentUnit.removedIngredients.some((i) => /lechuga/i.test(i)) &&
+    currentUnit.removedIngredients.some((i) => /tomate/i.test(i)) &&
+    currentUnit.removedIngredients.some((i) => /cebolla/i.test(i));
+
+  const toggleAllVegetables = () => {
+    updateCurrentUnit((prev) => {
+      const isAll =
+        prev.removedIngredients.some((i) => /lechuga/i.test(i)) &&
+        prev.removedIngredients.some((i) => /tomate/i.test(i)) &&
+        prev.removedIngredients.some((i) => /cebolla/i.test(i));
+      if (isAll) {
+        return {
+          ...prev,
+          removedIngredients: prev.removedIngredients.filter(
+            (i) => !/lechuga|tomate|cebolla/i.test(i)
+          ),
+        };
+      } else {
+        const base = prev.removedIngredients.filter(
+          (i) => !/lechuga|tomate|cebolla/i.test(i)
+        );
+        return {
+          ...prev,
+          removedIngredients: [...base, 'Lechuga', 'Tomate', 'Cebolla'],
+        };
+      }
+    });
+  };
+
   const toggleFreeTopping = (toppingName: string) => {
     updateCurrentUnit((prev) => ({
       ...prev,
@@ -373,7 +403,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const modalContent = (
     <div className={inline ? "flex flex-col h-full bg-stone-100 text-gray-900 w-full overflow-hidden select-none" : "fixed inset-0 z-[100] flex flex-col bg-stone-100 text-gray-900 w-full h-full max-h-screen overflow-hidden select-none"}>
       {/* 1. TOP HEADER (CORTE COMPACTO Y CLARO) */}
-      <header className={`bg-white text-gray-900 ${inline ? 'px-3 py-2' : 'px-4 sm:px-6 py-3'} flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs`}>
+      <header className={`bg-white text-gray-900 ${inline ? 'px-3 py-1.5' : 'px-4 sm:px-6 py-3'} flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs`}>
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <span className={inline ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}>🍔</span>
           <div>
@@ -420,9 +450,9 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       </header>
 
       {/* 2. BODY SCROLLABLE (ESPACIOSO Y SIN CORTES) */}
-      <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-2 sm:p-3 space-y-2.5 pb-3' : 'p-3 sm:p-5 space-y-3.5 max-w-7xl mx-auto w-full pb-8'}`}>
+      <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-2 space-y-2 pb-2' : 'p-3 sm:p-5 space-y-3.5 max-w-7xl mx-auto w-full pb-8'}`}>
         {/* BARRA SUPERIOR COMPACTA: CANTIDAD, PARA LLEVAR Y PICADA / ENTERA */}
-        <section className="bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <section className={`bg-white ${inline ? 'p-2 rounded-xl' : 'p-2.5 sm:p-3 rounded-2xl'} border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-2`}>
           {/* Selector de Cantidad */}
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">Cantidad Total:</span>
@@ -812,7 +842,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           )}
 
           {/* SECCIÓN PERSONALIZAR INGREDIENTES BASE ("SIN ...") - ABIERTA POR DEFECTO DEBAJO DE LOS BOTONES */}
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 space-y-2 shadow-xs">
+          <div className={`bg-white ${inline ? 'p-2 sm:p-2.5 rounded-xl space-y-1.5' : 'p-3 sm:p-4 rounded-xl space-y-2'} border border-gray-200 shadow-xs`}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs sm:text-sm font-black text-gray-800 uppercase flex items-center gap-1.5">
                 <span>🛠️</span>
@@ -820,12 +850,27 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               </span>
               <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
                 {currentUnit.removedIngredients.length > 0
-                  ? `🚫 ${currentUnit.removedIngredients.length} ingrediente(s) quitado(s)`
+                  ? `🚫 SIN: ${formatRemovedIngredients(currentUnit.removedIngredients).join(', ').toUpperCase()}`
                   : 'Lleva todos sus ingredientes'}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
+              {/* Botón rápido para los 3 vegetales (Lechuga, Tomate, Cebolla) */}
+              <button
+                type="button"
+                onClick={toggleAllVegetables}
+                className={`p-2 rounded-xl text-left font-black text-xs transition-all border flex items-center justify-between cursor-pointer ${
+                  isAllVegetablesRemoved
+                    ? 'bg-red-600 text-white border-red-700 shadow-sm'
+                    : 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                }`}
+                title="Quitar o restaurar los 3 vegetales (Lechuga, Tomate y Cebolla) a la vez"
+              >
+                <span className="truncate">🥗 {isAllVegetablesRemoved ? 'SIN VEGETALES' : 'QUITAR VEGETALES'}</span>
+                {isAllVegetablesRemoved && <IoCloseCircle className="text-white text-base shrink-0 ml-1" />}
+              </button>
+
               {customizableBaseIngredients.map((ing) => {
                 const isRemoved = currentUnit.removedIngredients.includes(ing);
                 return (
@@ -833,7 +878,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                     key={ing}
                     type="button"
                     onClick={() => toggleRemoveBase(ing)}
-                    className={`p-2.5 rounded-xl text-left font-black text-xs sm:text-sm transition-all border flex items-center justify-between cursor-pointer ${
+                    className={`p-2 rounded-xl text-left font-black text-xs transition-all border flex items-center justify-between cursor-pointer ${
                       isRemoved
                         ? 'bg-red-50 text-red-700 border-red-300 line-through'
                         : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-red-300'
@@ -849,8 +894,8 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         </section>
 
         {/* 5. NOTAS DE COCINA DE LA UNIDAD ACTIVA */}
-        <section className="bg-white p-3.5 rounded-2xl border border-gray-200 space-y-1.5 shadow-xs">
-          <label className="block text-xs sm:text-sm font-black uppercase text-gray-800 tracking-wider">
+        <section className={`bg-white ${inline ? 'p-2 sm:p-2.5 rounded-xl space-y-1' : 'p-3.5 rounded-2xl space-y-1.5'} border border-gray-200 shadow-xs`}>
+          <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
             {units.length > 1
               ? `Notas de preparación para Cocina (Hamburguesa #${activeUnitIndex + 1}):`
               : 'Notas de preparación para Cocina:'}
@@ -860,19 +905,19 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             value={currentUnit.notes}
             onChange={(e) => updateCurrentUnit((prev) => ({ ...prev, notes: e.target.value }))}
             placeholder="Ej: Carne bien cocida, salsa aparte, bien caliente..."
-            className="w-full px-4 py-2 text-sm sm:text-base bg-stone-50 border border-gray-300 rounded-xl text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
+            className="w-full px-3 py-1.5 text-xs sm:text-sm bg-stone-50 border border-gray-300 rounded-xl text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
           />
         </section>
       </main>
 
       {/* 6. BOTTOM FOOTER (CORTE COMPACTO Y CLARO) */}
-      <footer className={`bg-white text-gray-900 ${inline ? 'px-3 py-2' : 'px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-lg`}>
+      <footer className={`bg-white text-gray-900 ${inline ? 'px-3 py-1.5' : 'px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-2 shrink-0 shadow-lg`}>
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
             Total a sumar ({units.length} hamburguesa{units.length > 1 ? 's' : ''}):
           </span>
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-black`}>
+            <span className={`${inline ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'} font-black text-black`}>
               ${grandTotalPrice.toFixed(2)} <span className="text-xs font-bold text-gray-500">USD</span>
             </span>
             <span className="text-xs font-bold text-gray-700">

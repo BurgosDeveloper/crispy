@@ -163,6 +163,15 @@ function centered(value, width = LINE_WIDTH) {
   return `${' '.repeat(padding)}${text}`;
 }
 
+function formatTwoColumns(left, right, width = LINE_WIDTH) {
+  const l = printableText(left);
+  const r = printableText(right);
+  const maxLeft = Math.max(1, width - r.length - 1);
+  const truncatedLeft = l.length > maxLeft ? l.substring(0, maxLeft) : l;
+  const spaces = Math.max(1, width - truncatedLeft.length - r.length);
+  return `${truncatedLeft}${' '.repeat(spaces)}${r}`;
+}
+
 function isKitchenItem(item) {
   if (!item) return false;
 
@@ -352,7 +361,17 @@ function itemDetails(item, order = {}) {
   // 4. Ingredientes removidos (SIN)
   const removed = item.removedIngredients || item.removed_ingredients;
   if (Array.isArray(removed) && removed.length > 0) {
-    details.push(`SIN: ${[...removed].sort().join(', ')}`);
+    const hasLechuga = removed.some((r) => /lechuga/i.test(r));
+    const hasTomate = removed.some((r) => /tomate/i.test(r));
+    const hasCebolla = removed.some((r) => /cebolla/i.test(r));
+    let displayRemoved;
+    if (hasLechuga && hasTomate && hasCebolla) {
+      const others = removed.filter((r) => !/lechuga|tomate|cebolla/i.test(r));
+      displayRemoved = ['VEGETALES', ...others.map((o) => o.toUpperCase())];
+    } else {
+      displayRemoved = removed.map((r) => r.toUpperCase());
+    }
+    details.push(`SIN: ${displayRemoved.sort().join(', ')}`);
   }
 
   // 5. Toppings gratis abreviados y adicionales pagos con ADD:
@@ -1355,43 +1374,50 @@ function buildReceiptTicket(order, rates = {}) {
   const copRate = Number(rates.COP || order.copRateAtPayment || order.copRate || 3300);
   const bsRate = Number(rates.Bs || order.bsRateAtPayment || order.bsRate || 850);
   const totalUSD = Number(order.totalUSD || 0);
+  const cleanOrderNumber = printableText((order.orderNumber || '').toString().replace(/^#+/, ''));
+
+  const srvType = order.type === 'mesa' && order.tableNumber
+    ? `MESA #${order.tableNumber}`
+    : order.type === 'delivery'
+    ? 'DELIVERY'
+    : 'PICKUP';
+
+  const dateStr = new Date(order.createdAt || Date.now()).toLocaleString('es-VE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
 
   const lines = [
     '\x1B@',
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('CRISPY BURGER'),
-    centered('PRE-CUENTA / CONSUMO'),
+    'CRISPY BURGER',
+    'PRE-CUENTA / CONSUMO',
     '\x1BE\x00',
     '\x1Ba\x00',
-    divider('='),
-    '\x1BE\x01',
-    `COMANDA: #${printableText(order.orderNumber)}`,
-    '\x1BE\x00',
-    `FECHA: ${new Date(order.createdAt || Date.now()).toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}`,
+    divider('-'),
+    `COMANDA: #${cleanOrderNumber} | ${srvType}`,
+    `FECHA: ${dateStr}`,
   ];
 
-  if (order.type === 'mesa' && order.tableNumber) {
-    lines.push('\x1BE\x01', `SERVICIO: MESA #${order.tableNumber}`, '\x1BE\x00');
-  } else if (order.type === 'delivery') {
-    lines.push('\x1BE\x01', 'SERVICIO: DELIVERY', '\x1BE\x00');
-  } else if (order.type === 'pickup') {
-    lines.push('\x1BE\x01', 'SERVICIO: PICKUP / LLEVAR', '\x1BE\x00');
+  if (order.customerName) {
+    lines.push(`CLIENTE: ${printableText(order.customerName).substring(0, 32)}`);
   }
 
-  if (order.customerName) lines.push(...wrapText(`CLIENTE: ${order.customerName}`));
+  lines.push(divider('-'));
 
-  // Consolidar productos a precio base de menú y separar adicionales pagos
-  const productsMap = new Map();
-  const paidExtrasMap = new Map();
-
+  // Imprimir todos los ítems de la comanda de forma directa y compacta (1 línea por ítem)
   for (const it of order.items || []) {
-    const itQty = it.quantity || 1;
-    const cleanName = (it.productName || 'Producto')
+    const qty = it.quantity || 1;
+    const cleanName = printableText((it.productName || 'Producto')
       .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
-      .trim();
+      .trim());
+    const unitPrice = Number(it.price) || 0;
+    const lineTotalUSD = unitPrice * qty;
 
+    lines.push(formatTwoColumns(`${qty}x ${cleanName}`, `$${lineTotalUSD.toFixed(2)}`));
+
+    // Si tiene adicionales con costo, listarlos indentados debajo
     const extrasList = [];
     if (Array.isArray(it.extras)) extrasList.push(...it.extras);
     else if (it.extrasJson && Array.isArray(it.extrasJson)) extrasList.push(...it.extrasJson);
@@ -1402,75 +1428,31 @@ function buildReceiptTicket(order, rates = {}) {
       } catch (e) {}
     }
 
-    let paidExtrasUnitCost = 0;
-    for (const extra of extrasList) {
-      const extraPrice = Number(extra.price) || 0;
-      const extraName = (extra.name || 'Adicional').trim();
-      if (extraPrice > 0) {
-        paidExtrasUnitCost += extraPrice;
-        const current = paidExtrasMap.get(extraName) || { name: extraName, quantity: 0, totalUSD: 0 };
-        current.quantity += itQty;
-        current.totalUSD += extraPrice * itQty;
-        paidExtrasMap.set(extraName, current);
+    for (const ex of extrasList) {
+      const exPrice = Number(ex.price) || 0;
+      if (exPrice > 0) {
+        const exName = printableText(ex.name || 'Adicional');
+        lines.push(formatTwoColumns(`  + ADD ${exName}`, `$${(exPrice * qty).toFixed(2)}`));
       }
     }
-
-    const rawPrice = Number(it.price) || 0;
-    const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
-    const baseSubtotal = baseUnitPrice * itQty;
-
-    const prev = productsMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
-    prev.quantity += itQty;
-    prev.subtotalUSD += baseSubtotal;
-    productsMap.set(cleanName, prev);
-  }
-
-  const productsList = Array.from(productsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  const paidExtrasList = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-
-  lines.push(divider());
-  lines.push('\x1BE\x01', centered('--- CONSUMO ---'), '\x1BE\x00');
-  lines.push(divider());
-
-  for (const p of productsList) {
-    lines.push('\x1BE\x01');
-    lines.push(...wrapText(`${p.quantity}x ${p.name}`));
-    lines.push('\x1BE\x00');
-    lines.push(`  $${p.subtotalUSD.toFixed(2)} USD`);
   }
 
   if (order.type === 'delivery' && Number(order.deliveryFeeUSD) > 0) {
-    lines.push('\x1BE\x01');
-    lines.push('1x SERVICIO DELIVERY');
-    lines.push('\x1BE\x00');
-    lines.push(`  $${Number(order.deliveryFeeUSD).toFixed(2)} USD`);
+    lines.push(formatTwoColumns('1x SERVICIO DELIVERY', `$${Number(order.deliveryFeeUSD).toFixed(2)}`));
   }
 
-  if (paidExtrasList.length > 0) {
-    lines.push(divider('-'));
-    lines.push('\x1BE\x01', centered('--- ADICIONALES ---'), '\x1BE\x00');
-    lines.push(divider('-'));
-    for (const extra of paidExtrasList) {
-      lines.push('\x1BE\x01');
-      lines.push(...wrapText(`${extra.quantity}x ADD ${extra.name}`));
-      lines.push('\x1BE\x00');
-      lines.push(`  $${extra.totalUSD.toFixed(2)} USD`);
-    }
-  }
-
-  lines.push(divider('='));
+  lines.push(divider('-'));
   lines.push('\x1BE\x01');
-  lines.push(`TOTAL USD: $${totalUSD.toFixed(2)} USD`);
-  lines.push(`TOTAL COP: ${roundCOP(totalUSD * copRate).toLocaleString('en-US')} COP`);
-  lines.push(`TOTAL Bs:  ${(totalUSD * bsRate).toFixed(2)} Bs`);
+  lines.push(formatTwoColumns('TOTAL USD:', `$${totalUSD.toFixed(2)} USD`));
+  lines.push(formatTwoColumns('TOTAL COP:', `${roundCOP(totalUSD * copRate).toLocaleString('en-US')} COP`));
+  lines.push(formatTwoColumns('TOTAL Bs:', `${(totalUSD * bsRate).toFixed(2)} Bs`));
   lines.push('\x1BE\x00');
-  lines.push(divider('='));
-  lines.push('');
+
+  lines.push(divider('-'));
   lines.push('\x1Ba\x01');
   lines.push('¡GRACIAS POR SU PREFERENCIA!');
-  lines.push('CRISPY BURGER');
   lines.push('\x1Ba\x00');
-  lines.push(PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
+  lines.push(PRINT_FORMAT_RESET, '\n\x1DV\x00');
 
   return Buffer.from(lines.join('\n'), 'ascii');
 }

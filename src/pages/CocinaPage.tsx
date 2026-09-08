@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSearchParams } from 'react-router-dom';
 import { Order } from '../data/mockData';
-import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
 import {
   IoFlame,
   IoTimeOutline,
@@ -291,7 +291,7 @@ export const CocinaPage: React.FC = () => {
 
                           {!it.isHalfHalf && it.removedIngredients && it.removedIngredients.length > 0 && (
                             <div className="ml-8 text-xs font-black text-red-600 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 flex items-center gap-1">
-                              <IoCloseCircleOutline /> 🚫 SIN: {it.removedIngredients.join(', ')}
+                              <IoCloseCircleOutline /> 🚫 SIN: {formatRemovedIngredients(it.removedIngredients).join(', ')}
                             </div>
                           )}
 

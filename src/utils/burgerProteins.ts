@@ -89,3 +89,17 @@ export function areProteinsDefault(burgerName: string, proteins?: string[]): boo
   // Default general: 1 carne de novillo
   return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
 }
+
+export function formatRemovedIngredients(removed?: string[]): string[] {
+  if (!removed || !Array.isArray(removed) || removed.length === 0) return [];
+  const hasLechuga = removed.some((r) => /lechuga/i.test(r));
+  const hasTomate = removed.some((r) => /tomate/i.test(r));
+  const hasCebolla = removed.some((r) => /cebolla/i.test(r));
+
+  if (hasLechuga && hasTomate && hasCebolla) {
+    const others = removed.filter((r) => !/lechuga|tomate|cebolla/i.test(r));
+    return ['Vegetales', ...others];
+  }
+  return removed;
+}
+

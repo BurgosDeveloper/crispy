@@ -15,7 +15,7 @@ import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
-import { areProteinsDefault, getCleanItemNote } from '../utils/burgerProteins';
+import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
 import {
   IoCard,
   IoCashOutline,
@@ -785,7 +785,7 @@ export const CajaPage: React.FC = () => {
 
                           {it.removedIngredients && it.removedIngredients.length > 0 && (
                             <p className="text-[10px] text-red-600 font-bold ml-2">
-                              🚫 SIN: {it.removedIngredients.join(', ')}
+                              🚫 SIN: {formatRemovedIngredients(it.removedIngredients).join(', ')}
                             </p>
                           )}
 
@@ -1094,7 +1094,7 @@ export const CajaPage: React.FC = () => {
 
                           {it.removedIngredients && it.removedIngredients.length > 0 && (
                             <p className="text-[10px] text-red-600 font-bold ml-2">
-                              🚫 SIN: {it.removedIngredients.join(', ')}
+                              🚫 SIN: {formatRemovedIngredients(it.removedIngredients).join(', ')}
                             </p>
                           )}
 
