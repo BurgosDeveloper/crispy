@@ -403,15 +403,15 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const modalContent = (
     <div className={inline ? "flex flex-col h-full bg-stone-100 text-gray-900 w-full overflow-hidden select-none" : "fixed inset-0 z-[100] flex flex-col bg-stone-100 text-gray-900 w-full h-full max-h-screen overflow-hidden select-none"}>
       {/* 1. TOP HEADER (CORTE COMPACTO Y CLARO) */}
-      <header className={`bg-white text-gray-900 ${inline ? 'px-3 py-1.5' : 'px-4 sm:px-6 py-3'} flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs`}>
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-          <span className={inline ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}>🍔</span>
+      <header className={`bg-white text-gray-900 ${inline ? 'px-3.5 py-2' : 'px-4 sm:px-6 py-3.5'} flex items-center justify-between border-b-2 border-yellow-400 shrink-0 shadow-xs`}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className={inline ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"}>🍔</span>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className={`${inline ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-black text-gray-900 tracking-wide`}>
+              <h2 className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-gray-950 tracking-wide`}>
                 {burger.name.toUpperCase()}
               </h2>
-              <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-lg font-black shadow-xs">
+              <span className="bg-yellow-400 text-black text-xs sm:text-sm px-2.5 py-0.5 rounded-xl font-black shadow-xs border border-yellow-500">
                 {currentUnit.proteins.length === 0
                   ? 'Plato / Ración'
                   : currentUnit.proteins.length === 1
@@ -421,15 +421,15 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   : 'Triple Carne'}
               </span>
               {units.length > 1 && (
-                <span className="bg-stone-800 text-white text-xs px-2 py-0.5 rounded-lg font-black">
+                <span className="bg-stone-900 text-white text-xs sm:text-sm px-2.5 py-0.5 rounded-xl font-black">
                   {units.length} UNIDADES EN PEDIDO
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5 text-xs sm:text-sm font-black text-gray-700 flex-wrap">
-              <span className="text-black text-base font-black">${currentUnitPrice.toFixed(2)} USD</span>
+            <div className="flex items-center gap-2 mt-1 text-xs sm:text-base font-black text-gray-700 flex-wrap">
+              <span className="text-black text-base sm:text-lg font-black">${currentUnitPrice.toFixed(2)} USD</span>
               {currentUnitExtrasTotal > 0 && (
-                <span className="text-emerald-700 text-xs font-bold">(Base ${burger.price.toFixed(2)} + Adicionales ${currentUnitExtrasTotal.toFixed(2)})</span>
+                <span className="text-emerald-700 text-xs sm:text-sm font-bold">(Base ${burger.price.toFixed(2)} + Adicionales ${currentUnitExtrasTotal.toFixed(2)})</span>
               )}
               <span className="text-gray-400">•</span>
               <span>🇨🇴 {roundCOP(currentUnitPrice * copRate).toLocaleString()} COP</span>
@@ -442,37 +442,37 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-700 hover:text-black transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs shadow-2xs"
+          className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 hover:text-black transition-colors cursor-pointer flex items-center gap-1.5 font-black text-xs sm:text-sm shadow-2xs border border-gray-300"
           title={inline ? "Volver al catálogo" : "Cerrar modal"}
         >
-          <IoClose className={inline ? "text-lg text-gray-600" : "text-2xl"} />
+          <IoClose className={inline ? "text-xl text-gray-700" : "text-2xl"} />
           <span className="hidden sm:inline">Volver al Menú</span>
         </button>
       </header>
 
       {/* 2. BODY SCROLLABLE (ESPACIOSO Y SIN CORTES) */}
-      <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-2 space-y-2 pb-2' : 'p-3 sm:p-5 space-y-3.5 max-w-7xl mx-auto w-full pb-8'}`}>
+      <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-2.5 space-y-2.5 pb-2' : 'p-3.5 sm:p-5 space-y-4 max-w-7xl mx-auto w-full pb-8'}`}>
         {/* BARRA SUPERIOR COMPACTA: CANTIDAD, PARA LLEVAR Y PICADA / ENTERA */}
-        <section className={`bg-white ${inline ? 'p-2 rounded-xl' : 'p-2.5 sm:p-3 rounded-2xl'} border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-2`}>
+        <section className={`bg-white ${inline ? 'p-2.5 rounded-2xl' : 'p-3 sm:p-4 rounded-2xl'} border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-2.5`}>
           {/* Selector de Cantidad */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">Cantidad Total:</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">Cantidad Total:</span>
             <div className="flex items-center border-2 border-yellow-400 rounded-xl bg-white shadow-xs overflow-hidden">
               <button
                 type="button"
                 onClick={handleDecreaseQuantity}
-                className="px-3 py-1 hover:bg-yellow-100 text-black font-black text-base transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 hover:bg-yellow-100 text-black font-black text-lg transition-colors cursor-pointer"
                 title="Disminuir hamburguesas"
               >
                 <IoRemove />
               </button>
-              <span className="px-4 py-1 text-base sm:text-lg font-black text-black min-w-[2.5rem] text-center">
+              <span className="px-4 py-1 text-base sm:text-xl font-black text-black min-w-[2.5rem] text-center">
                 {units.length}
               </span>
               <button
                 type="button"
                 onClick={handleIncreaseQuantity}
-                className="px-3 py-1 hover:bg-yellow-100 text-black font-black text-base transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 hover:bg-yellow-100 text-black font-black text-lg transition-colors cursor-pointer"
                 title="Agregar otra hamburguesa para personalizar"
               >
                 <IoAdd />
@@ -488,7 +488,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               onClick={() =>
                 updateCurrentUnit((prev) => ({ ...prev, isTakeaway: !prev.isTakeaway }))
               }
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 border transition-all cursor-pointer shadow-xs ${
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 border transition-all cursor-pointer shadow-xs ${
                 currentUnit.isTakeaway
                   ? 'bg-amber-400 text-black border-amber-500 shadow-sm'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
@@ -499,7 +499,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             </button>
 
             {/* Picada vs Entera */}
-            <div className="flex items-center border border-gray-300 rounded-xl bg-white p-0.5 shadow-xs">
+            <div className="flex items-center border border-gray-300 rounded-xl bg-white p-1 shadow-xs">
               <button
                 type="button"
                 onClick={() =>
@@ -509,7 +509,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                     cutPreference: 'Entera',
                   }))
                 }
-                className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer ${
                   !currentUnit.isCut
                     ? 'bg-yellow-400 text-black shadow-xs'
                     : 'text-gray-600 hover:text-black'
@@ -526,7 +526,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                     cutPreference: 'Picada',
                   }))
                 }
-                className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1 ${
                   currentUnit.isCut
                     ? 'bg-red-500 text-white shadow-xs'
                     : 'text-gray-600 hover:text-black'
@@ -540,10 +540,10 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
         {/* PESTAÑAS MULTI-UNIDAD CUANDO HAY MÁS DE 1 HAMBURGUESA */}
         {units.length > 1 && (
-          <section className="bg-yellow-50/80 p-3 rounded-2xl border-2 border-yellow-300 shadow-xs space-y-2.5">
+          <section className="bg-yellow-50/80 p-3.5 rounded-2xl border-2 border-yellow-300 shadow-xs space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-yellow-950 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-black text-yellow-950 uppercase tracking-wide flex items-center gap-1.5">
                   <span>🍔</span>
                   <span>SELECCIONA LA UNIDAD A PERSONALIZAR ({units.length}):</span>
                 </span>
@@ -553,27 +553,27 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyActiveToAll}
-                  className="px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black border border-yellow-500 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  className="px-3.5 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black text-xs sm:text-sm font-black border border-yellow-500 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                   title="Copiar los ingredientes, adicionales y notas de esta unidad a todas las demás"
                 >
-                  <IoCopyOutline className="text-sm" />
+                  <IoCopyOutline className="text-base" />
                   <span>Copiar #{activeUnitIndex + 1} a todas</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleResetCurrentUnit}
-                  className="px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-700 text-xs font-bold border border-gray-300 shadow-xs flex items-center gap-1 cursor-pointer transition-all"
+                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 text-xs sm:text-sm font-bold border border-gray-300 shadow-xs flex items-center gap-1 cursor-pointer transition-all"
                   title="Restablecer esta unidad a su receta original"
                 >
-                  <IoRefreshOutline className="text-sm" />
+                  <IoRefreshOutline className="text-base" />
                   <span>Reset #{activeUnitIndex + 1}</span>
                 </button>
               </div>
             </div>
 
             {copyToast && (
-              <div className="text-xs font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl animate-in fade-in">
+              <div className="text-xs sm:text-sm font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl animate-in fade-in">
                 {copyToast}
               </div>
             )}
@@ -606,16 +606,16 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   >
                     <span>🍔 #{idx + 1}</span>
                     {isModified ? (
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-200 text-amber-950">
+                      <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950">
                         Modificada
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700">
                         Base
                       </span>
                     )}
                     {unitExtrasSum > 0 && (
-                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-1 py-0.5 rounded">
+                      <span className="text-[11px] font-black text-emerald-900 bg-emerald-100 px-1.5 py-0.5 rounded-md">
                         +${unitExtrasSum.toFixed(2)}
                       </span>
                     )}
@@ -627,15 +627,15 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         )}
 
         {/* 3. ÚNICOS 5 ADICIONALES GRATIS OFICIALES */}
-        <section className="bg-amber-50/60 p-3 sm:p-3.5 rounded-2xl border border-yellow-300 shadow-xs space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-1.5">
+        <section className="bg-amber-50/60 p-3.5 sm:p-4 rounded-2xl border border-yellow-300 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-xs sm:text-sm font-black text-yellow-950 uppercase tracking-wide flex items-center gap-1.5">
               <span>✨</span>
               <span>
                 TOPPINGS & SALSAS GRATIS ({units.length > 1 ? `HAMBURGUESA #${activeUnitIndex + 1}` : 'DISPONIBLES'}):
               </span>
             </h3>
-            <span className="text-[11px] font-bold text-amber-800 bg-yellow-200/80 px-2 py-0.5 rounded-lg">
+            <span className="text-xs font-black text-amber-900 bg-yellow-200/90 px-2.5 py-0.5 rounded-lg border border-yellow-300">
               {currentUnit.selectedFreeToppings.length} seleccionados
             </span>
           </div>
@@ -648,14 +648,14 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   key={top.id}
                   type="button"
                   onClick={() => toggleFreeTopping(top.name)}
-                  className={`p-2.5 rounded-xl text-center font-black text-xs sm:text-sm transition-all border-2 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border-2 flex items-center justify-center gap-1.5 cursor-pointer ${
                     isSelected
                       ? 'bg-yellow-400 text-black border-yellow-500 shadow-sm scale-[1.02]'
                       : 'bg-white text-gray-800 border-gray-200 hover:border-yellow-400 hover:bg-yellow-50/30'
                   }`}
                 >
                   <span className="truncate">{top.name}</span>
-                  <span className="font-black text-sm">{isSelected ? '✓' : '+'}</span>
+                  <span className="font-black text-base">{isSelected ? '✓' : '+'}</span>
                 </button>
               );
             })}
@@ -663,31 +663,31 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         </section>
 
         {/* 4. BOTONES DESPLEGABLES DE PROTEÍNAS Y ADICIONALES + SECCIÓN DE PERSONALIZAR ABIERTA */}
-        <section className="space-y-2.5">
-          <div className={`grid grid-cols-1 ${currentUnit.proteins.length > 0 ? 'sm:grid-cols-2' : ''} gap-2`}>
+        <section className="space-y-3">
+          <div className={`grid grid-cols-1 ${currentUnit.proteins.length > 0 ? 'sm:grid-cols-2' : ''} gap-2.5`}>
             {/* BOTÓN 1: PROTEÍNAS (Despliega cambio de carnes solo si aplica) */}
             {currentUnit.proteins.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowProteinas((prev) => !prev)}
-                className={`p-3 rounded-xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
+                className={`p-3.5 rounded-2xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
                   showProteinas
                     ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
                     : 'bg-white text-black border-gray-200 hover:border-yellow-400'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🥩</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🥩</span>
                   <div className="text-left">
-                    <div className="font-black leading-tight">
+                    <div className="font-black leading-tight text-sm sm:text-base">
                       {units.length > 1 ? `PROTEÍNAS #${activeUnitIndex + 1}` : 'PROTEÍNA / CARNES'}
                     </div>
-                    <div className="text-[10px] font-bold text-gray-500 truncate max-w-[150px] sm:max-w-xs">
+                    <div className="text-xs font-bold text-gray-500 truncate max-w-[150px] sm:max-w-xs mt-0.5">
                       {currentUnit.proteins.join(' + ')}
                     </div>
                   </div>
                 </div>
-                {showProteinas ? <IoChevronUp className="text-lg" /> : <IoChevronDown className="text-lg" />}
+                {showProteinas ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
               </button>
             )}
 
@@ -695,67 +695,68 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             <button
               type="button"
               onClick={() => setShowAdicionales((prev) => !prev)}
-              className={`p-3 rounded-xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
+              className={`p-3.5 rounded-2xl border font-black text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-xs ${
                 showAdicionales
                   ? 'bg-stone-800 text-white border-stone-900 ring-2 ring-yellow-400'
                   : 'bg-white text-black border-gray-200 hover:border-yellow-400'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">➕</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">➕</span>
                 <div className="text-left">
-                  <div className="font-black leading-tight">
+                  <div className="font-black leading-tight text-sm sm:text-base">
                     {units.length > 1
                       ? `ADICIONALES ($) #${activeUnitIndex + 1}`
                       : 'ADICIONALES CON COSTO ($)'}
                   </div>
-                  <div className="text-[10px] font-bold text-gray-500">
+                  <div className="text-xs font-bold text-gray-500 mt-0.5">
                     {currentUnit.selectedPaidExtras.length > 0
                       ? `+${currentUnit.selectedPaidExtras.length} adicional(es) (+${currentUnitExtrasTotal.toFixed(2)} USD)`
                       : 'Sin adicionales con costo'}
                   </div>
                 </div>
               </div>
-              {showAdicionales ? <IoChevronUp className="text-lg" /> : <IoChevronDown className="text-lg" />}
+              {showAdicionales ? <IoChevronUp className="text-xl" /> : <IoChevronDown className="text-xl" />}
             </button>
           </div>
 
-          {/* DESPLIEGUE 1: PROTEÍNAS */}
+          {/* DESPLIEGUE 1: PROTEÍNAS (Con textos centrados) */}
           {showProteinas && currentUnit.proteins.length > 0 && (
-            <div className="bg-amber-50/40 p-3 sm:p-4 rounded-xl border border-yellow-300 space-y-3 shadow-xs animate-in fade-in">
+            <div className="bg-amber-50/40 p-3.5 sm:p-4 rounded-2xl border border-yellow-300 space-y-3 shadow-xs animate-in fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">
                   Selecciona la proteína para cada carne de la hamburguesa:
                 </span>
-                <span className="text-[11px] font-extrabold text-amber-900 bg-yellow-200 px-2.5 py-0.5 rounded-lg">
+                <span className="text-xs font-black text-amber-950 bg-yellow-300 px-3 py-1 rounded-xl border border-yellow-400">
                   {currentUnit.proteins.length === 1 ? '1 Carne' : `${currentUnit.proteins.length} Carnes`}
                 </span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {currentUnit.proteins.map((currentProtein, slotIndex) => {
                   const defaultProteinForSlot = defaultRecipeProteins[slotIndex];
 
                   return (
-                    <div key={slotIndex} className="bg-white p-3 rounded-xl border border-gray-200 space-y-2 shadow-xs">
+                    <div key={slotIndex} className="bg-white p-3.5 rounded-2xl border border-gray-200 space-y-2.5 shadow-xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-black text-gray-800">
+                        <span className="text-xs sm:text-sm font-black text-gray-900">
                           {currentUnit.proteins.length === 1
                             ? 'Proteína principal:'
                             : `Carne / Proteína #${slotIndex + 1}:`}
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           {defaultProteinForSlot && (
-                            <span className="text-[10px] font-bold text-gray-500 bg-stone-100 px-2 py-0.5 rounded border border-gray-200">
+                            <span className="text-xs font-bold text-gray-600 bg-stone-100 px-2.5 py-0.5 rounded-lg border border-gray-200">
                               Receta: {defaultProteinForSlot}
                             </span>
                           )}
-                          <span className="text-xs sm:text-sm font-black text-black bg-yellow-400 px-2.5 py-0.5 rounded-lg border border-yellow-500 shadow-xs">
+                          <span className="text-xs sm:text-sm font-black text-black bg-yellow-400 px-3 py-1 rounded-xl border border-yellow-500 shadow-xs">
                             {currentProtein}
                           </span>
                         </div>
                       </div>
 
+                      {/* Tarjetas de Proteínas Centrables */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                         {AVAILABLE_BURGER_PROTEINS.map((prot) => {
                           const isSelected = currentProtein === prot.name;
@@ -772,19 +773,17 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                                   return { ...prev, proteins: updated };
                                 });
                               }}
-                              className={`p-2 rounded-xl text-left font-black text-xs flex flex-col justify-between gap-1 transition-all border cursor-pointer ${
+                              className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm flex flex-col items-center justify-between gap-1.5 transition-all border cursor-pointer min-h-[90px] ${
                                 isSelected
                                   ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
-                                  : 'bg-stone-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                                  : 'bg-stone-50 text-gray-800 border-gray-200 hover:bg-gray-100'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 w-full">
-                                <span className="text-base shrink-0">{prot.icon}</span>
-                                <span className="truncate">{prot.name}</span>
-                              </div>
+                              <span className="text-2xl">{prot.icon}</span>
+                              <span className="leading-tight text-center line-clamp-2">{prot.name}</span>
                               {isOriginal && (
                                 <span
-                                  className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded self-start mt-0.5 ${
+                                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md mt-0.5 ${
                                     isSelected
                                       ? 'bg-amber-950/20 text-amber-950 border border-amber-950/30'
                                       : 'bg-yellow-100 text-yellow-900 border border-yellow-300'
@@ -805,17 +804,17 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             </div>
           )}
 
-          {/* DESPLIEGUE 3: ADICIONALES CON COSTO */}
+          {/* DESPLIEGUE 3: ADICIONALES CON COSTO (Centrados) */}
           {showAdicionales && (
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 space-y-2.5 shadow-xs animate-in fade-in">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 space-y-3 shadow-xs animate-in fade-in">
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">
+                <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">
                   Adicionales con costo ($):
                 </span>
-                <span className="text-[11px] font-bold text-gray-500">Toca para sumar o retirar</span>
+                <span className="text-xs font-bold text-gray-500">Toca para sumar o retirar</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                 {paidExtrasList.map((extra) => {
                   const isSelected = currentUnit.selectedPaidExtras.some((e) => e.name === extra.name);
                   const price = getExtraPrice(extra);
@@ -825,15 +824,15 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                       key={extra.id}
                       type="button"
                       onClick={() => togglePaidExtra(extra)}
-                      className={`p-3 rounded-xl text-left font-black text-xs sm:text-sm transition-all border flex items-center justify-between cursor-pointer ${
+                      className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border flex flex-col items-center justify-center gap-1.5 cursor-pointer min-h-[72px] ${
                         isSelected
                           ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
                           : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-yellow-400'
                       }`}
                     >
-                      <span className="truncate">{extra.name}</span>
-                      <span className="font-black text-xs shrink-0 ml-1">
-                        +$${price.toFixed(2)}
+                      <span className="truncate leading-tight text-center">{extra.name}</span>
+                      <span className="font-black text-xs sm:text-sm px-2 py-0.5 rounded-lg bg-black/5 text-stone-900">
+                        +${price.toFixed(2)}
                       </span>
                     </button>
                   );
@@ -842,26 +841,26 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             </div>
           )}
 
-          {/* SECCIÓN PERSONALIZAR INGREDIENTES BASE ("SIN ...") - ABIERTA POR DEFECTO DEBAJO DE LOS BOTONES */}
-          <div className={`bg-white ${inline ? 'p-2 sm:p-2.5 rounded-xl space-y-1.5' : 'p-3 sm:p-4 rounded-xl space-y-2'} border border-gray-200 shadow-xs`}>
+          {/* SECCIÓN PERSONALIZAR INGREDIENTES BASE ("SIN ...") - Con Textos Centrados */}
+          <div className={`bg-white ${inline ? 'p-3 rounded-2xl space-y-2' : 'p-3.5 sm:p-4 rounded-2xl space-y-2.5'} border border-gray-200 shadow-xs`}>
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs sm:text-sm font-black text-gray-800 uppercase flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-black text-gray-900 uppercase flex items-center gap-1.5">
                 <span>🛠️</span>
                 <span>PERSONALIZAR INGREDIENTES ({units.length > 1 ? `HAMBURGUESA #${activeUnitIndex + 1}` : 'TOCA PARA QUITAR "SIN"'}):</span>
               </span>
-              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+              <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-lg border border-red-200">
                 {currentUnit.removedIngredients.length > 0
                   ? `🚫 SIN: ${formatRemovedIngredients(currentUnit.removedIngredients).join(', ').toUpperCase()}`
                   : 'Lleva todos sus ingredientes'}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
               {/* Botón rápido para los 3 vegetales (Lechuga, Tomate, Cebolla) */}
               <button
                 type="button"
                 onClick={toggleAllVegetables}
-                className={`p-2 rounded-xl text-left font-black text-xs transition-all border flex items-center justify-between cursor-pointer ${
+                className={`p-2.5 rounded-xl text-center font-black text-xs sm:text-sm transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
                   isAllVegetablesRemoved
                     ? 'bg-red-600 text-white border-red-700 shadow-sm'
                     : 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
@@ -879,7 +878,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                     key={ing}
                     type="button"
                     onClick={() => toggleRemoveBase(ing)}
-                    className={`p-2 rounded-xl text-left font-black text-xs transition-all border flex items-center justify-between cursor-pointer ${
+                    className={`p-2.5 rounded-xl text-center font-black text-xs sm:text-sm transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
                       isRemoved
                         ? 'bg-red-50 text-red-700 border-red-300 line-through'
                         : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-red-300'
@@ -895,8 +894,8 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         </section>
 
         {/* 5. NOTAS DE COCINA DE LA UNIDAD ACTIVA */}
-        <section className={`bg-white ${inline ? 'p-2 sm:p-2.5 rounded-xl space-y-1' : 'p-3.5 rounded-2xl space-y-1.5'} border border-gray-200 shadow-xs`}>
-          <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
+        <section className={`bg-white ${inline ? 'p-3 rounded-2xl space-y-1.5' : 'p-4 rounded-2xl space-y-2'} border border-gray-200 shadow-xs`}>
+          <label className="block text-xs sm:text-sm font-black uppercase text-gray-900 tracking-wider">
             {units.length > 1
               ? `Notas de preparación para Cocina (Hamburguesa #${activeUnitIndex + 1}):`
               : 'Notas de preparación para Cocina:'}
@@ -906,44 +905,44 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             value={currentUnit.notes}
             onChange={(e) => updateCurrentUnit((prev) => ({ ...prev, notes: e.target.value }))}
             placeholder="Ej: Carne bien cocida, salsa aparte, bien caliente..."
-            className="w-full px-3 py-1.5 text-xs sm:text-sm bg-stone-50 border border-gray-300 rounded-xl text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
+            className="w-full px-3.5 py-2 text-sm bg-stone-50 border border-gray-300 rounded-xl text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-2xs"
           />
         </section>
       </main>
 
       {/* 6. BOTTOM FOOTER (CORTE COMPACTO Y CLARO) */}
-      <footer className={`bg-white text-gray-900 ${inline ? 'px-3 py-1.5' : 'px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-2 shrink-0 shadow-lg`}>
+      <footer className={`bg-white text-gray-900 ${inline ? 'px-4 py-2.5' : 'px-6 py-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-lg`}>
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
+          <span className="text-xs font-black uppercase tracking-wider text-gray-500 block">
             Total a sumar ({units.length} hamburguesa{units.length > 1 ? 's' : ''}):
           </span>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className={`${inline ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'} font-black text-black`}>
-              ${grandTotalPrice.toFixed(2)} <span className="text-xs font-bold text-gray-500">USD</span>
+          <div className="flex items-baseline gap-2.5 flex-wrap">
+            <span className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-black`}>
+              ${grandTotalPrice.toFixed(2)} <span className="text-xs sm:text-sm font-bold text-gray-500">USD</span>
             </span>
-            <span className="text-xs font-bold text-gray-700">
+            <span className="text-xs sm:text-sm font-bold text-gray-700">
               🇨🇴 {roundCOP(grandTotalPrice * copRate).toLocaleString()} COP
             </span>
-            <span className="text-xs font-bold text-gray-700">
+            <span className="text-xs sm:text-sm font-bold text-gray-700">
               🇻🇪 {(grandTotalPrice * bsRate).toFixed(2)} Bs
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-2 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer"
           >
             CANCELAR
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            className="px-6 py-3 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
-            <IoCheckmark className="text-lg" />
+            <IoCheckmark className="text-xl" />
             <span>AGREGAR AL PEDIDO ({units.length})</span>
           </button>
         </div>

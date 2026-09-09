@@ -412,21 +412,21 @@ export const MeseroPage: React.FC = () => {
                       return (
                         <div
                           key={ord.id}
-                          className={`p-3 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${
+                          className={`p-3 rounded-2xl border flex flex-col justify-between shadow-xs transition-all text-center ${
                             isReady
                               ? 'bg-yellow-200/80 border-yellow-500 ring-2 ring-yellow-400'
                               : 'bg-white border-gray-200 hover:border-yellow-400'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-gray-100">
-                            <span className="font-black text-xs text-black truncate" title={titleText}>
+                            <span className="font-black text-sm text-black truncate text-center flex-1" title={titleText}>
                               {titleText}
                             </span>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => setPrinterSelectOrder(ord)}
-                                className="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-black transition-all shadow-xs border border-amber-300 cursor-pointer"
+                                className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition-all shadow-xs border border-amber-300 cursor-pointer"
                                 title="Imprimir pre-cuenta del cliente"
                               >
                                 🧾
@@ -434,7 +434,7 @@ export const MeseroPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => toggleExpandOrder(ord.id)}
-                                className="px-1.5 py-0.5 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black transition-all shadow-xs border border-yellow-500 cursor-pointer shrink-0"
+                                className="px-2 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black transition-all shadow-xs border border-yellow-500 cursor-pointer shrink-0"
                                 title="Expandir comanda"
                               >
                                 👁️ Ver
@@ -442,14 +442,14 @@ export const MeseroPage: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="pt-1.5 space-y-0.5">
-                            <div className="text-sm font-black text-black">
-                              ${ord.totalUSD.toFixed(2)} <span className="text-[9px] font-bold text-gray-500">USD</span>
+                          <div className="py-2 space-y-1 text-center flex flex-col items-center justify-center">
+                            <div className="text-base sm:text-lg font-black text-black leading-none">
+                              ${ord.totalUSD.toFixed(2)} <span className="text-[11px] font-bold text-gray-500">USD</span>
                             </div>
-                            <div className="text-[10px] font-bold text-gray-700 truncate">
+                            <div className="text-xs font-bold text-gray-700 truncate">
                               🇨🇴 ${roundCOP(ord.totalUSD * exchangeRates.COP).toLocaleString()}
                             </div>
-                            <div className="text-[10px] font-bold text-gray-700 truncate">
+                            <div className="text-xs font-bold text-gray-700 truncate">
                               🇻🇪 {(ord.totalUSD * exchangeRates.Bs).toFixed(2)} Bs
                             </div>
                           </div>
@@ -461,7 +461,7 @@ export const MeseroPage: React.FC = () => {
                     return (
                       <div
                         key={ord.id}
-                        className={`col-span-2 p-3 rounded-2xl border flex flex-col justify-between shadow-md space-y-2 transition-all ${
+                        className={`col-span-2 p-3.5 rounded-2xl border flex flex-col justify-between shadow-md space-y-2.5 transition-all text-center ${
                           isReady
                             ? 'bg-yellow-100/90 border-yellow-500 ring-2 ring-yellow-400'
                             : 'bg-white border-gray-200 hover:border-yellow-400'
@@ -470,9 +470,9 @@ export const MeseroPage: React.FC = () => {
                         {/* Header con botón Colapsar */}
                         <div>
                           <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-gray-100">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="font-black text-sm text-black">#{ord.orderNumber}</span>
-                              <span className="text-[10px] font-extrabold text-black bg-yellow-400 px-1.5 py-0.5 rounded uppercase truncate">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-black text-base text-black">#{ord.orderNumber}</span>
+                              <span className="text-xs font-black text-black bg-yellow-400 px-2 py-0.5 rounded-lg uppercase truncate">
                                 {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type}
                               </span>
                             </div>
@@ -480,7 +480,7 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => toggleExpandOrder(ord.id)}
-                              className="px-2 py-0.5 rounded bg-gray-100 hover:bg-yellow-400 text-black text-[10px] font-black transition-all shadow-xs border border-gray-300 cursor-pointer shrink-0"
+                              className="px-2.5 py-1 rounded-xl bg-gray-100 hover:bg-yellow-400 text-black text-xs font-black transition-all shadow-xs border border-gray-300 cursor-pointer shrink-0"
                               title="Colapsar a minicomanda"
                             >
                               👁️ Colapsar
@@ -489,25 +489,25 @@ export const MeseroPage: React.FC = () => {
 
                           {/* Customer */}
                           {ord.customerName && (
-                            <p className="text-xs text-gray-800 font-extrabold mt-1 truncate" title={ord.customerName}>
+                            <p className="text-xs sm:text-sm text-gray-900 font-black mt-1 truncate text-center" title={ord.customerName}>
                               👤 {ord.customerName}
                             </p>
                           )}
 
                           {/* Items summary */}
-                          <div className="my-1 py-1 px-1.5 rounded-lg bg-gray-50 border border-gray-100">
-                            <div className="text-[11px] font-black text-yellow-800">
+                          <div className="my-1.5 py-1.5 px-2 rounded-xl bg-gray-50 border border-gray-100 text-center">
+                            <div className="text-xs sm:text-sm font-black text-yellow-900">
                               🍔 {itemsCount} {itemsCount === 1 ? 'ítem' : 'ítems'}
                             </div>
-                            <p className="text-[10px] text-gray-600 font-medium" title={itemsSummary}>
+                            <p className="text-xs text-gray-700 font-medium text-center truncate mt-0.5" title={itemsSummary}>
                               {itemsSummary}
                             </p>
                           </div>
 
                           {/* Status */}
-                          <div className="flex items-center justify-between text-[10px] font-black uppercase mb-1">
+                          <div className="flex items-center justify-between text-xs font-black uppercase mb-1">
                             <span
-                              className={`px-2 py-0.5 rounded ${
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black ${
                                 isReady
                                   ? 'bg-green-600 text-white animate-pulse'
                                   : 'bg-yellow-400 text-black'
@@ -515,18 +515,18 @@ export const MeseroPage: React.FC = () => {
                             >
                               {isReady ? '¡LISTA!' : 'EN PREP.'}
                             </span>
-                            <span className="text-black font-black text-xs">
+                            <span className="text-black font-black text-sm sm:text-base">
                               ${ord.totalUSD.toFixed(2)} USD
                             </span>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between gap-1.5">
+                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
                           <button
                             type="button"
                             onClick={() => setOrderAppendModalOrder(ord)}
-                            className="flex-1 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black transition-all cursor-pointer text-center"
+                            className="flex-1 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black text-xs sm:text-sm font-black transition-all cursor-pointer text-center shadow-xs"
                             title="Adicionar ítem"
                           >
                             + Ítem
@@ -535,17 +535,17 @@ export const MeseroPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setPrinterSelectOrder(ord)}
-                            className="px-2 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                            className="px-2.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1 shadow-xs"
                             title="Imprimir pre-cuenta del cliente"
                           >
-                            <IoPrintOutline className="text-sm" />
+                            <IoPrintOutline className="text-base" />
                             <span>Cuenta</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setPrinterSelectKitchenOrder(ord)}
-                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                            className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm transition-all cursor-pointer shadow-xs"
                             title="Reimprimir en cocina"
                           >
                             <IoPrintOutline />
@@ -555,7 +555,7 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setTableChangeOrder(ord)}
-                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
+                              className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm transition-all cursor-pointer shadow-xs"
                               title="Cambiar mesa"
                             >
                               <IoSwapHorizontal />
@@ -567,7 +567,7 @@ export const MeseroPage: React.FC = () => {
                   })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 {orders
                   .filter((o) => o.status !== 'cancelado' && o.status !== 'fusionada')
                   .map((ord) => {
@@ -575,7 +575,7 @@ export const MeseroPage: React.FC = () => {
                     return (
                       <div
                         key={ord.id}
-                        className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-sm transition-all ${
+                        className={`p-3 rounded-2xl border flex flex-col justify-between shadow-sm transition-all ${
                           isReady
                             ? 'bg-green-50 border-green-400'
                             : 'bg-white border-gray-200 hover:border-yellow-400'
@@ -583,15 +583,15 @@ export const MeseroPage: React.FC = () => {
                       >
                         {/* Header */}
                         <div>
-                          <div className="flex items-center justify-between gap-1 pb-1 border-b border-gray-100">
-                            <div className="flex items-center gap-1">
-                              <span className="font-black text-sm text-black">#{ord.orderNumber}</span>
-                              <span className="text-[10px] font-bold text-gray-600 uppercase">
+                          <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-gray-100">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-base text-black">#{ord.orderNumber}</span>
+                              <span className="text-xs font-bold text-gray-600 uppercase">
                                 {ord.type === 'mesa' ? `Mesa #${ord.tableNumber}` : ord.type}
                               </span>
                             </div>
                             <span
-                              className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                              className={`text-xs font-black px-2 py-0.5 rounded-lg uppercase ${
                                 isReady
                                   ? 'bg-green-500 text-black animate-pulse'
                                   : 'bg-yellow-400 text-black'
@@ -603,15 +603,15 @@ export const MeseroPage: React.FC = () => {
 
                           {/* Customer */}
                           {ord.customerName && (
-                            <p className="text-[11px] text-gray-700 font-bold mt-1 truncate">
+                            <p className="text-xs sm:text-sm text-gray-800 font-bold mt-1.5 truncate">
                               👤 {ord.customerName}
                             </p>
                           )}
 
                           {/* Items brief */}
-                          <div className="my-1.5 space-y-0.5">
+                          <div className="my-2 space-y-1">
                             {(ord.items || []).map((it, idx) => (
-                              <div key={idx} className="text-[11px] text-gray-800 flex justify-between font-semibold">
+                              <div key={idx} className="text-xs sm:text-sm text-gray-800 flex justify-between font-semibold">
                                 <span className="truncate">
                                   {it.quantity}x {it.productName}
                                 </span>
@@ -624,17 +624,17 @@ export const MeseroPage: React.FC = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
-                          <span className="text-xs font-black text-black">
+                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
+                          <span className="text-sm sm:text-base font-black text-black">
                             ${ord.totalUSD.toFixed(2)} USD
                           </span>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {ord.type === 'mesa' && ord.status !== 'entregada' && (
                               <button
                                 type="button"
                                 onClick={() => setTableChangeOrder(ord)}
-                                className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-bold"
+                                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold cursor-pointer"
                                 title="Cambiar de mesa"
                               >
                                 <IoSwapHorizontal />
@@ -644,7 +644,7 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setOrderAppendModalOrder(ord)}
-                              className="px-2 py-1 rounded bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black"
+                              className="px-2.5 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black cursor-pointer shadow-xs"
                               title="Adicionar ítem"
                             >
                               + Ítem
@@ -653,16 +653,16 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPrinterSelectKitchenOrder(ord)}
-                              className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer"
+                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer shadow-xs"
                               title="Reimprimir comanda en cocina"
                             >
-                              <IoPrintOutline className="text-xs" />
+                              <IoPrintOutline className="text-sm" />
                             </button>
 
                             <button
                               type="button"
                               onClick={() => setOrderDetailModalOrder(ord)}
-                              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold"
+                              className="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-black cursor-pointer shadow-xs"
                             >
                               Ver
                             </button>
@@ -758,9 +758,9 @@ export const MeseroPage: React.FC = () => {
             <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
                   {/* Customer and General Notes Inputs */}
-                  <div className="space-y-1.5 shrink-0 bg-white p-2.5 rounded-xl border border-gray-200">
+                  <div className="space-y-2 shrink-0 bg-white p-3 rounded-2xl border border-gray-200 shadow-xs">
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-700 tracking-wider">
+                      <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
                         {activeOrderTarget.type === 'delivery'
                           ? 'Cliente y Dirección (*Obligatorio):'
                           : activeOrderTarget.type === 'pickup'
@@ -776,12 +776,12 @@ export const MeseroPage: React.FC = () => {
                             ? 'Ej: Juan Pérez / Calle 5 #10-20'
                             : 'Ej: Juan Pérez'
                         }
-                        className="w-full px-2.5 py-1 text-xs bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 font-bold mt-0.5"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-bold mt-1 shadow-2xs"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-700 tracking-wider">
+                      <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
                         Nota de cocina / Observación general:
                       </label>
                       <input
@@ -789,31 +789,31 @@ export const MeseroPage: React.FC = () => {
                         value={kitchenNotes}
                         onChange={(e) => setKitchenNotes(e.target.value)}
                         placeholder="Ej: Servir todo junto, sin cubiertos..."
-                        className="w-full px-2.5 py-1 text-xs bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 font-semibold mt-0.5"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-semibold mt-1 shadow-2xs"
                       />
                     </div>
 
                     {/* Delivery Fee Selector (only for delivery) */}
                     {activeOrderTarget.type === 'delivery' && (
-                      <div className="pt-1.5 border-t border-gray-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-black uppercase text-gray-700">
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black uppercase text-gray-800">
                             Costo de Envío Delivery:
                           </span>
-                          <span className="text-xs font-black text-black">
+                          <span className="text-sm font-black text-black bg-yellow-400 px-2 py-0.5 rounded-lg border border-yellow-500">
                             ${deliveryFeeUSD.toFixed(2)} USD
                           </span>
                         </div>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5">
                           {[1, 1.5, 2, 2.5, 3, 4, 5].map((fee) => (
                             <button
                               key={fee}
                               type="button"
                               onClick={() => setDeliveryFeeUSD(fee)}
-                              className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-all ${
+                              className={`px-3 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer ${
                                 deliveryFeeUSD === fee
-                                  ? 'bg-yellow-400 border-yellow-500 text-black shadow-xs font-black'
-                                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100'
+                                  ? 'bg-yellow-400 border-yellow-500 text-black shadow-xs font-black scale-[1.03]'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
                               }`}
                             >
                               ${fee}
@@ -825,16 +825,16 @@ export const MeseroPage: React.FC = () => {
                   </div>
 
                   {/* Cart Items List */}
-                  <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 min-h-[140px]">
-                    <div className="flex items-center justify-between text-[11px] font-black uppercase text-gray-500 px-1">
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[140px]">
+                    <div className="flex items-center justify-between text-xs font-black uppercase text-gray-600 px-1">
                       <span>Ítems Agregados ({cartItems.reduce((s, i) => s + i.quantity, 0)})</span>
                       <span>Total</span>
                     </div>
 
                     {cartItems.length === 0 ? (
-                      <div className="h-28 flex flex-col items-center justify-center text-center text-gray-400 text-xs border border-dashed border-gray-300 rounded-xl bg-white/60">
-                        <span>El carrito está vacío</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">
+                      <div className="h-32 flex flex-col items-center justify-center text-center text-gray-400 text-sm border border-dashed border-gray-300 rounded-2xl bg-white/60 p-3">
+                        <span className="font-bold">El carrito está vacío</span>
+                        <span className="text-xs text-gray-400 mt-1">
                           Toca un ítem del catálogo para agregarlo
                         </span>
                       </div>
@@ -842,57 +842,57 @@ export const MeseroPage: React.FC = () => {
                       cartItems.map((item) => (
                         <div
                           key={item.id}
-                          className="p-2 rounded-xl bg-white border border-gray-200 shadow-xs flex flex-col gap-1"
+                          className="p-3 rounded-2xl bg-white border border-gray-200 shadow-xs flex flex-col gap-1.5"
                         >
-                          <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-start justify-between gap-1.5">
                             <div>
-                              <span className="text-xs font-black text-gray-900 block leading-tight">
+                              <span className="text-sm sm:text-base font-black text-gray-950 block leading-tight">
                                 {item.productName}
                               </span>
-                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {item.isTakeaway && (
-                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 rounded inline-block">
+                                  <span className="text-[11px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md inline-block">
                                     📦 Para Llevar
                                   </span>
                                 )}
                                 {(item.isCut || item.cutPreference === 'Picada') ? (
-                                  <span className="text-[9px] font-bold text-red-700 bg-red-50 px-1 rounded inline-block">
+                                  <span className="text-[11px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
                                     🔪 Picada
                                   </span>
                                 ) : (
-                                  <span className="text-[9px] font-bold text-gray-600 bg-gray-100 px-1 rounded inline-block">
+                                  <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md inline-block">
                                     🍔 Entera
                                   </span>
                                 )}
                               </div>
                             </div>
 
-                            <span className="text-xs font-black text-black shrink-0">
+                            <span className="text-sm sm:text-base font-black text-black shrink-0">
                               ${(item.price * item.quantity).toFixed(2)}
                             </span>
                           </div>
 
                           {/* Proteins (Tarea 3) */}
                           {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
-                            <div className="text-[10px] text-amber-800 font-extrabold bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 inline-block">
+                            <div className="text-xs text-amber-950 font-black bg-yellow-100 px-2 py-0.5 rounded-lg border border-yellow-300 inline-block">
                               🥩 {item.proteins.join(' + ')}
                             </div>
                           )}
 
                           {/* Removed ingredients (SIN) */}
                           {item.removedIngredients && item.removedIngredients.length > 0 && (
-                            <div className="text-[10px] text-red-600 font-bold">
+                            <div className="text-xs text-red-600 font-bold">
                               🚫 SIN: {formatRemovedIngredients(item.removedIngredients).join(', ')}
                             </div>
                           )}
 
                           {/* Extra ingredients (ADD) */}
                           {item.extras && item.extras.length > 0 && (
-                            <div className="text-[10px] text-gray-700 font-semibold space-y-0.5">
+                            <div className="text-xs text-gray-800 font-bold space-y-0.5">
                               {item.extras.map((ex, exIdx) => (
                                 <div key={exIdx} className="flex justify-between">
                                   <span>➕ ADD: {ex.name}</span>
-                                  {ex.price > 0 && <span>+${ex.price.toFixed(2)}</span>}
+                                  {ex.price > 0 && <span className="font-black text-emerald-700">+${ex.price.toFixed(2)}</span>}
                                 </div>
                               ))}
                             </div>
@@ -900,33 +900,33 @@ export const MeseroPage: React.FC = () => {
 
                           {/* Sugar preference */}
                           {item.sugarPreference && (
-                            <div className="text-[10px] text-blue-600 font-semibold">
+                            <div className="text-xs text-blue-700 font-bold">
                               🥤 Azúcar: {item.sugarPreference}
                             </div>
                           )}
 
                           {/* Item Note */}
                           {getCleanItemNote(item.notes) && (
-                            <div className="text-[10px] text-gray-500 italic">
+                            <div className="text-xs text-gray-600 italic">
                               📝 Nota: {getCleanItemNote(item.notes)}
                             </div>
                           )}
 
                           {/* Quantity Controls & Remove */}
-                          <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-0.5">
-                            <div className="flex items-center border border-gray-300 rounded bg-gray-50">
+                          <div className="flex items-center justify-between pt-1.5 border-t border-gray-100 mt-1">
+                            <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden shadow-2xs">
                               <button
                                 type="button"
                                 onClick={() => updateCartItemQuantity(item.id, -1)}
-                                className="px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200"
+                                className="px-3 py-1 text-sm font-black text-gray-800 hover:bg-gray-200 transition-colors cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="px-2 text-xs font-bold">{item.quantity}</span>
+                              <span className="px-3 text-sm font-black text-black">{item.quantity}</span>
                               <button
                                 type="button"
                                 onClick={() => updateCartItemQuantity(item.id, 1)}
-                                className="px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200"
+                                className="px-3 py-1 text-sm font-black text-gray-800 hover:bg-gray-200 transition-colors cursor-pointer"
                               >
                                 +
                               </button>
@@ -935,10 +935,10 @@ export const MeseroPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => removeCartItem(item.id)}
-                              className="text-gray-400 hover:text-red-600 p-1 transition-colors"
+                              className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
                               title="Eliminar este ítem"
                             >
-                              <IoTrashOutline className="text-sm" />
+                              <IoTrashOutline className="text-base" />
                             </button>
                           </div>
                         </div>
@@ -949,26 +949,26 @@ export const MeseroPage: React.FC = () => {
 
                 {/* Cart Footer: Totals & Submit Button */}
                 <div className="pt-2 border-t border-gray-200 shrink-0 space-y-2 mt-2">
-                  <div className="bg-white p-2 rounded-xl border border-gray-200 space-y-0.5">
-                    <div className="flex justify-between text-xs font-bold text-gray-600">
+                  <div className="bg-white p-3 rounded-2xl border border-gray-200 space-y-1 shadow-xs">
+                    <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-600">
                       <span>Subtotal Ítems:</span>
-                      <span>${itemsSubtotalUSD.toFixed(2)} USD</span>
+                      <span className="text-black font-black">${itemsSubtotalUSD.toFixed(2)} USD</span>
                     </div>
 
                     {activeOrderTarget.type === 'delivery' && (
-                      <div className="flex justify-between text-xs font-bold text-gray-600">
+                      <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-600">
                         <span>Costo Delivery:</span>
-                        <span>+${deliveryFeeUSD.toFixed(2)} USD</span>
+                        <span className="text-black font-black">+${deliveryFeeUSD.toFixed(2)} USD</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between items-baseline pt-1 border-t border-gray-100">
-                      <span className="text-xs font-black text-gray-900 uppercase">Total a Pagar:</span>
+                    <div className="flex justify-between items-baseline pt-1.5 border-t border-gray-100">
+                      <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">Total a Pagar:</span>
                       <div className="text-right">
-                        <span className="text-lg font-black text-black block leading-none">
+                        <span className="text-xl sm:text-2xl font-black text-black block leading-none">
                           ${cartTotalUSD.toFixed(2)} USD
                         </span>
-                        <span className="text-[10px] text-gray-500 font-bold">
+                        <span className="text-xs text-gray-600 font-bold block mt-1">
                           ≈ ${(cartTotalUSD * exchangeRates.COP).toLocaleString()} COP | {(cartTotalUSD * exchangeRates.Bs).toFixed(2)} Bs
                         </span>
                       </div>
@@ -976,13 +976,13 @@ export const MeseroPage: React.FC = () => {
                   </div>
 
                   {/* Selector de Impresora al Enviar Pedido */}
-                  <div className="pt-2 border-t border-gray-200 space-y-1">
+                  <div className="pt-2 border-t border-gray-200 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
-                        <IoPrintOutline className="text-xs text-yellow-600" />
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                        <IoPrintOutline className="text-sm text-yellow-600" />
                         <span>Imprimir Comanda:</span>
                       </span>
-                      <span className="text-[9px] font-bold text-gray-500">
+                      <span className="text-[11px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-lg">
                         {targetPrinter === 'cocina'
                           ? 'Cocina (80mm LAN)'
                           : targetPrinter === 'caja'
@@ -992,7 +992,7 @@ export const MeseroPage: React.FC = () => {
                           : 'Sin ticket'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {[
                         { id: 'cocina', label: '🍳 Cocina' },
                         { id: 'caja', label: '💳 Caja' },
@@ -1003,10 +1003,10 @@ export const MeseroPage: React.FC = () => {
                           key={p.id}
                           type="button"
                           onClick={() => setTargetPrinter(p.id as any)}
-                          className={`py-1.5 px-1 rounded-lg text-[10px] font-black text-center transition-all border cursor-pointer ${
+                          className={`py-2 px-1 rounded-xl text-xs font-black text-center transition-all border cursor-pointer ${
                             targetPrinter === p.id
-                              ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black'
-                              : 'bg-stone-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                              ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black scale-[1.02]'
+                              : 'bg-stone-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                           }`}
                         >
                           {p.label}
@@ -1019,13 +1019,13 @@ export const MeseroPage: React.FC = () => {
                     type="button"
                     disabled={cartItems.length === 0 || isSubmittingOrder}
                     onClick={handleSubmitOrder}
-                    className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                    className={`w-full py-3.5 rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer ${
                       cartItems.length === 0 || isSubmittingOrder
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 active:scale-[0.99]'
+                        : 'bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-[0.99]'
                     }`}
                   >
-                    <IoPaperPlane className="text-sm" />
+                    <IoPaperPlane className="text-base" />
                     <span>{isSubmittingOrder ? 'ENVIANDO COMANDA...' : 'ENVIAR A COCINA & CAJA'}</span>
                   </button>
                 </div>

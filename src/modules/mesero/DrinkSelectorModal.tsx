@@ -61,22 +61,22 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-sm w-full border border-gray-200 shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+      <div className="bg-white rounded-2xl max-w-md w-full border border-gray-200 shadow-2xl flex flex-col overflow-hidden">
         {/* Header con las 3 monedas */}
-        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+        <div className="bg-gray-50 px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
-              <span>🥤</span> {drink.name}
+            <h3 className="font-black text-base sm:text-lg text-gray-950 flex items-center gap-2">
+              <span className="text-xl">🥤</span> {drink.name}
             </h3>
-            <div className="flex flex-wrap items-center gap-1 mt-1">
-              <span className="text-[10px] font-black text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500">
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              <span className="text-xs font-black text-black bg-yellow-400 px-2 py-0.5 rounded-lg border border-yellow-500 shadow-2xs">
                 ${drink.price.toFixed(2)} USD
               </span>
-              <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-lg border border-gray-200">
                 ${roundCOP(drink.price * copRate).toLocaleString()} COP
               </span>
-              <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-lg border border-gray-200">
                 {(drink.price * bsRate).toFixed(2)} Bs
               </span>
             </div>
@@ -84,38 +84,38 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 transition-colors"
+            className="p-1.5 rounded-xl hover:bg-gray-200 text-gray-600 transition-colors cursor-pointer border border-gray-200"
           >
-            <IoClose className="text-xl" />
+            <IoClose className="text-2xl" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4">
           {/* Quantity & Takeaway */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-700">Cantidad:</span>
-              <div className="flex items-center border border-gray-300 rounded-lg bg-white">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-200">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs sm:text-sm font-black text-gray-800">Cantidad:</span>
+              <div className="flex items-center border border-gray-300 rounded-xl bg-white overflow-hidden shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="p-1.5 hover:bg-gray-100 text-gray-700"
+                  className="px-3 py-1.5 hover:bg-gray-100 text-gray-800 font-black text-sm cursor-pointer"
                 >
-                  <IoRemove className="text-xs" />
+                  <IoRemove />
                 </button>
-                <span className="px-3 text-xs font-black">{quantity}</span>
+                <span className="px-3 text-sm sm:text-base font-black text-black">{quantity}</span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="p-1.5 hover:bg-gray-100 text-gray-700"
+                  className="px-3 py-1.5 hover:bg-gray-100 text-gray-800 font-black text-sm cursor-pointer"
                 >
-                  <IoAdd className="text-xs" />
+                  <IoAdd />
                 </button>
               </div>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+            <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-black text-gray-800">
               <input
                 type="checkbox"
                 checked={isTakeaway}
@@ -129,19 +129,19 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
           {/* Sugar Preference for Fresh Juices */}
           {isJugo && (
             <div>
-              <label className="block text-[11px] font-black uppercase text-gray-700 tracking-wider mb-1.5">
+              <label className="block text-xs font-black uppercase text-gray-800 tracking-wider mb-2">
                 Preferencia de Azúcar:
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-2">
                 {SUGAR_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     onClick={() => setSugarPreference(opt)}
-                    className={`py-2 px-1 text-center rounded-lg text-xs font-bold transition-all border ${
+                    className={`py-2.5 px-2 text-center rounded-xl text-xs sm:text-sm font-black transition-all border cursor-pointer ${
                       sugarPreference === opt
-                        ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs'
-                        : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                        ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
+                        : 'bg-stone-50 text-gray-800 border-gray-200 hover:bg-gray-100'
                     }`}
                   >
                     {opt}
@@ -153,7 +153,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block text-[11px] font-black uppercase text-gray-700 tracking-wider mb-1">
+            <label className="block text-xs font-black uppercase text-gray-800 tracking-wider mb-1.5">
               Indicaciones especiales:
             </label>
             <input
@@ -161,21 +161,21 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Ej: Con hielo, bien frío..."
-              className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 font-semibold"
+              className="w-full px-3.5 py-2 text-sm bg-stone-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 font-bold shadow-2xs"
             />
           </div>
         </div>
 
         {/* Footer con las 3 monedas */}
-        <div className="p-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
+        <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2.5">
           <div>
-            <span className="text-[10px] text-gray-500 block uppercase font-bold">Total:</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-base font-black text-black">${totalPrice.toFixed(2)} USD</span>
-              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+            <span className="text-[11px] text-gray-500 block uppercase font-bold">Total a sumar:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-lg sm:text-xl font-black text-black">${totalPrice.toFixed(2)} USD</span>
+              <span className="text-xs font-bold text-gray-700 bg-white px-2 py-0.5 rounded-lg border border-gray-200">
                 ${roundCOP(totalPrice * copRate).toLocaleString()} COP
               </span>
-              <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+              <span className="text-xs font-bold text-gray-700 bg-white px-2 py-0.5 rounded-lg border border-gray-200">
                 {(totalPrice * bsRate).toFixed(2)} Bs
               </span>
             </div>
@@ -185,16 +185,16 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 flex items-center gap-1 shadow-sm transition-all active:scale-[0.98]"
+              className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
             >
-              <IoCheckmark className="text-base" />
+              <IoCheckmark className="text-lg" />
               <span>AGREGAR ({quantity})</span>
             </button>
           </div>

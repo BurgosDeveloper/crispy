@@ -383,20 +383,20 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                     return (
                       <div
                         key={it.id}
-                        className={`p-2 rounded-xl border text-xs flex items-center justify-between gap-2 transition-all ${
+                        className={`p-2.5 rounded-xl border text-xs sm:text-sm flex items-center justify-between gap-2 transition-all ${
                           isRemoved
                             ? 'bg-red-50 border-red-300 text-red-700 line-through opacity-60'
                             : 'bg-white border-gray-200 text-gray-800 shadow-xs'
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="font-black text-black truncate flex items-center gap-1.5">
+                          <div className="font-black text-black truncate flex items-center gap-1.5 text-xs sm:text-sm">
                             <span>{it.quantity}x {it.productName}</span>
-                            <span className="text-[8px] font-bold text-gray-400 uppercase bg-gray-100 px-1.5 py-0.5 rounded">
+                            <span className="text-[9px] font-bold text-gray-500 uppercase bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
                               ✓ En Comanda
                             </span>
                           </div>
-                          <div className="text-[10px] text-gray-500 font-semibold">
+                          <div className="text-xs text-gray-600 font-bold mt-0.5">
                             ${((it.price || 0) * (it.quantity || 1)).toFixed(2)} USD
                           </div>
                         </div>
@@ -404,14 +404,14 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleToggleRemoveExistingItem(it.id)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
+                          className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
                             isRemoved
                               ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                           }`}
                           title={isRemoved ? 'Restaurar ítem' : 'Remover ítem de la comanda'}
                         >
-                          <IoTrashOutline className="text-sm" />
+                          <IoTrashOutline className="text-base" />
                         </button>
                       </div>
                     );
@@ -419,23 +419,23 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                 </div>
 
                 {/* 2. Canasta de Nuevos Ítems a Adicionar */}
-                <div className="space-y-1.5 pt-2 border-t border-gray-200">
+                <div className="space-y-2 pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-yellow-900 flex items-center gap-1">
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-yellow-950 flex items-center gap-1">
                       <span>✨</span>
                       <span>Nuevos Ítems a Adicionar ({itemsToAdd.reduce((s, i) => s + i.quantity, 0)}):</span>
                     </span>
                     {itemsToAdd.length > 0 && (
-                      <span className="text-xs font-black text-emerald-700">
+                      <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                         +${addedSubtotalUSD.toFixed(2)} USD
                       </span>
                     )}
                   </div>
 
                   {itemsToAdd.length === 0 ? (
-                    <div className="p-4 rounded-xl border-2 border-dashed border-gray-300 bg-white text-center text-xs font-bold text-gray-400 space-y-1">
+                    <div className="p-4 rounded-2xl border-2 border-dashed border-gray-300 bg-white text-center text-xs sm:text-sm font-bold text-gray-400 space-y-1">
                       <p>No has agregado nuevos productos todavía.</p>
-                      <p className="text-[10px] text-gray-500">
+                      <p className="text-xs text-gray-400">
                         Toca una hamburguesa o bebida del catálogo para sumarla a esta comanda.
                       </p>
                     </div>
@@ -449,14 +449,14 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                         return (
                           <div
                             key={item.id}
-                            className="p-2.5 rounded-xl bg-white border-2 border-yellow-300 shadow-xs space-y-1.5"
+                            className="p-3 rounded-2xl bg-white border-2 border-yellow-400 shadow-xs space-y-2"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-black text-xs text-black">{item.productName}</span>
+                                  <span className="font-black text-xs sm:text-sm text-black">{item.productName}</span>
                                   <span
-                                    className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
                                       isKitchen
                                         ? 'bg-red-100 text-red-800 border border-red-200'
                                         : 'bg-blue-100 text-blue-800 border border-blue-200'
@@ -465,21 +465,21 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                     {isKitchen ? '🔥 COCINA' : '🥤 BARRA'}
                                   </span>
                                   {item.cutPreference === 'Picada' && (
-                                    <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1 rounded">
+                                    <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded">
                                       🔪 Picada
                                     </span>
                                   )}
                                   {item.isTakeaway && (
-                                    <span className="text-[8px] font-bold text-amber-700 bg-amber-50 px-1 rounded">
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 rounded">
                                       📦 Llevar
                                     </span>
                                   )}
                                 </div>
 
                                 {/* Modificadores */}
-                                <div className="text-[10px] text-gray-500 space-y-0.5 mt-0.5">
+                                <div className="text-xs text-gray-600 space-y-0.5 mt-1 font-semibold">
                                   {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
-                                    <div>🥩 {item.proteins.join(' + ')}</div>
+                                    <div className="text-amber-900 font-bold">🥩 {item.proteins.join(' + ')}</div>
                                   )}
                                   {item.removedIngredients && item.removedIngredients.length > 0 && (
                                     <div className="text-red-600 font-bold">
@@ -487,40 +487,40 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                     </div>
                                   )}
                                   {item.extras && item.extras.length > 0 && (
-                                    <div className="text-gray-700 font-bold">
+                                    <div className="text-gray-800 font-bold">
                                       {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
                                     </div>
                                   )}
                                   {getCleanItemNote(item.notes) && (
-                                    <div className="italic text-gray-600">"{getCleanItemNote(item.notes)}"</div>
+                                    <div className="italic text-gray-500">"{getCleanItemNote(item.notes)}"</div>
                                   )}
                                 </div>
                               </div>
 
                               <div className="text-right shrink-0">
-                                <span className="text-xs font-black text-black">
+                                <span className="text-xs sm:text-sm font-black text-black">
                                   ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                                 </span>
                               </div>
                             </div>
 
                             {/* Controles de Cantidad y Eliminar */}
-                            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                              <div className="flex items-center border border-gray-300 rounded-lg bg-stone-50 overflow-hidden">
+                            <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                              <div className="flex items-center border border-gray-300 rounded-xl bg-stone-50 overflow-hidden">
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateAddedQuantity(idx, -1)}
-                                  className="px-2 py-0.5 hover:bg-gray-200 text-black font-black text-xs cursor-pointer"
+                                  className="px-2.5 py-1 hover:bg-gray-200 text-black font-black text-xs cursor-pointer"
                                 >
                                   <IoRemove />
                                 </button>
-                                <span className="px-2.5 py-0.5 text-xs font-black text-black min-w-[1.5rem] text-center">
+                                <span className="px-3 py-1 text-xs sm:text-sm font-black text-black min-w-[1.5rem] text-center">
                                   {item.quantity}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateAddedQuantity(idx, 1)}
-                                  className="px-2 py-0.5 hover:bg-gray-200 text-black font-black text-xs cursor-pointer"
+                                  className="px-2.5 py-1 hover:bg-gray-200 text-black font-black text-xs cursor-pointer"
                                 >
                                   <IoAdd />
                                 </button>
@@ -529,7 +529,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleRemoveAddedItem(idx)}
-                                className="p-1 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                                 title="Eliminar ítem agregado"
                               >
                                 <IoTrashOutline className="text-base" />
@@ -544,7 +544,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
               </div>
 
               {/* AVISO DE IMPRESIÓN TÉRMICA SELECTIVA */}
-              <div className="p-2 rounded-xl bg-amber-50/80 border border-yellow-300 text-[10px] text-yellow-950 font-bold flex items-center gap-2 shrink-0">
+              <div className="p-2.5 rounded-xl bg-amber-50/80 border border-yellow-300 text-xs text-yellow-950 font-bold flex items-center gap-2 shrink-0">
                 <IoPrintOutline className="text-base text-yellow-700 shrink-0" />
                 <span>
                   {hasKitchenItemsToAdd ? (
@@ -557,32 +557,32 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
             </div>
 
             {/* TOTALES DE LA ADICIÓN Y BOTONES DE ACCIÓN */}
-            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-xs space-y-2 shrink-0 mt-2">
-              <div className="flex items-baseline justify-between font-bold text-xs text-gray-600">
+            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-xs space-y-2.5 shrink-0 mt-2">
+              <div className="flex items-baseline justify-between font-bold text-xs sm:text-sm text-gray-600">
                 <span>Actual: ${currentSubtotalUSD.toFixed(2)}</span>
                 <span>+ Adición: <strong className="text-yellow-700 font-black">+${addedSubtotalUSD.toFixed(2)}</strong></span>
               </div>
 
-              <div className="flex items-baseline justify-between pt-1 border-t border-gray-100">
-                <span className="text-xs font-black text-gray-800 uppercase">Nuevo Total:</span>
+              <div className="flex items-baseline justify-between pt-1.5 border-t border-gray-100">
+                <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">Nuevo Total:</span>
                 <div className="text-right">
-                  <span className="text-xl font-black text-black">
+                  <span className="text-xl sm:text-2xl font-black text-black">
                     ${newTotalUSD.toFixed(2)} <span className="text-xs font-bold text-gray-500">USD</span>
                   </span>
-                  <div className="text-[11px] font-bold text-gray-600">
+                  <div className="text-xs font-bold text-gray-600 mt-0.5">
                     🇨🇴 ${roundCOP(newTotalUSD * copRate).toLocaleString()} COP • 🇻🇪 {(newTotalUSD * bsRate).toFixed(2)} Bs
                   </div>
                 </div>
               </div>
 
               {/* Selector de Impresora al Adicionar */}
-              <div className="pt-2 border-t border-gray-100 space-y-1">
+              <div className="pt-2 border-t border-gray-100 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
-                    <IoPrintOutline className="text-xs text-yellow-600" />
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                    <IoPrintOutline className="text-sm text-yellow-600" />
                     <span>Imprimir Adición en:</span>
                   </span>
-                  <span className="text-[9px] font-bold text-gray-500">
+                  <span className="text-[11px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-lg">
                     {targetPrinter === 'cocina'
                       ? 'Cocina (80mm LAN)'
                       : targetPrinter === 'caja'
@@ -592,7 +592,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                       : 'Sin ticket'}
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   {[
                     { id: 'cocina', label: '🍳 Cocina' },
                     { id: 'caja', label: '💳 Caja' },
@@ -603,10 +603,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                       key={p.id}
                       type="button"
                       onClick={() => setTargetPrinter(p.id as any)}
-                      className={`py-1.5 px-1 rounded-lg text-[10px] font-black text-center transition-all border cursor-pointer ${
+                      className={`py-2 px-1 rounded-xl text-xs font-black text-center transition-all border cursor-pointer ${
                         targetPrinter === p.id
-                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black'
-                          : 'bg-stone-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black scale-[1.02]'
+                          : 'bg-stone-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
                       {p.label}
@@ -619,7 +619,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 font-black text-xs transition-colors border border-gray-300 cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-gray-800 font-black text-xs sm:text-sm transition-colors border border-gray-300 cursor-pointer"
                 >
                   CANCELAR
                 </button>
@@ -627,9 +627,9 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   type="button"
                   onClick={handleSaveAppend}
                   disabled={isSubmitting || (itemsToAdd.length === 0 && removedItemIds.length === 0)}
-                  className="flex-[2] py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className="flex-[2] py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <IoCheckmarkCircle className="text-base" />
+                  <IoCheckmarkCircle className="text-lg" />
                   <span>
                     {isSubmitting
                       ? 'GUARDANDO...'

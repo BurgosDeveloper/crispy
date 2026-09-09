@@ -140,20 +140,20 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         {/* Header Plano Crispy */}
         <div className="bg-white border-b border-gray-200 text-black p-4 sm:p-5 flex items-center justify-between shadow-xs shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-yellow-100 border border-yellow-300 flex items-center justify-center font-black shrink-0 text-black">
-              <IoReceiptOutline size={24} />
+            <div className="w-12 h-12 rounded-2xl bg-yellow-100 border border-yellow-300 flex items-center justify-center font-black shrink-0 text-black">
+              <IoReceiptOutline size={26} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg sm:text-xl font-black tracking-tight text-black">
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-black">
                   {isSelectableMode ? 'Seleccionar Productos a Cobrar' : `Comanda #${cleanOrderNumber}`}
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-yellow-400 border border-yellow-500 text-[11px] font-black uppercase text-black tracking-wider shadow-xs">
+                <span className="px-3 py-1 rounded-xl bg-yellow-400 border border-yellow-500 text-xs font-black uppercase text-black tracking-wider shadow-xs">
                   {order.type === 'mesa' ? `Mesa #${order.tableNumber}` : order.type}
                 </span>
                 {/* Badges de Estado */}
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase border flex items-center gap-1 ${
                     isDelivered
                       ? 'bg-blue-100 text-blue-900 border-blue-300'
                       : isPrepared
@@ -164,7 +164,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   {isDelivered ? '📦 ENTREGADA' : isPrepared ? '🔥 LISTA' : '⏳ EN COCINA'}
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase border ${
                     isPaid
                       ? 'bg-green-100 text-green-900 border-green-300'
                       : isCredito
@@ -175,9 +175,9 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   {isPaid ? '💳 PAGADO' : isCredito ? '⚠️ A CRÉDITO' : '❌ PENDIENTE PAGO'}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-xs font-bold text-gray-600 mt-0.5 flex-wrap">
+              <div className="flex items-center gap-3 text-xs sm:text-sm font-bold text-gray-700 mt-1 flex-wrap">
                 <span className="flex items-center gap-1">
-                  <IoPersonOutline className="text-sm" />
+                  <IoPersonOutline className="text-base" />
                   <span>Cliente: {order.customerName || (order.type === 'mesa' ? `Mesa #${order.tableNumber}` : 'Cliente General')}</span>
                 </span>
                 {order.createdAt && (
@@ -190,10 +190,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-300 flex items-center justify-center text-gray-700 transition-all cursor-pointer shrink-0 ml-2"
+            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-300 flex items-center justify-center text-gray-700 transition-all cursor-pointer shrink-0 ml-2"
             title="Cerrar ventana"
           >
-            <IoClose size={20} />
+            <IoClose size={22} />
           </button>
         </div>
 
@@ -210,7 +210,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
           {/* List of Items */}
           <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 px-1">
+            <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-700 px-1">
               PRODUCTOS DEL PEDIDO ({order.items.length})
             </h4>
             {order.items.map((item, index) => {
@@ -252,33 +252,33 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       )}
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-950 font-black text-xs">
+                          <span className="px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 font-black text-xs sm:text-sm">
                             {item.quantity}x
                           </span>
-                          <span className="font-black text-slate-900 text-sm sm:text-base">
+                          <span className="font-black text-slate-900 text-base sm:text-lg">
                             {item.productName}
                           </span>
                           {item.size && (
-                            <span className="text-xs font-black px-2 py-0.5 rounded-md bg-sky-100 border border-sky-300 text-sky-900">
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-sky-100 border border-sky-300 text-sky-900">
                               {item.size}
                             </span>
                           )}
                           {isPaidIndividually && (
-                            <span className="text-xs font-black px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-900">
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900">
                               ✅ Pagado por {item.paidByName || 'Cliente'}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <span className="font-black text-sm sm:text-base text-emerald-700 shrink-0">
+                    <span className="font-black text-base sm:text-lg text-emerald-700 shrink-0">
                       ${itemTotal.toFixed(2)}
                     </span>
                   </div>
 
                   {/* Half and half details */}
                   {item.isHalfHalf && item.halfDetails && (
-                    <div className="mt-2.5 pl-3 border-l-4 border-amber-500 bg-amber-50/90 rounded-r-xl p-2.5 space-y-1 text-xs text-slate-900">
+                    <div className="mt-2.5 pl-3 border-l-4 border-amber-500 bg-amber-50/90 rounded-r-xl p-2.5 space-y-1 text-xs sm:text-sm text-slate-900">
                       <div>
                         <span className="font-black text-amber-900">🍕 1ra Mitad:</span> <span className="font-bold text-slate-900">{item.halfDetails.half1Name || 'Mitad 1'}</span>
                         {item.halfDetails.half1Removed && item.halfDetails.half1Removed.length > 0 && (
@@ -312,17 +312,17 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   {!item.isHalfHalf && (
                     <>
                       {item.proteins && item.proteins.length > 0 && !areProteinsDefault(item.productName, item.proteins) && (
-                        <div className="text-xs font-black pl-2 mt-1 text-amber-800 bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-200 inline-block">
+                        <div className="text-xs sm:text-sm font-black pl-2 mt-1.5 text-amber-900 bg-yellow-100 px-2.5 py-0.5 rounded-lg border border-yellow-300 inline-block">
                           🥩 Proteína(s): {item.proteins.join(' + ')}
                         </div>
                       )}
                       {item.removedIngredients && item.removedIngredients.length > 0 && (
-                        <div className="text-xs font-bold pl-2 mt-1 text-red-600">
+                        <div className="text-xs sm:text-sm font-bold pl-2 mt-1 text-red-600">
                           🚫 Sin: {formatRemovedIngredients(item.removedIngredients).join(', ')}
                         </div>
                       )}
                       {item.extras && item.extras.length > 0 && (
-                        <div className="text-xs font-bold pl-2 mt-1 text-emerald-700">
+                        <div className="text-xs sm:text-sm font-bold pl-2 mt-1 text-emerald-700">
                           {item.category && item.category !== 'Pizzas' && item.category !== 'Hamburguesas' ? '🥗 Contorno(s):' : '➕ ADD:'} {item.extras.map(e => `${e.name}${e.price > 0 ? ` (+$${e.price.toFixed(2)})` : ''}`).join(', ')}
                         </div>
                       )}
@@ -330,13 +330,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   )}
 
                   {item.sugarPreference && (
-                    <div className="text-xs font-black pl-2 mt-1 text-sky-800">
+                    <div className="text-xs sm:text-sm font-black pl-2 mt-1 text-sky-800">
                       🥤 Preferencia: {item.sugarPreference}
                     </div>
                   )}
 
                   {getCleanItemNote(item.notes) && (
-                    <div className="text-xs font-semibold italic pl-2 mt-1 text-slate-600">
+                    <div className="text-xs sm:text-sm font-semibold italic pl-2 mt-1 text-slate-600">
                       📝 Nota: "{getCleanItemNote(item.notes)}"
                     </div>
                   )}
@@ -348,12 +348,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             {order.type === 'delivery' && (order.deliveryFeeUSD || 0) > 0 && (
               <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-lg bg-sky-100 border border-sky-300 text-sky-900 font-black text-xs flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-xl bg-sky-100 border border-sky-300 text-sky-900 font-black text-xs sm:text-sm flex items-center gap-1">
                     <IoBicycleOutline /> 1x
                   </span>
-                  <span className="font-black text-slate-900 text-sm sm:text-base">Servicio Delivery</span>
+                  <span className="font-black text-slate-900 text-base sm:text-lg">Servicio Delivery</span>
                 </div>
-                <span className="font-black text-sm sm:text-base text-emerald-700">
+                <span className="font-black text-base sm:text-lg text-emerald-700">
                   ${order.deliveryFeeUSD!.toFixed(2)}
                 </span>
               </div>
@@ -362,7 +362,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
           {/* Kitchen notes */}
           {order.kitchenNotes && (
-            <div className="p-3 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs shadow-xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs sm:text-sm shadow-xs">
               <span className="font-black uppercase tracking-wider block mb-1 text-amber-900">
                 📝 Observaciones Generales de Cocina:
               </span>
@@ -371,37 +371,37 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           )}
 
           {/* Resumen Financiero Claro y Limpio con 3 Monedas */}
-          <div className="p-4 rounded-2xl bg-amber-50/40 border border-yellow-300 space-y-2 shadow-xs">
-            <div className="flex justify-between text-xs font-bold text-gray-600">
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/40 border border-yellow-300 space-y-2 shadow-xs">
+            <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-700">
               <span>Subtotal Productos:</span>
               <span className="text-black font-black">${((order.totalUSD || 0) - (order.deliveryFeeUSD || 0)).toFixed(2)} USD</span>
             </div>
             {order.deliveryFeeUSD ? (
-              <div className="flex justify-between text-xs font-bold text-gray-600">
+              <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-700">
                 <span>Servicio Delivery:</span>
                 <span className="text-black font-black">+${order.deliveryFeeUSD.toFixed(2)} USD</span>
               </div>
             ) : null}
-            <div className="border-t border-yellow-200 pt-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="border-t border-yellow-200 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
-                <span className="font-black text-xs uppercase text-gray-600 block">
+                <span className="font-black text-xs sm:text-sm uppercase text-gray-700 block">
                   Total de la Comanda:
                 </span>
                 <div className="text-2xl sm:text-3xl font-black text-black tracking-tight flex items-center gap-2">
                   <span>${totalUSD.toFixed(2)}</span>
-                  <span className="text-xs font-black uppercase text-black bg-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500 shadow-xs">USD</span>
+                  <span className="text-xs sm:text-sm font-black uppercase text-black bg-yellow-400 px-2 py-0.5 rounded-lg border border-yellow-500 shadow-xs">USD</span>
                   {paidAmountUSD > 0 && !isPaid && (
-                    <span className="text-xs font-extrabold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg">
+                    <span className="text-xs sm:text-sm font-extrabold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg">
                       Pagado: ${paidAmountUSD.toFixed(2)} | Debe: ${remainingUSD.toFixed(2)}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-black text-gray-800 bg-white border border-gray-300 px-2.5 py-1 rounded-xl shadow-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-gray-800 bg-white border border-gray-300 px-3 py-1 rounded-xl shadow-xs">
                   🇨🇴 {totalCOP.toLocaleString()} COP
                 </span>
-                <span className="text-xs font-black text-gray-800 bg-white border border-gray-300 px-2.5 py-1 rounded-xl shadow-xs">
+                <span className="text-xs sm:text-sm font-black text-gray-800 bg-white border border-gray-300 px-3 py-1 rounded-xl shadow-xs">
                   🇻🇪 {totalBs} Bs
                 </span>
               </div>
