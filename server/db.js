@@ -219,7 +219,7 @@ async function initDb() {
         ('prod-agua-mineral', 'Agua Mineral', 'Bebidas', 'agua', 1.00, 'Agua mineral embotellada bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-granizado', 'Granizado', 'Bebidas', 'jugo', 1.50, 'Bebida granizada natural refrescante.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
         ('prod-lata', 'Lata', 'Bebidas', 'refresco', 1.50, 'Refresco en lata 355ml bien frío surtido.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos')
-        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, category = EXCLUDED.category, protein_count = EXCLUDED.protein_count, default_proteins = EXCLUDED.default_proteins;`,
+        ON CONFLICT (id) DO NOTHING;`,
 
       `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, shift) VALUES
         ('prod-racion-papas', 'Ración de Papas', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['Papas fritas', 'Sal'], 0, ARRAY[]::text[], 'ambos')
@@ -289,10 +289,10 @@ async function initDb() {
       `UPDATE products SET name = UPPER(name);`,
       `UPDATE ingredients SET name = UPPER(name);`,
       `UPDATE products SET default_proteins = (
-        SELECT array_agg(UPPER(p)) FROM unnest(default_proteins) AS p
+        SELECT array_agg(UPPER(p) ORDER BY ord) FROM unnest(default_proteins) WITH ORDINALITY AS t(p, ord)
       ) WHERE default_proteins IS NOT NULL AND array_length(default_proteins, 1) > 0;`,
       `UPDATE products SET base_ingredients = (
-        SELECT array_agg(UPPER(b)) FROM unnest(base_ingredients) AS b
+        SELECT array_agg(UPPER(b) ORDER BY ord) FROM unnest(base_ingredients) WITH ORDINALITY AS t(b, ord)
       ) WHERE base_ingredients IS NOT NULL AND array_length(base_ingredients, 1) > 0;`,
     ];
 

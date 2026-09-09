@@ -117,7 +117,7 @@ module.exports = function(io) {
       const allIngredients = await fetchAllIngredients();
       const allProducts = await fetchAllProducts();
       io.emit('ingredients:sync', allIngredients);
-      if (oldName && oldName !== name) {
+      if (oldName && oldName !== upperName) {
         io.emit('products:sync', allProducts);
       }
       res.json(allIngredients.find((i) => i.id === id) || { success: true });

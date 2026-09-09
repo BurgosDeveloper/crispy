@@ -117,6 +117,14 @@ export const MeseroPage: React.FC = () => {
     .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
+  const availableProteins = ingredients
+    .filter(
+      (i) =>
+        (i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes') &&
+        (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+
   // Open order creation
   const handleOpenOrder = (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => {
     setActiveOrderTarget({
@@ -762,6 +770,7 @@ export const MeseroPage: React.FC = () => {
                   <BurgerBuilderModal
                     burger={selectedBurger}
                     availableExtras={availableExtras}
+                    availableProteins={availableProteins}
                     isOpen={true}
                     inline={true}
                     onClose={() => setSelectedBurger(null)}
@@ -1065,6 +1074,7 @@ export const MeseroPage: React.FC = () => {
         <BurgerBuilderModal
           burger={selectedBurger}
           availableExtras={availableExtras}
+          availableProteins={availableProteins}
           isOpen={!!selectedBurger}
           onClose={() => setSelectedBurger(null)}
           onConfirm={handleConfirmBurgerAdd}
