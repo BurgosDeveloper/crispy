@@ -476,7 +476,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       socket.disconnect();
     };
-  }, [backendUrl, refreshAllState, fetchCajaChica, userSession?.sessionToken]);
+  }, [backendUrl, refreshAllState, fetchCajaChica, userSession?.sessionToken, logout]);
 
   const createOrder = async (orderData: {
     type: 'mesa' | 'delivery' | 'pickup';

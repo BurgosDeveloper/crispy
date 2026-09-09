@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Redondeo Comercial Contable para Crispy Burger POS (Tarea 13)
  *
  * Reglas de Moneda:

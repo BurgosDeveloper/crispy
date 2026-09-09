@@ -1,4 +1,4 @@
-﻿import { Ingredient } from '../data/mockData';
+import { Ingredient } from '../data/mockData';
 
 export function getExtraPrice(ingredient: Ingredient | undefined | null): number {
   if (!ingredient) return 0;

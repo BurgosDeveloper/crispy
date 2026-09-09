@@ -709,7 +709,7 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 
 4. **Roles de Usuario y Acceso Rápido (`LoginPage.tsx`, `CajaPage.tsx`, `App.web.tsx`)**:
    - En `LoginPage.tsx`: botones táctiles de acceso rápido por rol (`👑 Admin`, `💳 Caja`, `🍽️ Mesero`, `🍳 Cocina`) con autocompletado para agilizar el inicio de sesión.
-   - En `CajaPage.tsx`: botón destacado `🍽️ NUEVO PEDIDO / MESERO` en la barra de pestañas, permitiendo al cajero tomar pedidos y gestionar mesas directamente.
+   - En `CajaPage.tsx`: se retiró el acceso directo al rol de mesero ya que el cajero cuenta con visibilidad y control integral de todas las mesas, comandas, pre-cuentas y cobros desde su propio panel de caja.
    - En `App.web.tsx`: alias de ruta `/mesero` redirige a `/mesonero`.
 
 5. **Auditoría Contable y Reportes**:
@@ -725,3 +725,23 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 7. **Arquitectura de Modales y Experiencia de Usuario**:
    - **Montaje en Raíz (`createPortal`)**: Las modales de personalización (`BurgerBuilderModal`), cobro dividido (`SplitPaymentSelectionModal`) y pasarela de cobro (`PaymentLedgerModal`) se renderizan directamente en `document.body` mediante portales de React, garantizando que ocupen el 100% del viewport sin desplazamientos debajo del Navbar ni cortes en los botones de pie de página.
    - **Identificación de Proteínas Predeterminadas**: Cada slot de carne en el armador de hamburguesas destaca con la insignia `⭐ Original` la proteína correspondiente a la receta de fábrica (ej. Novillo, Pollo Crispy, Chuleta en la 3.0), facilitando el reconocimiento inmediato al mesero frente a modificaciones solicitadas por el cliente.
+
+8. **Reimpresión de Comandas de Cocina con Selección Interactiva de Impresora**:
+   - En `CocinaPage.tsx`, el botón de reimpresión de comanda completa abre interactivamente la modal de selección de impresora térmica (`PrinterSelectModal`).
+   - Al seleccionar la impresora deseada (Cocina, Caja, etc.), el sistema dispara la impresión inmediata con formato adaptativo según el ancho de papel (80mm o 58mm), calcando el flujo ágil de pre-cuenta y sin requerir pruebas forzadas en impresoras físicas desconectadas.
+
+9. **Tratamiento Contable de Créditos y Reporte de Cierre de Caja**:
+   - **Exclusión en Sección 5**: En el reporte de cierre (`reportService.ts`), la Sección 5 (Historial por Método de Pago) excluye los desgloses repetitivos de Efectivo USD y Efectivo COP manteniendo las transferencias y bancos, evitando duplicidad visual.
+   - **Crédito en Sección 3 (Desglose por Tipo de Pago)**: Las comandas marcadas a crédito se contabilizan en Sección 3 como un método de pago neto denominado `'Crédito'` con su valor equivalente en \$ USD, permitiendo la auditoría inmediata de las cuentas por cobrar del turno.
+   - **Archivado Integral en Arqueo**: Al ejecutar el arqueo de caja, las comandas a crédito se archivan junto con las pagadas de contado, logrando un reinicio total de las mesas y comandas activas sin dejar órdenes rezagadas en el tablero.
+
+10. **Arqueo Rápido de Caja con Confirmación Directa y Reinicio a 0**:
+   - En `ArqueoModal.tsx` y backend `/api/caja/cierre`, se eliminó la exigencia de ingresar manualmente conteos físicos obligatorios de dinero.
+   - El arqueo muestra un resumen financiero del turno, una advertencia explícita de reinicio de comandas y un campo opcional para notas u observaciones.
+   - Al confirmar, el sistema archiva todas las órdenes activas (pagadas y créditos), limpia la comanda activa, reinicia el saldo de caja chica a 0 y deja el sistema completamente limpio para inicializar la contabilidad desde cero al día siguiente.
+
+11. **Escalado Visual de Tipografía (+40%) y Centrado Ergonómico**:
+   - Se aplicó un incremento general del 40% en las fuentes (con píxeles adicionales calculados para máxima legibilidad) en los módulos operativos de Mesero (`TableCompactGrid.tsx`, `ProductTextCatalog.tsx`, `MeseroPage.tsx`, `BurgerBuilderModal.tsx`, `DrinkSelectorModal.tsx`, `OrderDetailModal.tsx`, `OrderAppendModal.tsx`).
+   - Disposición vertical y centrado horizontal de tarjetas de mesas, pedidos delivery, pick-up, catálogo de comidas/bebidas, y botones de confirmación para facilitar el toque rápido en tablets y pantallas táctiles.
+   - La pantalla de cobro (`PaymentLedgerModal.tsx`) fue preservada intacta en su dimensionamiento original por requerimiento funcional estricto.
+
