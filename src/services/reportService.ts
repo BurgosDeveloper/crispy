@@ -947,8 +947,10 @@ export class ReportService {
       </tr>
     `).join('');
 
-    // Historial por Método de Pago (Moneda y Monto Facturado)
-    const historyByMethod = Array.from(methodTotals.keys()).map((method) => {
+    // Historial por Método de Pago (Moneda y Monto Facturado) - Excluye Efectivo USD y Efectivo COP
+    const historyByMethod = Array.from(methodTotals.keys())
+      .filter((method) => method !== 'Efectivo COP' && method !== 'Efectivo USD' && method !== 'Efectivo')
+      .map((method) => {
       const entries = data.payments.filter((payment) => payment.paymentMethod === method && (payment.amountPaidUSD > 0 || payment.changeGivenUSD > 0 || payment.changeGivenCOP > 0 || payment.changeGivenBs > 0));
       if (entries.length === 0) return '';
       return `
