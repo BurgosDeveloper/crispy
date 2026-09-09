@@ -155,15 +155,19 @@ module.exports = function(io) {
       // 1. Obtener desglose por método de pago de los pedidos del turno activo (Venta Neta Facturada)
       const { rows: paymentMethodRows } = await query(
         `SELECT op.payment_method, 
-                SUM(op.amount_paid_usd) as total_usd,
+                SUM(CASE 
+                  WHEN op.payment_method IN ('Efectivo USD', 'Zelle', 'Binance') 
+                  THEN COALESCE(NULLIF(op.cash_tendered_usd, 0), op.amount_paid_usd) - COALESCE(op.change_given_usd, 0)
+                  ELSE op.amount_paid_usd 
+                END) as total_usd,
                 SUM(CASE 
                   WHEN op.payment_method IN ('Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP') 
-                  THEN op.amount_paid_usd * op.cop_rate 
+                  THEN COALESCE(NULLIF(op.cash_tendered_cop, 0), op.amount_paid_usd * op.cop_rate) - COALESCE(op.change_given_cop, 0)
                   ELSE 0 
                 END) as total_cop,
                 SUM(CASE 
                   WHEN op.payment_method IN ('Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito') 
-                  THEN op.amount_paid_usd * op.bs_rate 
+                  THEN COALESCE(NULLIF(op.cash_tendered_bs, 0), op.amount_paid_usd * op.bs_rate) - COALESCE(op.change_given_bs, 0)
                   ELSE 0 
                 END) as total_bs,
                 COUNT(op.id) as count

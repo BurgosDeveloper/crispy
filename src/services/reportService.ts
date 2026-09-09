@@ -216,18 +216,27 @@ export class ReportService {
   }
 
   private registeredSaleAmounts(payment: ReporteIntervaloData['payments'][number]) {
-    const paidUSD = payment.amountPaidUSD || 0;
+    const paidUSD = Number(payment.amountPaidUSD) || 0;
     const curr = this.paymentCurrency(payment.paymentMethod);
+    const tenderUSD = Number(payment.cashTenderedUSD) || 0;
+    const tenderCOP = Number(payment.cashTenderedCOP) || 0;
+    const tenderBs = Number(payment.cashTenderedBs) || 0;
+    const changeUSD = Number(payment.changeGivenUSD) || 0;
+    const changeCOP = Number(payment.changeGivenCOP) || 0;
+    const changeBs = Number(payment.changeGivenBs) || 0;
+
     let usd = 0;
     let cop = 0;
     let bs = 0;
+
     if (curr === 'USD') {
-      usd = paidUSD;
+      usd = tenderUSD > 0 ? (tenderUSD - changeUSD) : paidUSD;
     } else if (curr === 'COP') {
-      cop = paidUSD * (payment.copRate || 3950);
+      cop = tenderCOP > 0 ? (tenderCOP - changeCOP) : (paidUSD * (payment.copRate || 3950));
     } else if (curr === 'Bs') {
-      bs = paidUSD * (payment.bsRate || 36.5);
+      bs = tenderBs > 0 ? (tenderBs - changeBs) : (paidUSD * (payment.bsRate || 36.5));
     }
+
     const nativeAmount = curr === 'USD' ? usd : curr === 'COP' ? cop : bs;
     return {
       currency: curr,
@@ -335,24 +344,87 @@ export class ReportService {
     };
 
     paidOrders.forEach((o) => {
-      const curr = this.paymentCurrency(o.paymentMethod || 'Efectivo USD');
-      if (curr === 'USD') byCurrency.USD += o.totalUSD;
-      if (curr === 'COP') byCurrency.COP += o.totalUSD * rates.COP;
-      if (curr === 'Bs') byCurrency.Bs += o.totalUSD * rates.Bs;
+      if (o.paymentHistory && o.paymentHistory.length > 0) {
+        o.paymentHistory.forEach((p) => {
+          const pCurr = this.paymentCurrency(p.paymentMethod);
+          const tenderUSD = Number(p.cashTenderedUSD) || 0;
+          const tenderCOP = Number(p.cashTenderedCOP) || 0;
+          const tenderBs = Number(p.cashTenderedBs) || 0;
+          const changeUSD = Number(p.changeGivenUSD) || 0;
+          const changeCOP = Number(p.changeGivenCOP) || 0;
+          const changeBs = Number(p.changeGivenBs) || 0;
+          const pUSD = Number(p.amountPaidUSD) || 0;
+
+          if (pCurr === 'USD') {
+            byCurrency.USD += tenderUSD > 0 ? (tenderUSD - changeUSD) : pUSD;
+          } else if (pCurr === 'COP') {
+            byCurrency.COP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (pUSD * (p.copRate || rates.COP));
+          } else if (pCurr === 'Bs') {
+            byCurrency.Bs += tenderBs > 0 ? (tenderBs - changeBs) : (pUSD * (p.bsRate || rates.Bs));
+          }
+        });
+      } else {
+        const curr = this.paymentCurrency(o.paymentMethod || 'Efectivo USD');
+        if (curr === 'USD') byCurrency.USD += o.totalUSD;
+        if (curr === 'COP') byCurrency.COP += o.totalUSD * (o.copRateAtPayment || rates.COP);
+        if (curr === 'Bs') byCurrency.Bs += o.totalUSD * (o.bsRateAtPayment || rates.Bs);
+      }
     });
 
     const rows = paidOrders
       .map((o) => {
-        const curr = this.paymentCurrency(o.paymentMethod || 'Efectivo USD');
-        const amount = curr === 'USD' ? `$${o.totalUSD.toFixed(2)}` : curr === 'COP' ? `$${Math.round(o.totalUSD * rates.COP).toLocaleString()}` : `Bs ${(o.totalUSD * rates.Bs).toFixed(2)}`;
+        let orderCOP = 0;
+        let orderBs = 0;
+        let orderUSD = 0;
+        const methodsUsed: string[] = [];
+
+        if (o.paymentHistory && o.paymentHistory.length > 0) {
+          o.paymentHistory.forEach((p) => {
+            const pCurr = this.paymentCurrency(p.paymentMethod);
+            const tenderUSD = Number(p.cashTenderedUSD) || 0;
+            const tenderCOP = Number(p.cashTenderedCOP) || 0;
+            const tenderBs = Number(p.cashTenderedBs) || 0;
+            const changeUSD = Number(p.changeGivenUSD) || 0;
+            const changeCOP = Number(p.changeGivenCOP) || 0;
+            const changeBs = Number(p.changeGivenBs) || 0;
+            const pUSD = Number(p.amountPaidUSD) || 0;
+
+            if (pCurr === 'USD') {
+              orderUSD += tenderUSD > 0 ? (tenderUSD - changeUSD) : pUSD;
+            } else if (pCurr === 'COP') {
+              orderCOP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (pUSD * (p.copRate || rates.COP));
+            } else if (pCurr === 'Bs') {
+              orderBs += tenderBs > 0 ? (tenderBs - changeBs) : (pUSD * (p.bsRate || rates.Bs));
+            }
+            if (p.paymentMethod && !methodsUsed.includes(p.paymentMethod)) {
+              methodsUsed.push(p.paymentMethod);
+            }
+          });
+        } else {
+          const curr = this.paymentCurrency(o.paymentMethod || 'Efectivo USD');
+          if (curr === 'USD') orderUSD = o.totalUSD;
+          if (curr === 'COP') orderCOP = o.totalUSD * (o.copRateAtPayment || rates.COP);
+          if (curr === 'Bs') orderBs = o.totalUSD * (o.bsRateAtPayment || rates.Bs);
+          if (o.paymentMethod) methodsUsed.push(o.paymentMethod);
+        }
+
+        const methodStr = methodsUsed.join(' + ') || o.paymentMethod || 'Efectivo USD';
+        const displayParts: string[] = [];
+        if (orderUSD > 0) displayParts.push(`$${orderUSD.toFixed(2)} USD`);
+        if (orderCOP > 0) displayParts.push(`$${Math.round(orderCOP).toLocaleString()} COP`);
+        if (orderBs > 0) displayParts.push(`Bs ${orderBs.toFixed(2)}`);
+        const formattedAmount = displayParts.length > 0 ? displayParts.join(' / ') : `$${o.totalUSD.toFixed(2)}`;
+
+        const mainCurr = orderCOP > 0 && orderUSD === 0 && orderBs === 0 ? 'COP' : orderBs > 0 && orderUSD === 0 && orderCOP === 0 ? 'Bs' : orderUSD > 0 && orderCOP === 0 && orderBs === 0 ? 'USD' : 'MIXTO';
+
         return `
         <tr>
           <td><strong>${o.orderNumber}</strong></td>
           <td>${(o.type || 'mesa').toUpperCase()}</td>
-          <td>${o.customerName || 'Cliente General'}</td>
-          <td>${o.paymentMethod || 'Efectivo USD'}</td>
-          <td>${curr}</td>
-          <td style="text-align:right; font-weight:700;">${amount}</td>
+          <td>${this.escapeHtml(o.customerName || 'Cliente General')}</td>
+          <td>${this.escapeHtml(methodStr)}</td>
+          <td>${mainCurr}</td>
+          <td style="text-align:right; font-weight:700;">${formattedAmount}</td>
         </tr>
       `;
       })

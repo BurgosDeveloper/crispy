@@ -441,15 +441,22 @@ function reportAmounts(payment) {
 
 function reportSaleAmounts(payment) {
   const paidUSD = Number(payment.amountPaidUSD) || 0;
+  const tenderUSD = Number(payment.cashTenderedUSD) || 0;
+  const tenderCOP = Number(payment.cashTenderedCOP) || 0;
+  const tenderBs = Number(payment.cashTenderedBs) || 0;
+  const changeUSD = Number(payment.changeGivenUSD) || 0;
+  const changeCOP = Number(payment.changeGivenCOP) || 0;
+  const changeBs = Number(payment.changeGivenBs) || 0;
+
   let usd = 0;
   let cop = 0;
   let bs = 0;
   if (['Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP'].includes(payment.paymentMethod)) {
-    cop = paidUSD * (Number(payment.copRate) || 3950);
+    cop = tenderCOP > 0 ? (tenderCOP - changeCOP) : (paidUSD * (Number(payment.copRate) || 3950));
   } else if (['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'].includes(payment.paymentMethod)) {
-    bs = paidUSD * (Number(payment.bsRate) || 36.5);
+    bs = tenderBs > 0 ? (tenderBs - changeBs) : (paidUSD * (Number(payment.bsRate) || 36.5));
   } else {
-    usd = paidUSD;
+    usd = tenderUSD > 0 ? (tenderUSD - changeUSD) : paidUSD;
   }
   return { usd, cop, bs, equivalentUSD: paidUSD };
 }
