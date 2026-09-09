@@ -139,7 +139,7 @@ async function fetchAllIngredients() {
   const { rows } = await query(`SELECT * FROM ingredients ORDER BY name ASC`);
   return rows.map((i) => {
     const rawPriceUsd = parseFloat(i.price_usd) || 0;
-    const ingType = i.ingredient_type || (i.category === 'Gratis' ? 'gratis' : (i.category === 'Adicionales' ? 'adicional' : (i.is_base ? 'base' : 'adicional')));
+    const ingType = i.ingredient_type || (i.category === 'Salsas' ? 'salsa' : (i.category === 'Gratis' ? 'gratis' : (i.category === 'Adicionales' ? 'adicional' : (i.is_base ? 'base' : 'adicional'))));
     return {
       id: i.id,
       name: i.name,
@@ -150,10 +150,10 @@ async function fetchAllIngredients() {
       pricePequenaCompleta: rawPriceUsd,
       pricePequenaMitad: rawPriceUsd > 0 ? rawPriceUsd / 2 : 0,
       isBase: ingType === 'base' || ingType === 'proteina' || i.is_base !== false,
-      isExtra: ingType === 'adicional' || ingType === 'gratis' || i.is_extra !== false,
+      isExtra: ingType === 'adicional' || ingType === 'gratis' || ingType === 'salsa' || i.is_extra !== false,
       isBaseForPizza: ingType === 'base' || ingType === 'proteina' || i.is_base !== false,
-      isExtraForPizza: ingType === 'adicional' || ingType === 'gratis' || i.is_extra !== false,
-      category: i.category || (ingType === 'gratis' ? 'Gratis' : (ingType === 'proteina' ? 'Proteínas' : (ingType === 'base' ? 'Ingredientes Base' : 'Adicionales'))),
+      isExtraForPizza: ingType === 'adicional' || ingType === 'gratis' || ingType === 'salsa' || i.is_extra !== false,
+      category: i.category || (ingType === 'salsa' ? 'Salsas' : (ingType === 'gratis' ? 'Gratis' : (ingType === 'proteina' ? 'Proteínas' : (ingType === 'base' ? 'Ingredientes Base' : 'Adicionales')))),
       available: i.available !== false,
       shift: 'ambos',
     };
