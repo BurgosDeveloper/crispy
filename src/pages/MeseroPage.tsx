@@ -89,6 +89,7 @@ export const MeseroPage: React.FC = () => {
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
   const [orderEditModalOrder, setOrderEditModalOrder] = useState<Order | null>(null);
   const [printerSelectOrder, setPrinterSelectOrder] = useState<Order | null>(null);
+  const [printerSelectKitchenOrder, setPrinterSelectKitchenOrder] = useState<Order | null>(null);
   const [activeOrderForPay, setActiveOrderForPay] = useState<Order | null>(null);
   const [isCompactComandasView, setIsCompactComandasView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_mesero_view_mode') !== 'expanded';
@@ -543,7 +544,7 @@ export const MeseroPage: React.FC = () => {
 
                           <button
                             type="button"
-                            onClick={() => reprintKitchenOrder(ord.id)}
+                            onClick={() => setPrinterSelectKitchenOrder(ord)}
                             className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs transition-all cursor-pointer"
                             title="Reimprimir en cocina"
                           >
@@ -651,8 +652,8 @@ export const MeseroPage: React.FC = () => {
 
                             <button
                               type="button"
-                              onClick={() => reprintKitchenOrder(ord.id)}
-                              className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                              onClick={() => setPrinterSelectKitchenOrder(ord)}
+                              className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer"
                               title="Reimprimir comanda en cocina"
                             >
                               <IoPrintOutline className="text-xs" />
@@ -1103,6 +1104,7 @@ export const MeseroPage: React.FC = () => {
             }
           }}
           onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+          onReprintKitchen={(ord) => setPrinterSelectKitchenOrder(ord)}
           userRole={userSession?.role}
         />
       )}
@@ -1147,6 +1149,22 @@ export const MeseroPage: React.FC = () => {
             reportService.generatePreCuentaTicket(printerSelectOrder, exchangeRates);
             await printOrderReceipt(printerSelectOrder.id, target);
             setSentAlert(`🧾 Pre-cuenta de la comanda #${printerSelectOrder.orderNumber} enviada a imprimir.`);
+            setTimeout(() => setSentAlert(null), 4000);
+          }
+        }}
+      />
+
+      {/* MODAL 9: REIMPRIMIR COMANDA DE COCINA */}
+      <PrinterSelectModal
+        isOpen={printerSelectKitchenOrder !== null}
+        title={`🖨️ REIMPRIMIR COMANDA #${(printerSelectKitchenOrder?.orderNumber || '').toString().replace(/^#+/, '')}`}
+        jobDescription="Selecciona a qué impresora térmica deseas enviar la comanda completa de cocina"
+        defaultTarget="cocina"
+        onClose={() => setPrinterSelectKitchenOrder(null)}
+        onSelectPrinter={async (target) => {
+          if (printerSelectKitchenOrder) {
+            await reprintKitchenOrder(printerSelectKitchenOrder.id, target);
+            setSentAlert(`🖨️ Comanda #${printerSelectKitchenOrder.orderNumber} enviada a reimprimir.`);
             setTimeout(() => setSentAlert(null), 4000);
           }
         }}

@@ -46,11 +46,12 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleConfirm = async () => {
+  const handleConfirmWith = async (targetToUse?: 'cocina' | 'caja' | 'ambas') => {
+    const target = targetToUse || selectedTarget;
     setIsPrinting(true);
     setError('');
     try {
-      await onSelectPrinter(selectedTarget);
+      await onSelectPrinter(target);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error al enviar a la impresora seleccionada.');
@@ -59,13 +60,15 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
     }
   };
 
+  const handleConfirm = () => handleConfirmWith();
+
   const cocina = printersConfig?.cocina;
   const caja = printersConfig?.caja;
 
   const cleanTitle = title.replace(/##+/g, '#');
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in select-none">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in select-none">
       <div className="relative w-full max-w-lg bg-white border-2 border-yellow-400 rounded-3xl p-6 shadow-2xl space-y-5 text-gray-900">
         
         {/* HEADER */}
@@ -100,6 +103,7 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('cocina')}
+            onDoubleClick={() => void handleConfirmWith('cocina')}
             className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'cocina'
                 ? 'bg-amber-50 border-yellow-400 text-black shadow-md ring-2 ring-yellow-400'
@@ -133,6 +137,7 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('caja')}
+            onDoubleClick={() => void handleConfirmWith('caja')}
             className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'caja'
                 ? 'bg-emerald-50 border-emerald-500 text-black shadow-md ring-2 ring-emerald-400'
@@ -166,6 +171,7 @@ export const PrinterSelectModal: React.FC<PrinterSelectModalProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTarget('ambas')}
+            onDoubleClick={() => void handleConfirmWith('ambas')}
             className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer ${
               selectedTarget === 'ambas'
                 ? 'bg-yellow-100/80 border-yellow-500 text-black shadow-md ring-2 ring-yellow-400'

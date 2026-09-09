@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
+import { PrinterSelectModal } from './PrinterSelectModal';
 import {
   IoClose,
   IoReceiptOutline,
@@ -37,6 +38,7 @@ interface OrderDetailModalProps {
   onToggleDelivered?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
   onPrintReceipt?: (order: Order) => void;
+  onReprintKitchen?: (order: Order) => void;
   userRole?: 'admin' | 'caja' | 'mesero' | 'cocina';
 }
 
@@ -67,11 +69,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   onToggleDelivered,
   onCancelOrder,
   onPrintReceipt,
+  onReprintKitchen,
   userRole,
 }) => {
   const { reprintKitchenOrder, printOrderReceipt } = useApp();
   const [isReprinting, setIsReprinting] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
+  const [isKitchenPrinterModalOpen, setIsKitchenPrinterModalOpen] = useState(false);
   const [reprintMessage, setReprintMessage] = useState('');
 
   if (!isOpen || !order) return null;
@@ -98,19 +102,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     }
   };
 
-  const handleReprint = async () => {
-    setIsReprinting(true);
-    setReprintMessage('');
-    try {
-      await reprintKitchenOrder(order.id);
-      setReprintMessage('✅ Enviado a cocina');
-      setTimeout(() => setReprintMessage(''), 3000);
-    } catch (e: any) {
-      setReprintMessage(`⚠️ ${e.message || 'Error al imprimir'}`);
-      setTimeout(() => setReprintMessage(''), 4000);
-    } finally {
-      setIsReprinting(false);
+  const handleReprint = () => {
+    if (onReprintKitchen) {
+      onReprintKitchen(order);
+      return;
     }
+    setIsKitchenPrinterModalOpen(true);
   };
 
   const totalUSD = order.totalUSD || 0;
@@ -620,6 +617,29 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal Selector de Impresora Térmica para Reimprimir Comanda de Cocina */}
+      <PrinterSelectModal
+        isOpen={isKitchenPrinterModalOpen}
+        title={`🖨️ REIMPRIMIR COMANDA #${cleanOrderNumber}`}
+        jobDescription="Selecciona a qué impresora térmica deseas enviar la comanda completa de cocina"
+        defaultTarget="cocina"
+        onClose={() => setIsKitchenPrinterModalOpen(false)}
+        onSelectPrinter={async (target) => {
+          setIsReprinting(true);
+          setReprintMessage('');
+          try {
+            await reprintKitchenOrder(order.id, target);
+            setReprintMessage(`✅ Enviado a ${target === 'ambas' ? 'ambas impresoras' : target}`);
+            setTimeout(() => setReprintMessage(''), 4000);
+          } catch (e: any) {
+            setReprintMessage(`⚠️ ${e.message || 'Error al imprimir'}`);
+            setTimeout(() => setReprintMessage(''), 4000);
+          } finally {
+            setIsReprinting(false);
+          }
+        }}
+      />
     </div>
   );
 };

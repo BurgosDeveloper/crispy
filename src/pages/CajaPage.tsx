@@ -87,6 +87,7 @@ export const CajaPage: React.FC = () => {
   const [orderEditModalOrder, setOrderEditModalOrder] = useState<Order | null>(null);
   const [orderDetailModalOrder, setOrderDetailModalOrder] = useState<Order | null>(null);
   const [printerSelectOrder, setPrinterSelectOrder] = useState<Order | null>(null);
+  const [printerSelectKitchenOrder, setPrinterSelectKitchenOrder] = useState<Order | null>(null);
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState<boolean>(false);
   const [isCompactView, setIsCompactView] = useState<boolean>(() => {
     return localStorage.getItem('crispy_caja_view_mode') !== 'expanded';
@@ -1263,15 +1264,8 @@ export const CajaPage: React.FC = () => {
 
                       {/* Botón Reimprimir Cocina */}
                       <button
-                        onClick={async () => {
-                          try {
-                            await reprintKitchenOrder(ord.id);
-                            alert(`✅ Comanda #${ord.orderNumber} enviada a reimpresión en cocina.`);
-                          } catch (e: any) {
-                            alert(`⚠️ ${e.message || 'Error al reimprimir'}`);
-                          }
-                        }}
-                        className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
+                        onClick={() => setPrinterSelectKitchenOrder(ord)}
+                        className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
                         title="Reimprimir comanda en impresora de cocina"
                       >
                         <IoPrintOutline className="text-base" />
@@ -2342,6 +2336,7 @@ export const CajaPage: React.FC = () => {
             );
           }}
           onPrintReceipt={(ord) => setPrinterSelectOrder(ord)}
+          onReprintKitchen={(ord) => setPrinterSelectKitchenOrder(ord)}
           userRole={userSession?.role}
         />
       )}
@@ -2408,6 +2403,20 @@ export const CajaPage: React.FC = () => {
           if (printerSelectOrder) {
             reportService.generatePreCuentaTicket(printerSelectOrder, exchangeRates);
             await printOrderReceipt(printerSelectOrder.id, target);
+          }
+        }}
+      />
+
+      {/* Modal Selector de Impresora Térmica para Reimprimir Comanda de Cocina */}
+      <PrinterSelectModal
+        isOpen={printerSelectKitchenOrder !== null}
+        title={`🖨️ REIMPRIMIR COMANDA #${(printerSelectKitchenOrder?.orderNumber || '').toString().replace(/^#+/, '')}`}
+        jobDescription="Selecciona a qué impresora térmica deseas enviar la comanda completa de cocina"
+        defaultTarget="cocina"
+        onClose={() => setPrinterSelectKitchenOrder(null)}
+        onSelectPrinter={async (target) => {
+          if (printerSelectKitchenOrder) {
+            await reprintKitchenOrder(printerSelectKitchenOrder.id, target);
           }
         }}
       />
