@@ -11,7 +11,7 @@ import {
 interface TableCompactGridProps {
   tables: Table[];
   orders: Order[];
-  onSelectTarget: (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => void;
+  onSelectTarget?: (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => void;
   onViewActiveOrder?: (order: Order) => void;
   onAppendOrder?: (order: Order) => void;
   onPayOrder?: (order: Order) => void;
@@ -103,25 +103,29 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
 
         {/* Botones de Acción: NUEVO DELIVERY (Azul), NUEVO PICK UP (Rojo), ULTIMOS PEDIDOS (Amarillo) */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onSelectTarget('delivery', undefined, 'Orden Delivery a Domicilio')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1d4ed8] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
-            title="Crear nuevo pedido delivery"
-          >
-            <IoCar className="text-sm" />
-            <span>NUEVO DELIVERY</span>
-          </button>
+          {onSelectTarget && (
+            <>
+              <button
+                type="button"
+                onClick={() => onSelectTarget('delivery', undefined, 'Orden Delivery a Domicilio')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1d4ed8] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
+                title="Crear nuevo pedido delivery"
+              >
+                <IoCar className="text-sm" />
+                <span>NUEVO DELIVERY</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => onSelectTarget('pickup', undefined, 'Orden PickUp (Para Llevar)')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#b91c1c] hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
-            title="Crear nuevo pedido para llevar"
-          >
-            <IoWalk className="text-sm" />
-            <span>NUEVO PICK UP</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => onSelectTarget('pickup', undefined, 'Orden PickUp (Para Llevar)')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#b91c1c] hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer"
+                title="Crear nuevo pedido para llevar"
+              >
+                <IoWalk className="text-sm" />
+                <span>NUEVO PICK UP</span>
+              </button>
+            </>
+          )}
 
           {onViewHistory && (
             <button
@@ -166,7 +170,9 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                   key={table.id}
                   onClick={() => {
                     if (!isOccupied) {
-                      onSelectTarget('mesa', table.number, `Mesa #${table.number}`);
+                      if (onSelectTarget) {
+                        onSelectTarget('mesa', table.number, `Mesa #${table.number}`);
+                      }
                     } else if (onViewActiveOrder && activeOrder) {
                       onViewActiveOrder(activeOrder);
                     }
@@ -181,7 +187,9 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                   title={
                     isOccupied
                       ? `Mesa #${table.number} - Comanda #${cleanOrderNum(activeOrder?.orderNumber)} ($${activeOrder?.totalUSD.toFixed(2)}) - Click para opciones`
-                      : `Mesa #${table.number} - Libre (Click para tomar pedido)`
+                      : onSelectTarget
+                        ? `Mesa #${table.number} - Libre (Click para tomar pedido)`
+                        : `Mesa #${table.number} - Libre`
                   }
                 >
                   {/* Cabecera: Nombre de Mesa */}

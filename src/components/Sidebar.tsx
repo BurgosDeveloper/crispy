@@ -367,12 +367,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Quick Access Menu Switcher (Visible for Admin and Caja) */}
-      {(isAdmin || userSession?.role === 'caja') && (
+      {/* Quick Access Menu Switcher (Visible for Admin only) */}
+      {isAdmin && (
         <div className={`mb-4 p-2 rounded-xl bg-gray-50 border border-gray-200 ${isCollapsed ? 'space-y-1.5' : 'space-y-2'}`}>
           {!isCollapsed && (
             <div className="text-[9px] font-black text-gray-700 uppercase tracking-widest px-1">
-              {isAdmin ? 'PANEL ADMIN' : 'ACCESO RÁPIDO'}
+              PANEL ADMIN
             </div>
           )}
           <div className={`grid ${isCollapsed ? 'grid-cols-1 gap-1.5' : 'grid-cols-2 gap-1.5'}`}>
@@ -400,34 +400,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>💳</span>
               {!isCollapsed && <span>Caja POS</span>}
             </button>
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => { navigate('/cocina'); if (onCloseMobile) onCloseMobile(); }}
-                  title="Cocina KDS"
-                  className={`p-2 rounded-lg text-xs font-black transition-all flex items-center ${isCollapsed ? 'justify-center' : 'gap-1.5'} ${
-                    location.pathname === '/cocina'
-                      ? 'bg-amber-400 text-black border border-amber-500 shadow-sm'
-                      : 'bg-white hover:bg-amber-50 text-gray-800 border border-gray-200'
-                  }`}
-                >
-                  <span>🔥</span>
-                  {!isCollapsed && <span>Cocina</span>}
-                </button>
-                <button
-                  onClick={() => { navigate('/menu-admin'); if (onCloseMobile) onCloseMobile(); }}
-                  title="Menú y Configuración Admin"
-                  className={`p-2 rounded-lg text-xs font-black transition-all flex items-center ${isCollapsed ? 'justify-center' : 'gap-1.5'} ${
-                    location.pathname === '/menu-admin'
-                      ? 'bg-yellow-400 text-black border border-yellow-500 shadow-sm'
-                      : 'bg-white hover:bg-yellow-50 text-gray-800 border border-gray-200'
-                  }`}
-                >
-                  <span>🍔</span>
-                  {!isCollapsed && <span>Menú</span>}
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => { navigate('/cocina'); if (onCloseMobile) onCloseMobile(); }}
+              title="Cocina KDS"
+              className={`p-2 rounded-lg text-xs font-black transition-all flex items-center ${isCollapsed ? 'justify-center' : 'gap-1.5'} ${
+                location.pathname === '/cocina'
+                  ? 'bg-amber-400 text-black border border-amber-500 shadow-sm'
+                  : 'bg-white hover:bg-amber-50 text-gray-800 border border-gray-200'
+              }`}
+            >
+              <span>🔥</span>
+              {!isCollapsed && <span>Cocina</span>}
+            </button>
+            <button
+              onClick={() => { navigate('/menu-admin'); if (onCloseMobile) onCloseMobile(); }}
+              title="Menú y Configuración Admin"
+              className={`p-2 rounded-lg text-xs font-black transition-all flex items-center ${isCollapsed ? 'justify-center' : 'gap-1.5'} ${
+                location.pathname === '/menu-admin'
+                  ? 'bg-yellow-400 text-black border border-yellow-500 shadow-sm'
+                  : 'bg-white hover:bg-yellow-50 text-gray-800 border border-gray-200'
+              }`}
+            >
+              <span>🍔</span>
+              {!isCollapsed && <span>Menú</span>}
+            </button>
           </div>
         </div>
       )}

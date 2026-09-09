@@ -9,7 +9,7 @@ import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
@@ -74,7 +74,6 @@ export const CajaPage: React.FC = () => {
     ingredients,
   } = useApp();
 
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'comandas';
   const [cajaViewMode, setCajaViewMode] = useState<'tablero' | 'lista'>('tablero');
@@ -170,10 +169,8 @@ export const CajaPage: React.FC = () => {
     }
   }, [isAperturaModalOpen, filteredApertura.usdCash, filteredApertura.copCash]);
 
-  // Cierre de Caja Chica Modal
+  // Cierre y Arqueo de Caja Chica Modal
   const [isCierreModalOpen, setIsCierreModalOpen] = useState<boolean>(false);
-  const [cierreActualUSD, setCierreActualUSD] = useState<string>('');
-  const [cierreActualCOP, setCierreActualCOP] = useState<string>('');
   const [cierreNotes, setCierreNotes] = useState<string>('');
   const [cierreError, setCierreError] = useState<string>('');
   const [isSubmittingCierre, setIsSubmittingCierre] = useState<boolean>(false);
@@ -273,22 +270,18 @@ export const CajaPage: React.FC = () => {
 
   const handleCierreSubmit = async () => {
     if (isSubmittingCierre) return;
-    const actualUSD = Number(cierreActualUSD);
-    const actualCOP = Number(cierreActualCOP);
-    if (!cierreActualUSD.trim() || !cierreActualCOP.trim() || !Number.isFinite(actualUSD) || !Number.isFinite(actualCOP) || actualUSD < 0 || actualCOP < 0) {
-      setCierreError('Registra el conteo físico válido de USD y COP. Usa 0 si no hay efectivo en una moneda.');
-      return;
-    }
     setIsSubmittingCierre(true);
     setCierreError('');
     try {
-      await realizarCierreCaja(actualUSD, actualCOP, cierreNotes || 'Comprobación diaria de efectivo');
+      await realizarCierreCaja(
+        saldoEfectivoUSD,
+        saldoEfectivoCOP,
+        cierreNotes || 'Arqueo y reinicio de caja realizado'
+      );
       setIsCierreModalOpen(false);
-      setCierreActualUSD('');
-      setCierreActualCOP('');
       setCierreNotes('');
     } catch (error) {
-      setCierreError(error instanceof Error ? error.message : 'No se pudo registrar la comprobación de caja.');
+      setCierreError(error instanceof Error ? error.message : 'No se pudo registrar el arqueo y reinicio de caja.');
     } finally {
       setIsSubmittingCierre(false);
     }
@@ -434,9 +427,6 @@ export const CajaPage: React.FC = () => {
             <TableCompactGrid
               tables={tables}
               orders={orders}
-              onSelectTarget={(type, tableNumber) => {
-                navigate(`/mesonero?type=${type}${tableNumber ? `&table=${tableNumber}` : ''}`);
-              }}
               onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
               onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
               canPay={true}
@@ -530,13 +520,6 @@ export const CajaPage: React.FC = () => {
                 <span>{isCompactView ? 'Modo Compacto (50+)' : 'Modo Detallado'}</span>
               </button>
 
-              <button
-                onClick={() => navigate('/mesonero')}
-                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-sm transition-all"
-                title="Ir a la pantalla de Mesero para tomar y enviar nuevos pedidos"
-              >
-                <span>🍽️ + CREAR PEDIDO (MESERO)</span>
-              </button>
               <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2.5 py-1.5 rounded-xl border border-gray-200">
                 Total: {activeComandas.length}
               </span>
@@ -547,12 +530,6 @@ export const CajaPage: React.FC = () => {
             <div className="p-12 text-center rounded-2xl bg-white border border-gray-200 shadow-xs space-y-3">
               <IoCheckmarkDone className="text-4xl text-yellow-500 mx-auto" />
               <p className="text-xs text-gray-500 font-bold">No hay comandas pendientes por cobrar en este momento.</p>
-              <button
-                onClick={() => navigate('/mesonero')}
-                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs inline-flex items-center gap-2 border border-yellow-500 shadow-sm transition-all"
-              >
-                <span>🍽️ Crear Primera Comanda</span>
-              </button>
             </div>
           ) : isCompactView ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -1964,7 +1941,7 @@ export const CajaPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-lg font-black text-black flex items-center gap-2">
                 <IoLockClosedOutline className="text-yellow-600 text-xl" />
-                <span>ARQUEO DIARIO Y CIERRE DE TURNO</span>
+                <span>ARQUEO DIARIO Y REINICIO DE CAJA</span>
               </h3>
               <button
                 onClick={() => { setIsCierreModalOpen(false); setCierreError(''); }}
@@ -1975,69 +1952,31 @@ export const CajaPage: React.FC = () => {
             </div>
             
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Conteo Físico USD */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-700">
-                      Efectivo Contado en Físico (USD):
-                    </label>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={cierreActualUSD}
-                    onChange={(e) => { setCierreActualUSD(e.target.value); setCierreError(''); }}
-                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
-                  />
-                  {cierreActualUSD !== '' && (() => {
-                    const diffUSD = (parseFloat(cierreActualUSD) || 0) - saldoEfectivoUSD;
-                    const isExact = Math.abs(diffUSD) < 0.01;
-                    return (
-                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between border ${
-                        isExact ? 'bg-green-50 text-green-800 border-green-200' :
-                        diffUSD > 0 ? 'bg-green-50 text-green-800 border-green-200' :
-                        'bg-red-50 text-red-800 border-red-200'
-                      }`}>
-                        <span>{isExact ? '✅ Cuadra Exacto' : diffUSD > 0 ? '🟢 Sobrante en USD' : '🔴 Faltante en USD'}:</span>
-                        <span className="font-mono">{diffUSD >= 0 ? '+' : ''}${diffUSD.toFixed(2)} USD</span>
-                      </div>
-                    );
-                  })()}
+              {/* Banner de Advertencia */}
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-400 text-amber-950 space-y-2.5 shadow-xs">
+                <div className="flex items-center gap-2 font-black text-sm text-amber-900">
+                  <span className="text-xl">⚠️</span>
+                  <span>¡ADVERTENCIA DE REINICIO DE TURNO!</span>
                 </div>
+                <p className="text-xs font-bold leading-relaxed text-amber-900">
+                  Al confirmar esta acción se ejecutará el cierre del turno y la puesta a cero del sistema:
+                </p>
+                <ul className="text-xs font-semibold list-disc list-inside space-y-1 text-amber-950 pl-1">
+                  <li>Se archivarán todas las comandas del turno (la información histórica y contable queda 100% guardada y segura en la base de datos).</li>
+                  <li>Se liberarán todas las mesas del salón.</li>
+                  <li>Se reseteará la caja a 0 para el día siguiente inicializar con el sistema limpio para trabajar la contabilidad desde cero.</li>
+                </ul>
+              </div>
 
-                {/* Conteo Físico COP */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-700">
-                      Efectivo Contado en Físico (COP):
-                    </label>
-                  </div>
-                  <input
-                    type="number"
-                    step="100"
-                    min="0"
-                    placeholder="0"
-                    value={cierreActualCOP}
-                    onChange={(e) => { setCierreActualCOP(e.target.value); setCierreError(''); }}
-                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm font-bold outline-none focus:border-yellow-400"
-                  />
-                  {cierreActualCOP !== '' && (() => {
-                    const diffCOP = (parseFloat(cierreActualCOP) || 0) - saldoEfectivoCOP;
-                    const isExact = Math.abs(diffCOP) < 1;
-                    return (
-                      <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center justify-between border ${
-                        isExact ? 'bg-green-50 text-green-800 border-green-200' :
-                        diffCOP > 0 ? 'bg-green-50 text-green-800 border-green-200' :
-                        'bg-red-50 text-red-800 border-red-200'
-                      }`}>
-                        <span>{isExact ? '✅ Cuadra Exacto' : diffCOP > 0 ? '🟢 Sobrante en COP' : '🔴 Faltante en COP'}:</span>
-                        <span className="font-mono">{diffCOP >= 0 ? '+' : ''}{Math.round(diffCOP).toLocaleString()} COP</span>
-                      </div>
-                    );
-                  })()}
+              {/* Tarjetas informativas de recaudación actual */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <span className="text-[10px] font-black uppercase text-gray-500 block">Efectivo USD en Caja</span>
+                  <span className="text-base font-black text-green-700">${saldoEfectivoUSD.toFixed(2)} USD</span>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <span className="text-[10px] font-black uppercase text-gray-500 block">Efectivo COP en Caja</span>
+                  <span className="text-base font-black text-green-700">{Math.round(saldoEfectivoCOP).toLocaleString()} COP</span>
                 </div>
               </div>
 
@@ -2048,7 +1987,7 @@ export const CajaPage: React.FC = () => {
                   placeholder="Ej: Cierre de turno finalizado con normalidad"
                   value={cierreNotes}
                   onChange={(e) => setCierreNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm outline-none focus:border-yellow-400"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-300 text-gray-900 text-sm outline-none focus:border-yellow-400"
                 />
               </div>
 
@@ -2064,11 +2003,11 @@ export const CajaPage: React.FC = () => {
               </button>
               <button
                 onClick={handleCierreSubmit}
-                disabled={isSubmittingCierre || cierreActualUSD === '' || cierreActualCOP === ''}
-                className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs border border-yellow-500 shadow-xs flex items-center justify-center gap-2 transition-all"
+                disabled={isSubmittingCierre}
+                className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs border border-yellow-500 shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <IoLockClosedOutline className="text-base" />
-                <span>{isSubmittingCierre ? 'CONFIRMANDO Y PURGANDO...' : 'CONFIRMAR ARQUEO Y CIERRE'}</span>
+                <span>{isSubmittingCierre ? 'CONFIRMANDO Y REINICIANDO...' : 'CONFIRMAR Y REINICIAR CAJA'}</span>
               </button>
             </div>
           </div>

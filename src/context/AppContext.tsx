@@ -93,7 +93,7 @@ interface AppContextType {
 
   aperturarCajaChica: (usdCash: number, copCash: number) => Promise<void>;
   addCajaTransaction: (trans: { type: 'ingreso' | 'egreso'; amountUSD: number; amountCOP: number; amountBs: number; paymentMethod: string; description: string }) => Promise<void>;
-  realizarCierreCaja: (actualUSD: number, actualCOP: number, notes?: string) => Promise<any>;
+  realizarCierreCaja: (actualUSD?: number, actualCOP?: number, notes?: string) => Promise<any>;
   obtenerReporteDiario: () => Promise<any>;
   fetchReporteIntervalo: (from: string, to: string) => Promise<any>;
   printReporteIntervalo: (reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina', data: any, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
@@ -717,7 +717,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchCajaChica();
   };
 
-  const realizarCierreCaja = async (actualUSD: number, actualCOP: number, notes?: string) => {
+  const realizarCierreCaja = async (actualUSD?: number, actualCOP?: number, notes?: string) => {
     const res = await apiFetch(`${backendUrl}/api/caja-chica/cierre`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

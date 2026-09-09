@@ -118,20 +118,12 @@ module.exports = function(io) {
   router.post('/cierre', requireRole('caja', 'admin'), async (req, res) => {
     try {
       const { actualUSD, actualCOP, notes } = req.body;
-      const normalizedActualUSD = Number(actualUSD);
-      const normalizedActualCOP = Number(actualCOP);
-      if (!Number.isFinite(normalizedActualUSD) || !Number.isFinite(normalizedActualCOP) || normalizedActualUSD < 0 || normalizedActualCOP < 0) {
-        return res.status(400).json({ error: 'Los conteos físicos USD y COP deben ser montos válidos no negativos.' });
-      }
 
       const { rows: aperturaRows } = await query(
         `SELECT * FROM caja_chica_apertura ORDER BY timestamp DESC LIMIT 1`
       );
-      if (!aperturaRows[0]) {
-        return res.status(409).json({ error: 'Debes registrar la apertura de caja antes de hacer el arqueo.' });
-      }
-      const openedUSD = aperturaRows[0] ? parseFloat(aperturaRows[0].usd_cash) : 0;
-      const openedCOP = aperturaRows[0] ? parseFloat(aperturaRows[0].cop_cash) : 0;
+      const openedUSD = aperturaRows[0] ? parseFloat(aperturaRows[0].usd_cash) || 0 : 0;
+      const openedCOP = aperturaRows[0] ? parseFloat(aperturaRows[0].cop_cash) || 0 : 0;
       const openedAt = aperturaRows[0] ? aperturaRows[0].timestamp : null;
 
       let txQuery = `SELECT * FROM caja_chica_transactions WHERE cierre_id IS NULL`;
@@ -149,6 +141,14 @@ module.exports = function(io) {
 
       const expectedUSD = openedUSD + totalIngresosUSD - totalEgresosUSD;
       const expectedCOP = openedCOP + totalIngresosCOP - totalEgresosCOP;
+
+      const normalizedActualUSD = (actualUSD !== undefined && actualUSD !== null && actualUSD !== '' && Number.isFinite(Number(actualUSD)))
+        ? Number(actualUSD)
+        : expectedUSD;
+      const normalizedActualCOP = (actualCOP !== undefined && actualCOP !== null && actualCOP !== '' && Number.isFinite(Number(actualCOP)))
+        ? Number(actualCOP)
+        : expectedCOP;
+
       const diffUSD = normalizedActualUSD - expectedUSD;
       const diffCOP = normalizedActualCOP - expectedCOP;
 
