@@ -745,3 +745,19 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - Disposición vertical y centrado horizontal de tarjetas de mesas, pedidos delivery, pick-up, catálogo de comidas/bebidas, y botones de confirmación para facilitar el toque rápido en tablets y pantallas táctiles.
    - La pantalla de cobro (`PaymentLedgerModal.tsx`) fue preservada intacta en su dimensionamiento original por requerimiento funcional estricto.
 
+12. **Tercera Sección de Salsas: Adición Rápida, Exclusión de Pre-cuenta y Regla Estricta en Cocina**:
+    - **Tercera Sección en Toma de Pedidos (`ProductTextCatalog.tsx`)**:
+      - Debajo de la sección de Comidas y Bebidas, se incorpora la sección `🥣 SALSAS` con filtro dedicado y tarjetas táctiles para adición directa al pedido (+1 por clic).
+      - Cada salsa se agrega con precio \$0.00 USD (gratuita / no contable) y se incrementa o decrementa desde el carrito lateral con los controles `+` / `-`.
+    - **Adición en Comandas Existentes (`OrderAppendModal.tsx`)**:
+      - La modal de adición de ítems a mesas abiertas incorpora idéntica sección de Salsas, permitiendo cargar salsas complementarias a órdenes ya creadas.
+    - **Migración Idempotente en Base de Datos (`server/db.js`)**:
+      - En el arranque del servidor, se ejecuta un script de migración idempotente con cláusula `ON CONFLICT (id) DO NOTHING;` que inserta las salsas iniciales del restaurante (`ing-salsa-casa`, `ing-salsa-smash`, `ing-salsa-tasty`, `ing-salsa-ajo`, `ing-salsa-bbq`, `ing-salsa-tartara`) categorizadas como `Salsas` y con tipo `salsa`, asegurando que no se dupliquen registros en ningún reinicio o actualización.
+    - **Regla Estricta en Comandas Térmicas de Cocina (`server/helpers/thermalPrinter.js`)**:
+      - En las comandas de cocina (tanto creación como adición de pedidos), las salsas **SIEMPRE se imprimen al final de la comanda**, después de todas las comidas y bebidas (`consolidateKitchenItems`), garantizando un orden de preparación claro para el personal de plancha.
+      - En el monitor de cocina KDS (`CocinaPage.tsx`), los ítems de salsa se ordenan de igual forma al final con la insignia destacada `🥣 SALSA`.
+    - **Exclusión Absoluta de la Pre-cuenta**:
+      - Tanto en la impresión térmica de pre-cuenta (`server/helpers/thermalPrinter.js` -> `buildReceiptTicket`) como en la pre-visualización HTML (`reportService.ts` -> `generatePreCuentaTicket`), las salsas son filtradas y excluidas al 100% (`!isSalsaItem(it)`), por lo que el comensal no las visualiza en su cuenta ni alteran los subtotales/totales monetarios.
+    - **Gestión Administrativa en Menú Admin (`MenuManagementPage.tsx`, `routes/ingredients.js`)**:
+      - En la pestaña de Ingredientes se incorpora el tipo `🥣 Salsa` con chip de filtrado y distintivo naranja `🥣 SALSA (NO CONTABLE / COCINA)`.
+      - El usuario administrador puede crear y editar salsas definiendo su nombre y un precio referencial (por defecto \$0.00), manteniéndose su condición no contable en comandas de cocina.

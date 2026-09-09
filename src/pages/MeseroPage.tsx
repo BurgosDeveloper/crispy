@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Product, OrderItem, Order } from '../data/mockData';
+import { Product, OrderItem, Order, Ingredient } from '../data/mockData';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
@@ -113,6 +113,10 @@ export const MeseroPage: React.FC = () => {
     .filter((i) => (i.isExtra || i.isExtraForPizza) && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
+  const availableSalsas = ingredients
+    .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+
   // Open order creation
   const handleOpenOrder = (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => {
     setActiveOrderTarget({
@@ -184,6 +188,22 @@ export const MeseroPage: React.FC = () => {
       };
       setCartItems((prev) => mergeCartItem(prev, newItem));
     }
+  };
+
+  // Salsa Selection Click (No contable, costo 0.00, directo al pedido)
+  const handleSelectSalsa = (salsa: Ingredient) => {
+    const isTargetTakeaway = activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery';
+    const newItem: OrderItem = {
+      id: `item-salsa-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: salsa.id,
+      productName: salsa.name,
+      price: 0,
+      quantity: 1,
+      category: 'Salsas',
+      isTakeaway: isTargetTakeaway,
+      isNewOrModified: false,
+    };
+    setCartItems((prev) => mergeCartItem(prev, newItem));
   };
 
   // Confirm Burger Add
@@ -732,6 +752,8 @@ export const MeseroPage: React.FC = () => {
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
                     exchangeRates={exchangeRates}
+                    salsas={availableSalsas}
+                    onSelectSalsa={handleSelectSalsa}
                   />
                 </div>
               ) : (
@@ -855,7 +877,11 @@ export const MeseroPage: React.FC = () => {
                                     📦 Para Llevar
                                   </span>
                                 )}
-                                {(item.isCut || item.cutPreference === 'Picada') ? (
+                                {item.category === 'Salsas' ? (
+                                  <span className="text-[11px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
+                                    🥣 Salsa
+                                  </span>
+                                ) : (item.isCut || item.cutPreference === 'Picada') ? (
                                   <span className="text-[11px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
                                     🔪 Picada
                                   </span>

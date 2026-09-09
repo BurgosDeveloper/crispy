@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useSearchParams } from 'react-router-dom';
 import { Order } from '../data/mockData';
 import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
+import { isSalsaItem } from '../utils/productClassifier';
 import {
   IoFlame,
   IoTimeOutline,
@@ -240,9 +241,17 @@ export const CocinaPage: React.FC = () => {
                         DETALLE DE PREPARACIÓN
                       </div>
                       {((ord.type === 'delivery' || ord.type === 'pickup')
-                        ? (ord.items || [])
+                        ? [...(ord.items || [])]
                         : (ord.items || []).filter(isKitchenProduct)
-                      ).map((it) => (
+                      )
+                        .sort((a, b) => {
+                          const aSalsa = isSalsaItem(a);
+                          const bSalsa = isSalsaItem(b);
+                          if (aSalsa && !bSalsa) return 1;
+                          if (!aSalsa && bSalsa) return -1;
+                          return 0;
+                        })
+                        .map((it) => (
                         <div
                           key={it.id}
                           className={`space-y-1.5 p-2.5 rounded-xl border transition-all ${
@@ -268,7 +277,11 @@ export const CocinaPage: React.FC = () => {
                                   <IoBagOutline /> 📦 PARA LLEVAR
                                 </span>
                               )}
-                              {(it.isCut || it.cutPreference === 'Picada') ? (
+                              {isSalsaItem(it) ? (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black">
+                                  🥣 SALSA
+                                </span>
+                              ) : (it.isCut || it.cutPreference === 'Picada') ? (
                                 <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-300 text-[9px] font-black">
                                   🔪 PICADA
                                 </span>

@@ -177,14 +177,14 @@ export const MenuManagementPage: React.FC = () => {
   const [isAddIngOpen, setIsAddIngOpen] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
   const [ingName, setIngName] = useState('');
-  const [ingType, setIngType] = useState<'proteina' | 'gratis' | 'adicional' | 'base'>('adicional');
+  const [ingType, setIngType] = useState<'proteina' | 'gratis' | 'adicional' | 'base' | 'salsa'>('adicional');
   const [ingPriceUSD, setIngPriceUSD] = useState('1.00');
-  const [ingredientFilter, setIngredientFilter] = useState<'todos' | 'proteina' | 'gratis' | 'adicional' | 'base'>('todos');
+  const [ingredientFilter, setIngredientFilter] = useState<'todos' | 'proteina' | 'gratis' | 'adicional' | 'base' | 'salsa'>('todos');
 
   const handleStartEditIngredient = (ing: Ingredient) => {
     setEditingIngredientId(ing.id);
     setIngName(ing.name);
-    const resolvedType = ing.ingredientType || (ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
+    const resolvedType = ing.ingredientType || (ing.category === 'Salsas' ? 'salsa' : ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
     setIngType(resolvedType);
     setIngPriceUSD(((ing.priceUSD !== undefined ? ing.priceUSD : ing.priceGrandeCompleta) || 0).toString());
     setIsAddIngOpen(true);
@@ -194,7 +194,7 @@ export const MenuManagementPage: React.FC = () => {
     e.preventDefault();
     if (!ingName) return;
 
-    const pUSD = (ingType === 'adicional' || ingType === 'proteina') ? (parseFloat(ingPriceUSD) || 0) : 0;
+    const pUSD = (ingType === 'adicional' || ingType === 'proteina' || ingType === 'salsa') ? (parseFloat(ingPriceUSD) || 0) : 0;
 
     const ingData = {
       name: ingName,
@@ -205,8 +205,8 @@ export const MenuManagementPage: React.FC = () => {
       pricePequenaCompleta: pUSD,
       pricePequenaMitad: pUSD > 0 ? pUSD / 2 : 0,
       isBaseForPizza: ingType === 'base',
-      isExtraForPizza: ingType === 'adicional' || ingType === 'proteina',
-      category: ingType === 'proteina' ? 'Proteínas' : ingType === 'gratis' ? 'Gratis' : ingType === 'adicional' ? 'Adicionales' : 'Base',
+      isExtraForPizza: ingType === 'adicional' || ingType === 'proteina' || ingType === 'salsa',
+      category: ingType === 'salsa' ? 'Salsas' : ingType === 'proteina' ? 'Proteínas' : ingType === 'gratis' ? 'Gratis' : ingType === 'adicional' ? 'Adicionales' : 'Base',
       shift: userSession?.shift || 'ambos'
     };
 
@@ -287,7 +287,7 @@ export const MenuManagementPage: React.FC = () => {
 
   const filteredIngredients = shiftIngredients.filter((ing) => {
     if (ingredientFilter === 'todos') return true;
-    const type = ing.ingredientType || (ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
+    const type = ing.ingredientType || (ing.category === 'Salsas' ? 'salsa' : ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
     return type === ingredientFilter;
   });
 
@@ -565,6 +565,7 @@ export const MenuManagementPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             {[
               { key: 'todos', label: `Todos (${shiftIngredients.length})` },
+              { key: 'salsa', label: `🥣 Salsas (${shiftIngredients.filter(i => (i.ingredientType || (i.category === 'Salsas' ? 'salsa' : '')) === 'salsa').length})` },
               { key: 'proteina', label: `🥩 Proteínas (${shiftIngredients.filter(i => (i.ingredientType || (i.category === 'Proteínas' ? 'proteina' : '')) === 'proteina').length})` },
               { key: 'gratis', label: `🆓 Gratuitos (${shiftIngredients.filter(i => (i.ingredientType || (i.category === 'Gratis' ? 'gratis' : '')) === 'gratis').length})` },
               { key: 'adicional', label: `➕ Adicionales (${shiftIngredients.filter(i => (i.ingredientType || (i.category === 'Adicionales' ? 'adicional' : (i.isExtraForPizza ? 'adicional' : ''))) === 'adicional').length})` },
@@ -597,7 +598,7 @@ export const MenuManagementPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredIngredients.map((ing) => {
-                  const resolvedType = ing.ingredientType || (ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
+                  const resolvedType = ing.ingredientType || (ing.category === 'Salsas' ? 'salsa' : ing.category === 'Gratis' ? 'gratis' : ing.category === 'Proteínas' ? 'proteina' : ing.isBaseForPizza ? 'base' : 'adicional');
                   const pUSD = (ing.priceUSD !== undefined ? ing.priceUSD : ing.priceGrandeCompleta) || 0;
 
                   return (
@@ -606,6 +607,11 @@ export const MenuManagementPage: React.FC = () => {
                         <span>{ing.name}</span>
                       </td>
                       <td className="p-4">
+                        {resolvedType === 'salsa' && (
+                          <span className="px-2.5 py-1 rounded-lg bg-orange-100 text-orange-950 border border-orange-300 text-[11px] font-black inline-flex items-center gap-1">
+                            🥣 SALSA (NO CONTABLE / COCINA)
+                          </span>
+                        )}
                         {resolvedType === 'proteina' && (
                           <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 border border-blue-200 text-[11px] font-black inline-flex items-center gap-1">
                             🥩 PROTEÍNA
@@ -628,7 +634,11 @@ export const MenuManagementPage: React.FC = () => {
                         )}
                       </td>
                       <td className="p-4 font-black">
-                        {(resolvedType === 'adicional' || resolvedType === 'proteina') && pUSD > 0 ? (
+                        {resolvedType === 'salsa' ? (
+                          <span className="text-orange-800 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 font-bold">
+                            $0.00 (No contable)
+                          </span>
+                        ) : (resolvedType === 'adicional' || resolvedType === 'proteina') && pUSD > 0 ? (
                           <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                             +${pUSD.toFixed(2)} USD
                           </span>
@@ -1579,11 +1589,12 @@ export const MenuManagementPage: React.FC = () => {
                 />
               </div>
 
-              {/* Selector de Clasificación de 4 Tipos */}
+              {/* Selector de Clasificación de 5 Tipos */}
               <div>
                 <label className="text-xs font-bold text-gray-700 block mb-1.5">Clasificación del Ingrediente:</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
+                    { type: 'salsa', label: '🥣 Salsa', desc: 'Sección Salsas (cocina, no contable)' },
                     { type: 'proteina', label: '🥩 Proteína', desc: 'Carne, pollo mechado/crispy' },
                     { type: 'gratis', label: '🆓 Gratuito', desc: 'Topping sin costo extra' },
                     { type: 'adicional', label: '➕ Adicional', desc: 'Extra con costo cobrable' },
@@ -1592,7 +1603,12 @@ export const MenuManagementPage: React.FC = () => {
                     <button
                       key={item.type}
                       type="button"
-                      onClick={() => setIngType(item.type as any)}
+                      onClick={() => {
+                        setIngType(item.type as any);
+                        if (item.type === 'salsa' || item.type === 'gratis' || item.type === 'base') {
+                          setIngPriceUSD('0.00');
+                        }
+                      }}
                       className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
                         ingType === item.type
                           ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs'
@@ -1606,7 +1622,7 @@ export const MenuManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Precio USD (Solo si es Adicional o Proteína) */}
+              {/* Precio USD (Solo si es Adicional o Proteína, o Salsa referencial) */}
               {(ingType === 'adicional' || ingType === 'proteina') ? (
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">
@@ -1622,6 +1638,24 @@ export const MenuManagementPage: React.FC = () => {
                     placeholder="1.00"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-gray-300 text-sm font-black text-black outline-none focus:border-yellow-400"
                   />
+                </div>
+              ) : ingType === 'salsa' ? (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-700 block">
+                    Costo / Precio referencial en USD ($):
+                  </label>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    value={ingPriceUSD}
+                    onChange={(e) => setIngPriceUSD(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-gray-300 text-sm font-black text-black outline-none focus:border-yellow-400"
+                  />
+                  <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 text-orange-950 text-xs font-medium leading-relaxed">
+                    🥣 <strong>Ítem no contable:</strong> Las salsas se ordenan siempre al final en la comanda de cocina y se excluyen automáticamente de las pre-cuentas y balances de cobro.
+                  </div>
                 </div>
               ) : (
                 <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-black">

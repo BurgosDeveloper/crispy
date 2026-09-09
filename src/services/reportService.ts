@@ -3,6 +3,7 @@
 import { Order, CajaChicaTransaction, ExchangeRates } from '../data/mockData';
 import { ReporteIntervaloData } from './excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
+import { isSalsaItem } from '../utils/productClassifier';
 
 export class ReportService {
   private openPrintWindow(title: string, htmlContent: string) {
@@ -1133,8 +1134,9 @@ export class ReportService {
     const totalBs = (totalUSD * bsRate).toFixed(2);
     const cleanOrderNumber = (order.orderNumber || '').toString().replace(/^#+/, '');
 
-    // Renderizar cada ítem del pedido de forma sencilla y directa
-    const itemsHtml = (order.items || []).map((it) => {
+    // Renderizar cada ítem del pedido de forma sencilla y directa (excluyendo salsas, que no van en pre-cuenta)
+    const billableItems = (order.items || []).filter((it) => !isSalsaItem(it));
+    const itemsHtml = billableItems.map((it) => {
       const qty = it.quantity || 1;
       const cleanName = (it.productName || 'Producto')
         .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')

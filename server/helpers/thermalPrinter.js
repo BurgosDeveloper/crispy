@@ -220,6 +220,21 @@ function isKitchenItem(item) {
   return true;
 }
 
+function isSalsaItem(item) {
+  if (!item) return false;
+  const category = String(item.category || '').trim().toLowerCase();
+  const name = String(item.productName || item.name || '').trim().toLowerCase();
+  return (
+    category === 'salsas' ||
+    category === 'salsa' ||
+    name.startsWith('salsa ') ||
+    name.includes('salsa de') ||
+    name.includes('salsa tártara') ||
+    name.includes('salsa tartara') ||
+    name.includes('salsa bbq')
+  );
+}
+
 function normalizeProteinName(name = '') {
   const n = String(name || '').trim().toLowerCase();
   if (n.includes('mechada') || n.includes('street')) return 'carne mechada';
@@ -981,6 +996,7 @@ function consolidateKitchenItems(items, order) {
       .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
       .trim();
     const details = itemDetails(item, order);
+    const isSalsa = isSalsaItem(item);
     const key = `${cleanName.toLowerCase()}|||${details.join('|||')}`;
 
     const existing = consolidated.find((c) => c.key === key);
@@ -992,10 +1008,17 @@ function consolidateKitchenItems(items, order) {
         name: cleanName,
         quantity: Number(item.quantity) || 1,
         details,
+        isSalsa,
       });
     }
   }
-  return consolidated;
+
+  // REGLA ESTRICTA: Las salsas SIEMPRE deben aparecer al final de la comanda de cocina
+  return consolidated.sort((a, b) => {
+    if (a.isSalsa && !b.isSalsa) return 1;
+    if (!a.isSalsa && b.isSalsa) return -1;
+    return 0;
+  });
 }
 
 function buildKitchenTicket(order) {
@@ -1370,8 +1393,9 @@ function buildReceiptTicket(order, rates = {}) {
 
   lines.push(divider('-'));
 
-  // Imprimir todos los ítems de la comanda de forma directa y compacta (1 línea por ítem)
-  for (const it of order.items || []) {
+  // Imprimir todos los ítems de la comanda de forma directa y compacta (excluyendo salsas, que no van en pre-cuenta)
+  const receiptItems = (order.items || []).filter((it) => !isSalsaItem(it));
+  for (const it of receiptItems) {
     const qty = it.quantity || 1;
     const cleanName = printableText((it.productName || 'Producto')
       .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
@@ -1527,6 +1551,7 @@ module.exports = {
   KITCHEN_LINE_WIDTH,
   KITCHEN_FORMAT_SETUP,
   isKitchenItem,
+  isSalsaItem,
   buildKitchenTicket,
   buildKitchenAdditionTicket,
   buildReceiptTicket,

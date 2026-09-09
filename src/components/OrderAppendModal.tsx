@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Order, OrderItem, Product } from '../data/mockData';
+import { Order, OrderItem, Product, Ingredient } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
@@ -84,6 +84,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     .filter((i) => (i.isExtra || i.isExtraForPizza) && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
+  const availableSalsas = ingredients
+    .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+
   const areAppendItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
     if (a.productId !== b.productId) return false;
     if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
@@ -141,6 +145,23 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSuccessToast(`¡${prod.name} agregado!`);
       setTimeout(() => setSuccessToast(''), 2500);
     }
+  };
+
+  // Manejo de adición directa de salsas (No contable, costo 0.00)
+  const handleSelectSalsa = (salsa: Ingredient) => {
+    const newItem: OrderItem = {
+      id: `add-salsa-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: salsa.id,
+      productName: salsa.name,
+      price: 0,
+      quantity: 1,
+      category: 'Salsas',
+      isTakeaway: order.type === 'pickup' || order.type === 'delivery',
+      isNewOrModified: true,
+    };
+    setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
+    setSuccessToast(`¡${salsa.name} agregada!`);
+    setTimeout(() => setSuccessToast(''), 2500);
   };
 
   // Confirmar adición de hamburguesa desde la sección INLINE
@@ -334,6 +355,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   exchangeRates={exchangeRates}
+                  salsas={availableSalsas}
+                  onSelectSalsa={handleSelectSalsa}
                 />
               </div>
             ) : (
@@ -455,15 +478,21 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className="font-black text-xs sm:text-sm text-black">{item.productName}</span>
-                                  <span
-                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                      isKitchen
-                                        ? 'bg-red-100 text-red-800 border border-red-200'
-                                        : 'bg-blue-100 text-blue-800 border border-blue-200'
-                                    }`}
-                                  >
-                                    {isKitchen ? '🔥 COCINA' : '🥤 BARRA'}
-                                  </span>
+                                  {item.category === 'Salsas' ? (
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                                      🥣 SALSA
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                        isKitchen
+                                          ? 'bg-red-100 text-red-800 border border-red-200'
+                                          : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                      }`}
+                                    >
+                                      {isKitchen ? '🔥 COCINA' : '🥤 BARRA'}
+                                    </span>
+                                  )}
                                   {item.cutPreference === 'Picada' && (
                                     <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded">
                                       🔪 Picada

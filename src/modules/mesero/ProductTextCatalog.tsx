@@ -1,5 +1,5 @@
 import React from 'react';
-import { Product } from '../../data/mockData';
+import { Product, Ingredient } from '../../data/mockData';
 import { IoSearch, IoClose, IoAdd } from 'react-icons/io5';
 import { isDrinkProduct, isPotatoProduct, isCustomizableProduct } from '../../utils/productClassifier';
 
@@ -11,6 +11,8 @@ interface ProductTextCatalogProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   exchangeRates?: { COP: number; Bs: number };
+  salsas?: Ingredient[];
+  onSelectSalsa?: (salsa: Ingredient) => void;
 }
 
 export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
@@ -21,9 +23,11 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
   searchQuery,
   onSearchChange,
   exchangeRates = { COP: 3950, Bs: 36.5 },
+  salsas = [],
+  onSelectSalsa,
 }) => {
-  // Categorías fijas y claras: 'Todas', 'Comidas', 'Bebidas'
-  const filterCategories = ['Todas', 'Comidas', 'Bebidas'];
+  // Categorías fijas y claras: 'Todas', 'Comidas', 'Bebidas', 'Salsas'
+  const filterCategories = ['Todas', 'Comidas', 'Bebidas', 'Salsas'];
 
   // Función de coincidencia de búsqueda
   const matchesSearch = (product: Product): boolean => {
@@ -34,6 +38,12 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
       (product.description && product.description.toLowerCase().includes(q)) ||
       (product.baseIngredients && product.baseIngredients.some((ing) => ing.toLowerCase().includes(q)))
     );
+  };
+
+  const matchesSearchSalsa = (salsa: Ingredient): boolean => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return salsa.name.toLowerCase().includes(q);
   };
 
   // Separar productos en Comidas y Bebidas, filtrando por búsqueda y ordenando alfabéticamente (A-Z)
@@ -47,10 +57,20 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
     .filter(matchesSearch)
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
+  const salsaProducts = (salsas || [])
+    .filter((s) => s.ingredientType === 'salsa' || s.category === 'Salsas')
+    .filter((s) => s.available !== false)
+    .filter(matchesSearchSalsa)
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+
   const showFoods = selectedCategory === 'Todas' || selectedCategory === 'Comidas';
   const showDrinks = selectedCategory === 'Todas' || selectedCategory === 'Bebidas';
+  const showSalsas = selectedCategory === 'Todas' || selectedCategory === 'Salsas';
 
-  const totalVisible = (showFoods ? foodProducts.length : 0) + (showDrinks ? drinkProducts.length : 0);
+  const totalVisible =
+    (showFoods ? foodProducts.length : 0) +
+    (showDrinks ? drinkProducts.length : 0) +
+    (showSalsas ? salsaProducts.length : 0);
 
   return (
     <div className="flex flex-col h-full space-y-2">
@@ -203,6 +223,51 @@ export const ProductTextCatalog: React.FC<ProductTextCatalogProps> = ({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN 3: SALSAS (Porciones para Cocina / Directo +1 / Sin Costo Contable) - Color Ámbar / Miel Suave */}
+            {showSalsas && salsaProducts.length > 0 && (
+              <div>
+                {/* Encabezado de Sección Salsas */}
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-amber-100/80 border border-amber-300 text-amber-950 mb-2 select-none">
+                  <div className="flex items-center gap-2 font-black text-sm sm:text-base tracking-wide">
+                    <span className="text-lg">🥣</span>
+                    <span className="uppercase">Salsas</span>
+                    <span className="text-xs font-bold text-amber-800/80 normal-case hidden sm:inline">
+                      (Porciones para cocina - Sin costo contable)
+                    </span>
+                  </div>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-200/90 text-amber-950">
+                    {salsaProducts.length} {salsaProducts.length === 1 ? 'ítem' : 'ítems'}
+                  </span>
+                </div>
+
+                {/* Grilla de Tarjetas de Salsas con Textos Centrados */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {salsaProducts.map((salsa) => (
+                    <button
+                      key={salsa.id}
+                      type="button"
+                      onClick={() => onSelectSalsa && onSelectSalsa(salsa)}
+                      className="p-3 rounded-2xl bg-[#fffbeb] hover:bg-amber-50 border-2 border-amber-200/90 hover:border-amber-400 text-center transition-all shadow-xs hover:shadow-md flex flex-col items-center justify-between gap-1.5 group active:scale-[0.98] cursor-pointer min-h-[108px]"
+                      title={`${salsa.name} - Clic para agregar directo a la comanda (+1)`}
+                    >
+                      <div className="flex flex-col items-center justify-center text-center w-full min-w-0">
+                        <span className="font-black text-sm sm:text-base text-amber-950 group-hover:text-amber-900 leading-tight text-center line-clamp-2">
+                          {salsa.name}
+                        </span>
+                        <span className="text-xs font-bold text-amber-700/80 leading-none mt-1 flex items-center justify-center gap-1 text-center">
+                          <IoAdd className="text-xs" />
+                          <span>Directo (+1)</span>
+                        </span>
+                      </div>
+                      <span className="font-black text-xs sm:text-sm text-amber-950 bg-amber-200/90 group-hover:bg-amber-300 px-3 py-1 rounded-xl border border-amber-300 shrink-0 shadow-2xs text-center uppercase tracking-wide">
+                        $0.00 (Gratis)
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

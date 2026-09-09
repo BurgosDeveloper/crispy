@@ -27,11 +27,11 @@ module.exports = function(io) {
         available,
       } = req.body;
       const id = `ing-${Date.now()}`;
-      const finalType = ingredientType || (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional')));
+      const finalType = ingredientType || (category === 'Salsas' ? 'salsa' : (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional'))));
       const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
       const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
-      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || isExtra === true;
-      const finalCategory = category || (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales')));
+      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || finalType === 'salsa' || isExtra === true;
+      const finalCategory = category || (finalType === 'salsa' ? 'Salsas' : (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales'))));
 
       await query(
         `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift)
@@ -73,11 +73,11 @@ module.exports = function(io) {
         available,
       } = req.body;
 
-      const finalType = ingredientType || (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional')));
+      const finalType = ingredientType || (category === 'Salsas' ? 'salsa' : (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional'))));
       const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
       const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
-      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || isExtra === true;
-      const finalCategory = category || (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales')));
+      const finalIsExtra = finalType === 'adicional' || finalType === 'gratis' || finalType === 'salsa' || isExtra === true;
+      const finalCategory = category || (finalType === 'salsa' ? 'Salsas' : (finalType === 'gratis' ? 'Gratis' : (finalType === 'proteina' ? 'Proteínas' : (finalType === 'base' ? 'Ingredientes Base' : 'Adicionales'))));
 
       let oldName = null;
       const { rows } = await query(`SELECT name FROM ingredients WHERE id = $1`, [id]);

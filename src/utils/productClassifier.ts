@@ -65,3 +65,22 @@ export function isCustomizableProduct(product: Product | null | undefined): bool
 export function getProductSection(product: Product): 'comidas' | 'bebidas' {
   return isDrinkProduct(product) ? 'bebidas' : 'comidas';
 }
+
+/**
+ * Determina si un producto, ítem o ingrediente corresponde a salsa
+ */
+export function isSalsaItem(item: any): boolean {
+  if (!item) return false;
+  const cat = String(item.category || item.ingredientType || '').toLowerCase().trim();
+  const name = String(item.productName || item.name || '').toLowerCase().trim();
+  return (
+    cat === 'salsas' ||
+    cat === 'salsa' ||
+    name.startsWith('salsa ') ||
+    name.includes('salsa de') ||
+    name.includes('salsa tártara') ||
+    name.includes('salsa tartara') ||
+    name.includes('salsa bbq')
+  );
+}
+

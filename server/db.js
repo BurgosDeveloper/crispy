@@ -264,6 +264,16 @@ async function initDb() {
       `UPDATE ingredients SET ingredient_type = 'adicional' WHERE id IN ('ing-adicional-tocineta', 'ing-adicional-queso-cheddar', 'ing-adicional-proteina', 'ing-adicional-racion-papas', 'ing-servicio-papas-fritas') OR category = 'Adicionales';`,
       `UPDATE ingredients SET ingredient_type = 'base', price_usd = 0.00 WHERE (category = 'Ingredientes Base' OR is_base = TRUE) AND id NOT IN ('ing-base-novillo', 'ing-base-pollo-crispy', 'ing-base-pollo-plancha', 'ing-base-chuleta', 'ing-base-mechada', 'ing-base-doble-smash');`,
 
+      `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift) VALUES
+        ('ing-salsa-casa', 'Salsa de la Casa', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-smash', 'Salsa Smash', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-tasty', 'Salsa Tasty', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-ajo', 'Salsa de Ajo', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-bbq', 'Salsa BBQ', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-tartara', 'Salsa Tártara', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos')
+        ON CONFLICT (id) DO NOTHING;`,
+      `UPDATE ingredients SET ingredient_type = 'salsa', category = 'Salsas' WHERE id LIKE 'ing-salsa-%' OR category = 'Salsas';`,
+
       `UPDATE products SET protein_count = 3, default_proteins = ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada'] WHERE id = 'prod-3-0';`,
       `UPDATE products SET protein_count = 2, default_proteins = ARRAY['Carne de novillo', 'Pollo crispy'] WHERE id = 'prod-mixtura';`,
       `UPDATE products SET protein_count = 2, default_proteins = ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada'] WHERE id = 'prod-house';`,

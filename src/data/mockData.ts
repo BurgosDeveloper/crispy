@@ -25,7 +25,7 @@ export interface Ingredient {
   id: string;
   name: string;
   priceUSD: number;
-  ingredientType?: 'proteina' | 'gratis' | 'adicional' | 'base';
+  ingredientType?: 'proteina' | 'gratis' | 'adicional' | 'base' | 'salsa';
   isBase?: boolean;
   isExtra?: boolean;
   priceGrandeCompleta?: number;
