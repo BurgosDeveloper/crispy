@@ -667,7 +667,6 @@ function buildReportTicket(reportType, data) {
     const byMethod = new Map();
 
     for (const payment of data.payments || []) {
-      if (payment.paymentMethod === 'Crédito') continue;
       const method = payment.paymentMethod || 'Efectivo USD';
       const curr = reportPaymentCurrency(method);
       const cRate = Number(payment.copRate) || copRateGlobal;
@@ -756,9 +755,9 @@ function buildReportTicket(reportType, data) {
     const expenses = (data.transactions || []).filter((item) => item.type === 'egreso');
 
     const creditOrders = (data.orders || []).filter((o) => o.paymentStatus === 'credito' || o.paymentMethod === 'Crédito');
-    const cashOrders = (data.orders || []).filter((o) => o.paymentStatus === 'pagado' && o.paymentMethod !== 'Crédito');
-    const cashOrderIds = new Set(cashOrders.map((o) => o.id));
-    const cashItems = (data.items || []).filter((item) => cashOrderIds.has(item.orderId));
+    const billedOrders = (data.orders || []).filter((o) => o.paymentStatus === 'pagado' || o.paymentStatus === 'credito');
+    const billedOrderIds = new Set(billedOrders.map((o) => o.id));
+    const cashItems = (data.items || []).filter((item) => billedOrderIds.has(item.orderId));
 
     const firstOrder = data.orders?.[0]?.orderNumber || 'N/A';
     const lastOrder = data.orders?.[data.orders.length - 1]?.orderNumber || 'N/A';
@@ -766,9 +765,10 @@ function buildReportTicket(reportType, data) {
     lines.push(...wrapText(`COMANDA INICIAL: #${firstOrder}`, reportWidth));
     lines.push(...wrapText(`COMANDA FINAL:   #${lastOrder}`, reportWidth));
 
-    // Desglose de Deliverys de Comandas al Contado
+    // Desglose de Deliverys de Comandas Facturadas
+    const cashOrders = (data.orders || []).filter((o) => o.paymentStatus === 'pagado' && o.paymentMethod !== 'Crédito');
     const deliveryMap = new Map();
-    for (const ord of cashOrders) {
+    for (const ord of billedOrders) {
       const fee = Number(ord.deliveryFeeUSD) || 0;
       if (ord.type === 'delivery' || fee > 0) {
         deliveryMap.set(fee, (deliveryMap.get(fee) || 0) + 1);

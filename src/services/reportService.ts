@@ -183,7 +183,7 @@ export class ReportService {
       'Pago Móvil': 'Pago Móvil',
       'Tarjeta de Débito': 'Tarjeta Débito',
       'Tarjeta de Crédito': 'Tarjeta Crédito',
-      Crédito: 'Cuenta a Crédito',
+      Crédito: 'Crédito',
     };
     return labels[method] || method || 'Sin método';
   }
@@ -660,7 +660,7 @@ export class ReportService {
 
   // 8. Reporte Contable Consolidado con Desglose de Monedas y Créditos
   generateReporteContable(data: ReporteIntervaloData) {
-    const methodNames = ['Efectivo USD', 'Binance', 'Zelle', 'Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP', 'Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'];
+    const methodNames = ['Efectivo USD', 'Binance', 'Zelle', 'Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP', 'Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito', 'Crédito'];
     const methodTotals = new Map(methodNames.map((method) => [
       method,
       {
@@ -677,7 +677,6 @@ export class ReportService {
     const paymentsByOrder = new Map<string, ReporteIntervaloData['payments']>();
 
     data.payments.forEach((payment) => {
-      if (payment.paymentMethod === 'Crédito') return;
       const method = payment.paymentMethod || 'Efectivo USD';
       const curr = this.paymentCurrency(method);
       const cRate = Number(payment.copRate) || Number(data.exchangeRates?.COP) || 3950;
@@ -781,12 +780,13 @@ export class ReportService {
     // Separación Estricta de Contado y Crédito
     const creditOrders = data.orders.filter((order) => order.paymentStatus === 'credito' || order.paymentMethod === 'Crédito');
     const cashOrders = data.orders.filter((order) => order.paymentStatus === 'pagado' && order.paymentMethod !== 'Crédito');
-    const cashOrderIds = new Set(cashOrders.map((o) => o.id));
-    const cashItems = data.items.filter((item) => cashOrderIds.has(item.orderId));
+    const billedOrders = data.orders.filter((order) => order.paymentStatus === 'pagado' || order.paymentStatus === 'credito');
+    const billedOrderIds = new Set(billedOrders.map((o) => o.id));
+    const cashItems = data.items.filter((item) => billedOrderIds.has(item.orderId));
 
-    // Desglose de Deliverys de Comandas al Contado
+    // Desglose de Deliverys de Comandas Facturadas
     const deliveryTierMap = new Map<number, number>();
-    cashOrders.forEach((ord) => {
+    billedOrders.forEach((ord) => {
       const fee = Number(ord.deliveryFeeUSD) || 0;
       if (ord.type === 'delivery' || fee > 0) {
         deliveryTierMap.set(fee, (deliveryTierMap.get(fee) || 0) + 1);
@@ -947,9 +947,9 @@ export class ReportService {
       </tr>
     `).join('');
 
-    // Historial por Método de Pago (Moneda y Monto Facturado) - Excluye Efectivo USD y Efectivo COP
+    // Historial por Método de Pago (Moneda y Monto Facturado) - Excluye Efectivo USD, Efectivo COP y Crédito (este último ya detallado en Sección 4)
     const historyByMethod = Array.from(methodTotals.keys())
-      .filter((method) => method !== 'Efectivo COP' && method !== 'Efectivo USD' && method !== 'Efectivo')
+      .filter((method) => method !== 'Efectivo COP' && method !== 'Efectivo USD' && method !== 'Efectivo' && method !== 'Crédito')
       .map((method) => {
       const entries = data.payments.filter((payment) => payment.paymentMethod === method && (payment.amountPaidUSD > 0 || payment.changeGivenUSD > 0 || payment.changeGivenCOP > 0 || payment.changeGivenBs > 0));
       if (entries.length === 0) return '';

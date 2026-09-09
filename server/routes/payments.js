@@ -309,6 +309,7 @@ module.exports = function(io) {
           status = 'entregada',
           payment_status = 'credito',
           payment_method = 'Crédito',
+          paid_amount_usd = $6,
           type = 'credito',
           table_number = NULL,
           customer_name = $1,
@@ -317,7 +318,7 @@ module.exports = function(io) {
           notes = CASE WHEN notes IS NULL OR notes = '' THEN $4 ELSE notes || ' | ' || $4 END,
           updated_at = CURRENT_TIMESTAMP
          WHERE id = $5`,
-        [cleanDebtorName, copRate, bsRate, `Cuenta a Crédito: ${cleanDebtorName}${notes ? ' - ' + notes : ''}`, id]
+        [cleanDebtorName, copRate, bsRate, `Cuenta a Crédito: ${cleanDebtorName}${notes ? ' - ' + notes : ''}`, id, totalUSD]
       );
 
       const paymentId = `pm-cred-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

@@ -193,7 +193,7 @@ module.exports = function(io) {
       );
 
       const totalSalesUSD = shiftOrdersRows
-        .filter((o) => o.payment_status === 'pagado')
+        .filter((o) => o.payment_status === 'pagado' || o.payment_status === 'credito')
         .reduce((sum, o) => sum + (parseFloat(o.total_usd) || 0), 0);
 
       const cierreId = `cierre-${Date.now()}`;
@@ -243,21 +243,12 @@ module.exports = function(io) {
         console.warn(`⚠️ Aviso: no se pudo imprimir ticket de cierre térmico:`, printErr.message);
       }
 
-      // 5. Archivado de turno: Archivar comandas pagadas/finalizadas/canceladas (data 100% persistente en BD)
-      const creditOrders = shiftOrdersRows.filter((o) => o.payment_status === 'credito');
-      const nonCreditIds = shiftOrdersRows.filter((o) => o.payment_status !== 'credito').map((o) => o.id);
+      // 5. Archivado de turno: Archivar TODAS las comandas del turno (pagadas, a crédito, canceladas; data 100% persistente en BD)
+      const allShiftOrderIds = shiftOrdersRows.map((o) => o.id);
 
-      if (nonCreditIds.length > 0) {
-        await query('UPDATE orders SET archived_at = CURRENT_TIMESTAMP WHERE id = ANY($1::text[]) AND archived_at IS NULL', [nonCreditIds]);
-        console.log(`📦 [ARCHIVADO DE TURNO] Se archivaron ${nonCreditIds.length} comandas finalizadas/canceladas (data 100% preservada en BD).`);
-      }
-
-      // 6. Renumerar las comandas a crédito restantes a las primeras posiciones (#1, #2, ...)
-      for (let i = 0; i < creditOrders.length; i++) {
-        await query('UPDATE orders SET order_number = $1 WHERE id = $2', [`#${i + 1}`, creditOrders[i].id]);
-      }
-      if (creditOrders.length > 0) {
-        console.log(`📌 [CRÉDITOS PRESERVADOS] Se mantuvieron ${creditOrders.length} cuentas a crédito reasignadas a #${1}..#${creditOrders.length}.`);
+      if (allShiftOrderIds.length > 0) {
+        await query('UPDATE orders SET archived_at = CURRENT_TIMESTAMP WHERE id = ANY($1::text[]) AND archived_at IS NULL', [allShiftOrderIds]);
+        console.log(`📦 [ARCHIVADO DE TURNO] Se archivaron ${allShiftOrderIds.length} comandas del turno (incluyendo pagos y créditos; data 100% preservada en BD).`);
       }
 
       // 7. Marcar movimientos de caja chica con el cierreId (preservados en BD) y reiniciar apertura
@@ -291,8 +282,8 @@ module.exports = function(io) {
           differenceUSD: diffUSD,
           differenceCOP: diffCOP,
           totalSalesUSD,
-          purgedOrdersCount: nonCreditIds.length,
-          preservedCreditsCount: creditOrders.length,
+          purgedOrdersCount: allShiftOrderIds.length,
+          archivedCreditsCount: shiftOrdersRows.filter((o) => o.payment_status === 'credito').length,
         },
       });
     } catch (err) {

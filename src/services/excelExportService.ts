@@ -107,7 +107,6 @@ export function exportToExcel(data: ReporteIntervaloData): void {
   const methodTotals: Record<string, { count: number; usd: number; cop: number; bs: number; currency: string }> = {};
 
   data.payments.forEach((payment) => {
-    if (payment.paymentMethod === 'Crédito') return;
     const method = payment.paymentMethod || 'Efectivo USD';
     const curr = paymentCurrency(method);
     const cRate = Number(payment.copRate) || copRateGlobal;
@@ -176,14 +175,15 @@ export function exportToExcel(data: ReporteIntervaloData): void {
 
   const cashOrders = data.orders.filter((o) => o.paymentStatus === 'pagado' && o.paymentMethod !== 'Crédito');
   const creditOrders = data.orders.filter((o) => o.paymentStatus === 'credito' || o.paymentMethod === 'Crédito');
-  const cashOrderIds = new Set(cashOrders.map((o) => o.id));
-  const cashItems = data.items.filter((it) => cashOrderIds.has(it.orderId));
+  const billedOrders = data.orders.filter((o) => o.paymentStatus === 'pagado' || o.paymentStatus === 'credito');
+  const billedOrderIds = new Set(billedOrders.map((o) => o.id));
+  const cashItems = data.items.filter((it) => billedOrderIds.has(it.orderId));
 
-  // Desglose de Deliverys de Comandas al Contado
+  // Desglose de Deliverys de Comandas Facturadas
   const deliveryMap: Record<number, number> = {};
   let totalDeliveryServices = 0;
   let totalDeliveryUSD = 0;
-  cashOrders.forEach((ord) => {
+  billedOrders.forEach((ord) => {
     const fee = Number(ord.deliveryFeeUSD) || 0;
     if (ord.type === 'delivery' || fee > 0) {
       totalDeliveryServices += 1;

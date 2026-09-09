@@ -50,7 +50,7 @@ async function fetchAllOrders() {
     paymentStatus: ord.payment_status,
     paymentMethod: ord.payment_method,
     totalUSD: parseFloat(ord.total_usd) || 0,
-    paidAmountUSD: parseFloat(ord.paid_amount_usd) || (ord.payment_status === 'pagado' ? parseFloat(ord.total_usd) : 0),
+    paidAmountUSD: parseFloat(ord.paid_amount_usd) || (ord.payment_status === 'pagado' || ord.payment_status === 'credito' ? parseFloat(ord.total_usd) : 0),
     copRateAtPayment: parseFloat(ord.cop_rate_at_payment) || 3950,
     bsRateAtPayment: parseFloat(ord.bs_rate_at_payment) || 36.5,
     waiterName: ord.waiter_name || 'Mesero',
@@ -72,7 +72,7 @@ async function fetchAllOrders() {
         entryType: (parseFloat(pm.change_given_usd || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0) ? 'change' : 'payment',
         currency: (parseFloat(pm.cash_tendered_cop || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('COP') || pm.payment_method.includes('Bancolombia') || pm.payment_method.includes('Nequi'))))
           ? 'COP'
-          : (parseFloat(pm.cash_tendered_bs || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('Bs') || pm.payment_method.includes('Movil') || pm.payment_method.includes('Debito') || pm.payment_method.includes('Credito'))))
+          : (parseFloat(pm.cash_tendered_bs || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('Bs') || pm.payment_method.includes('Movil') || pm.payment_method.includes('Debito') || pm.payment_method.includes('Tarjeta de Crédito'))))
           ? 'Bs'
           : 'USD',
         amountPaidUSD: parseFloat(pm.amount_paid_usd) || 0,
