@@ -707,9 +707,9 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
      - `🚫 No Imprimir`
    - Formateo adaptativo en backend (`thermalPrinter.js`) según el ancho de papel (80mm vs 58mm).
 
-4. **Roles de Usuario y Acceso Rápido (`LoginPage.tsx`, `CajaPage.tsx`, `App.web.tsx`)**:
+4. **Roles de Usuario, Toma de Pedidos en Caja y Accesos (`LoginPage.tsx`, `CajaPage.tsx`, `App.web.tsx`, `Sidebar.tsx`)**:
    - En `LoginPage.tsx`: botones táctiles de acceso rápido por rol (`👑 Admin`, `💳 Caja`, `🍽️ Mesero`, `🍳 Cocina`) con autocompletado para agilizar el inicio de sesión.
-   - En `CajaPage.tsx`: se retiró el acceso directo al rol de mesero ya que el cajero cuenta con visibilidad y control integral de todas las mesas, comandas, pre-cuentas y cobros desde su propio panel de caja.
+   - En `CajaPage.tsx`: el cajero dispone de la funcionalidad integral para tomar y crear pedidos de cualquier servicio: Salón (clic en cualquier mesa libre), `NUEVO DELIVERY` y `NUEVO PICK UP` en el tablero principal, más botones dedicados `➕ TOMAR PEDIDO` en la barra superior, `➕ CREAR PEDIDO` en la vista detallada y en el Sidebar. Se retiró la etiqueta confusa que decía "🍽️ MESERO" o "cuenta mesero" para consolidar la toma de pedidos como una facultad nativa y directa del cajero.
    - En `App.web.tsx`: alias de ruta `/mesero` redirige a `/mesonero`.
 
 5. **Auditoría Contable y Reportes**:

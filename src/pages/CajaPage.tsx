@@ -9,7 +9,7 @@ import { ChangeTableModal } from '../components/ChangeTableModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
 import { reportService } from '../services/reportService';
@@ -74,6 +74,7 @@ export const CajaPage: React.FC = () => {
     ingredients,
   } = useApp();
 
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'comandas';
   const [cajaViewMode, setCajaViewMode] = useState<'tablero' | 'lista'>('tablero');
@@ -407,6 +408,15 @@ export const CajaPage: React.FC = () => {
             <span>REPORTES & CIERRE</span>
           </button>
 
+          <button
+            onClick={() => navigate('/mesonero')}
+            className="px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 shadow-xs cursor-pointer"
+            title="Crear y tomar nuevos pedidos para mesas, delivery o pick-up"
+          >
+            <span>📝</span>
+            <span>+ TOMAR PEDIDO</span>
+          </button>
+
           {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
             <button
               onClick={() => setIsExchangeModalOpen(true)}
@@ -427,6 +437,9 @@ export const CajaPage: React.FC = () => {
             <TableCompactGrid
               tables={tables}
               orders={orders}
+              onSelectTarget={(type, tableNumber) => {
+                navigate(`/mesonero?type=${type}${tableNumber ? `&table=${tableNumber}` : ''}`);
+              }}
               onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
               onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
               canPay={true}
@@ -520,6 +533,14 @@ export const CajaPage: React.FC = () => {
                 <span>{isCompactView ? 'Modo Compacto (50+)' : 'Modo Detallado'}</span>
               </button>
 
+              <button
+                onClick={() => navigate('/mesonero')}
+                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                title="Tomar y crear nuevos pedidos para mesas, delivery o pick-up"
+              >
+                <span>➕ CREAR PEDIDO</span>
+              </button>
+
               <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2.5 py-1.5 rounded-xl border border-gray-200">
                 Total: {activeComandas.length}
               </span>
@@ -530,6 +551,12 @@ export const CajaPage: React.FC = () => {
             <div className="p-12 text-center rounded-2xl bg-white border border-gray-200 shadow-xs space-y-3">
               <IoCheckmarkDone className="text-4xl text-yellow-500 mx-auto" />
               <p className="text-xs text-gray-500 font-bold">No hay comandas pendientes por cobrar en este momento.</p>
+              <button
+                onClick={() => navigate('/mesonero')}
+                className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs inline-flex items-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+              >
+                <span>➕ Tomar Primer Pedido</span>
+              </button>
             </div>
           ) : isCompactView ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">

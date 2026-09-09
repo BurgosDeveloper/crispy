@@ -141,6 +141,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
             <div className="space-y-2">
               <button
+                onClick={() => { navigate('/mesonero'); if (onCloseMobile) onCloseMobile(); }}
+                title="Tomar y Crear Nuevos Pedidos (Mesas, Delivery y PickUp)"
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-between p-3.5'
+                } rounded-xl border transition-all duration-200 bg-yellow-400/10 hover:bg-yellow-400/25 border-yellow-400 text-black font-black hover:scale-[1.01] cursor-pointer`}
+              >
+                <div className="flex items-center gap-3">
+                  <IoFastFood className="text-yellow-600 text-xl shrink-0" />
+                  {!isCollapsed && (
+                    <div className="text-left">
+                      <div className="text-sm font-black text-black">➕ Tomar Pedido</div>
+                      <div className="text-[10px] text-gray-600 font-normal">Mesas, Delivery y PickUp</div>
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <button
                 onClick={() => setSubTab('comandas')}
                 title="Comandas Activas (Cobranza y Entrega)"
                 className={`w-full flex items-center ${
