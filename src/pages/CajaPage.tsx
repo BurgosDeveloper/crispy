@@ -83,7 +83,6 @@ export const CajaPage: React.FC = () => {
   // Toma de Pedidos Nativa en Caja
   const [activeOrderTarget, setActiveOrderTarget] = useState<OrderTarget | null>(null);
   const [isTargetSelectorOpen, setIsTargetSelectorOpen] = useState<boolean>(false);
-  const [unlockedTabs, setUnlockedTabs] = useState<Record<string, boolean>>({});
 
   const filteredCajaTransactions = cajaChicaTransactions.filter(t => !t.shift || t.shift === 'ambos' || t.shift === userSession?.shift);
   const filteredApertura = cajaChicaApertura.shift && cajaChicaApertura.shift !== 'ambos' && cajaChicaApertura.shift !== userSession?.shift ? { usdCash: 0, copCash: 0 } : cajaChicaApertura;
@@ -347,18 +346,6 @@ export const CajaPage: React.FC = () => {
   const saldoEfectivoCOP = filteredApertura.copCash + cashIngresosCOP - cashEgresosCOP;
 
   const handleSelectSubTab = (tab: string) => {
-    if (userSession?.role === 'caja' && (tab === 'historico' || tab === 'reportes') && !unlockedTabs[tab]) {
-      requireAdminPin(
-        `Acceso a ${tab === 'historico' ? 'Histórico' : 'Reportes & Cierre'}`,
-        `Autorizar Acceso a ${tab === 'historico' ? 'Histórico' : 'Reportes & Cierre'}`,
-        () => {
-          setUnlockedTabs((prev) => ({ ...prev, [tab]: true }));
-          setSearchParams({ tab });
-        },
-        `Ingrese el PIN de seguridad de 4 dígitos para acceder al módulo de ${tab === 'historico' ? 'Histórico' : 'Reportes & Cierre'}:`
-      );
-      return;
-    }
     setSearchParams({ tab });
     if (tab === 'comandas') {
       setCajaViewMode('tablero');
@@ -1363,34 +1350,7 @@ export const CajaPage: React.FC = () => {
 
       {/* SUB-TAB HISTÓRICO DE COBROS DEL DÍA */}
       {activeSubTab === 'historico' && (
-        userSession?.role === 'caja' && !unlockedTabs['historico'] ? (
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-100 border border-yellow-300 flex items-center justify-center text-yellow-700 text-3xl shadow-xs">
-              <IoLockClosedOutline />
-            </div>
-            <div className="space-y-1 max-w-md">
-              <h2 className="text-lg font-black text-gray-900 tracking-tight">MÓDULO PROTEGIDO: HISTÓRICO</h2>
-              <p className="text-xs text-gray-500 font-semibold">
-                Este módulo requiere autorización de administrador para visualizar el histórico completo de cobros y entregas.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                requireAdminPin(
-                  'Acceso a Histórico',
-                  'Autorizar Acceso a Histórico',
-                  () => setUnlockedTabs((prev) => ({ ...prev, historico: true })),
-                  'Ingrese el PIN de seguridad de 4 dígitos para desbloquear el Histórico:'
-                );
-              }}
-              className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs cursor-pointer transition-all"
-            >
-              <IoLockClosedOutline />
-              <span>INGRESAR PIN DE SEGURIDAD</span>
-            </button>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-xs">
             <h2 className="text-lg font-black text-black flex items-center gap-2">
               <IoTimeOutline className="text-yellow-600 text-xl" />
@@ -1540,7 +1500,6 @@ export const CajaPage: React.FC = () => {
             );
           })()}
         </div>
-        )
       )}
 
       {/* SUB-TAB 2: CAJA CHICA & CONTROL DE FLUJO */}
@@ -1691,34 +1650,7 @@ export const CajaPage: React.FC = () => {
 
       {/* SUB-TAB 3: REPORTES DE VENTAS & ARQUEO DE CIERRE DE CAJA */}
       {activeSubTab === 'reportes' && (
-        userSession?.role === 'caja' && !unlockedTabs['reportes'] ? (
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-100 border border-yellow-300 flex items-center justify-center text-yellow-700 text-3xl shadow-xs">
-              <IoLockClosedOutline />
-            </div>
-            <div className="space-y-1 max-w-md">
-              <h2 className="text-lg font-black text-gray-900 tracking-tight">MÓDULO PROTEGIDO: REPORTES & CIERRE</h2>
-              <p className="text-xs text-gray-500 font-semibold">
-                Este módulo requiere autorización de administrador para consultar reportes contables, arqueos y cierres de turno.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                requireAdminPin(
-                  'Acceso a Reportes y Cierre',
-                  'Autorizar Acceso a Reportes & Cierre',
-                  () => setUnlockedTabs((prev) => ({ ...prev, reportes: true })),
-                  'Ingrese el PIN de seguridad de 4 dígitos para desbloquear Reportes & Cierre:'
-                );
-              }}
-              className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs cursor-pointer transition-all"
-            >
-              <IoLockClosedOutline />
-              <span>INGRESAR PIN DE SEGURIDAD</span>
-            </button>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-lg font-black text-black flex items-center gap-2">
@@ -1981,7 +1913,6 @@ export const CajaPage: React.FC = () => {
           </div>
 
         </div>
-        )
       )}
 
       {activeOrderForPay && (

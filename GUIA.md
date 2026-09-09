@@ -770,9 +770,12 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
     - **Toma de Pedidos Nativa en Pantalla de Caja (`OrderCreateView.tsx`, `OrderTargetSelectorModal.tsx`)**:
       - El cajero conserva el 100% de la funcionalidad para tomar y crear pedidos de mesas, delivery y pick-up directamente dentro de `/caja`.
       - Al pulsar `+ TOMAR PEDIDO` (o seleccionar una mesa libre/delivery/pickup en `TableCompactGrid`), se activa `OrderCreateView`, ofreciendo el catálogo táctil completo de hamburguesas, bebidas, salsas, constructor de hamburguesas con proteínas de BD, tarifa de delivery y confirmación de comanda con botón para volver de inmediato al panel de caja sin perder el Navbar ni el Sidebar.
-    - **Protección con PIN de 4 Dígitos en Operaciones Administrativas y Pestañas Sensibles**:
-      - Para el rol `caja`, el acceso a las pestañas **Histórico** y **Reportes & Cierre** está protegido por el PIN de seguridad de 4 dígitos. Si no ha sido desbloqueado, se muestra una tarjeta de seguridad con el botón `INGRESAR PIN DE SEGURIDAD`.
-      - Las operaciones críticas (Edición de comanda, Anulación, Fusión de comandas, Modificación de Apertura de Caja Chica) requieren igualmente el PIN de seguridad de 4 dígitos.
+    - **Acceso Visual Libre y Protección de Acciones Críticas con PIN de 4 Dígitos para Cajero**:
+      - Para el rol `caja`, el cajero tiene **acceso visual libre y directo** para consultar las pantallas de **Histórico** (auditar cobros y entregas del día) y **Reportes & Cierre** (consultar reportes contables por intervalo, métricas de hamburguesas, ingresos, vueltos y exportar a Excel).
+      - **Acciones protegidas obligatoriamente con PIN de seguridad de 4 dígitos**:
+        - En **Histórico**: La acción `REACTIVAR COMANDA` exige el PIN de seguridad para evitar reactivaciones indebidas de comandas ya cerradas.
+        - En **Reportes & Cierre**: La acción `ARQUEO DIARIO DE EFECTIVO` (cierre de turno y cuadre de caja) exige el PIN de seguridad.
+        - Las operaciones administrativas complementarias (Edición de comanda, Anulación, Fusión de comandas y Modificación de Apertura de Caja Chica) continúan bajo protección estricta del PIN de seguridad de 4 dígitos.
     - **Proteínas Dinámicas de Base de Datos (Fin del Hardcoding)**:
       - Se eliminó el hardcoding de proteínas en las hamburguesas (`BurgerBuilderModal.tsx`, `burgerProteins.ts`). El constructor de hamburguesas lee dinámicamente las proteínas registradas en la tabla `ingredients` (`isProtein === true` o categoría `'Proteínas'`).
       - Al editar o renombrar una proteína en el módulo de ingredientes (`server/routes/ingredients.js`), el cambio se propaga y sincroniza automáticamente en `products.base_ingredients` y `products.default_proteins` mediante `array_replace`.
