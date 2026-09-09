@@ -68,7 +68,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
   const availableExtras = activeIngredients.filter(
-    (i) => i.isExtra || i.ingredientType === 'adicional' || i.ingredientType === 'gratis'
+    (i) => i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings'
   );
 
   const availableProteins = activeIngredients.filter(

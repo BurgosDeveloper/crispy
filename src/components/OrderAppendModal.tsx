@@ -81,7 +81,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
   const availableExtras = ingredients
-    .filter((i) => (i.isExtra || i.isExtraForPizza) && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+    .filter((i) => (i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
     .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
   const availableSalsas = ingredients

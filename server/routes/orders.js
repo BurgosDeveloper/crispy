@@ -364,31 +364,42 @@ module.exports = function(io) {
   });
 
   router.patch('/:id/edit', requireRole('caja', 'admin'), async (req, res) => {
+    let client;
     try {
       const { id } = req.params;
       const { items, kitchenNotes, totalUSD, deliveryFeeUSD, customerName, tableNumber, type, paymentStatus } = req.body;
       if (req.user.role !== 'admin' && req.user.role !== 'caja') return res.status(403).json({ error: 'Solo un administrador o usuario de caja puede editar una comanda.' });
-      await assertOrderAccess({ query }, req.user, id);
 
-      const { rows: orderRows } = await query(
-        `SELECT id, paid_amount_usd FROM orders WHERE id = $1`,
+      client = await getClient();
+      await client.query('BEGIN');
+
+      await assertOrderAccess({ query: (text, params) => client.query(text, params) }, req.user, id);
+
+      const { rows: orderRows } = await client.query(
+        `SELECT id, paid_amount_usd FROM orders WHERE id = $1 FOR UPDATE`,
         [id]
       );
       if (!orderRows[0]) {
+        await client.query('ROLLBACK');
+        client.release();
+        client = null;
         return res.status(404).json({ error: 'Comanda no encontrada.' });
       }
 
       if (Array.isArray(items)) {
-        const { rows: paymentRows } = await query(
+        const { rows: paymentRows } = await client.query(
           `SELECT id FROM order_payments WHERE order_id = $1 LIMIT 1`,
           [id]
         );
         if (paymentRows.length > 0 || Number(orderRows[0].paid_amount_usd) > 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
           return res.status(409).json({ error: 'Anula primero todos los pagos y vueltos antes de modificar los productos de la comanda.' });
         }
       }
 
-      await query(
+      await client.query(
         `UPDATE orders SET 
            kitchen_notes = COALESCE($1, kitchen_notes), 
            total_usd = COALESCE($2, total_usd), 
@@ -404,11 +415,11 @@ module.exports = function(io) {
       );
 
       if (items && Array.isArray(items)) {
-        await query(`DELETE FROM order_items WHERE order_id = $1`, [id]);
+        await client.query(`DELETE FROM order_items WHERE order_id = $1`, [id]);
 
         for (const item of items) {
           const itemId = `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-          await query(
+          await client.query(
             `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
             [
@@ -448,14 +459,18 @@ module.exports = function(io) {
       if (deliveryFeeUSD !== undefined) editDetails.push(`Delivery fee: $${deliveryFeeUSD}`);
       const editId = `edit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
       try {
-        const { rows: orderForEdit } = await query(`SELECT order_number FROM orders WHERE id = $1`, [id]);
-        await query(
+        const { rows: orderForEdit } = await client.query(`SELECT order_number FROM orders WHERE id = $1`, [id]);
+        await client.query(
           `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, $5, $6)`,
           [editId, id, orderForEdit[0]?.order_number || '', req.user.username, 'modificacion', editDetails.join('; ') || 'Edición general']
         );
       } catch (editErr) {
         console.warn('Aviso: No se pudo registrar edición en historial:', editErr.message);
       }
+
+      await client.query('COMMIT');
+      client.release();
+      client = null;
 
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
@@ -466,6 +481,10 @@ module.exports = function(io) {
       console.log(`✏️ [COMANDA EDITADA] ${updatedOrder?.orderNumber} actualizada`);
       res.json(updatedOrder);
     } catch (err) {
+      if (client) {
+        try { await client.query('ROLLBACK'); } catch (_) {}
+        try { client.release(); } catch (_) {}
+      }
       console.error('Error al editar comanda:', err);
       res.status(500).json({ error: 'Error al editar la comanda' });
     }
@@ -810,17 +829,23 @@ module.exports = function(io) {
         }
       }
 
-      // Recalcular total_usd de la orden sumando items actuales
+      // Recalcular total_usd de la orden sumando items actuales (incluyendo extras)
       const { rows: currentItems } = await client.query(
-        `SELECT price, quantity FROM order_items WHERE order_id = $1`,
+        `SELECT price, quantity, extras_json FROM order_items WHERE order_id = $1`,
         [id]
       );
 
       let itemsTotalUSD = 0;
       for (const it of currentItems) {
-        const base = Number(it.price) || 0;
+        let itemPrice = Number(it.price) || 0;
+        // Sumar precios de extras (adicionales pagos)
+        let extras = [];
+        try { extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json || '[]') : (it.extras_json || []); } catch(e) {}
+        if (Array.isArray(extras)) {
+          for (const ex of extras) { itemPrice += parseFloat(ex.price || 0); }
+        }
         const qty = Number(it.quantity) || 1;
-        itemsTotalUSD += base * qty;
+        itemsTotalUSD += itemPrice * qty;
       }
 
       const deliveryFee = order.type === 'delivery' ? (Number(order.delivery_fee_usd) || 0) : 0;

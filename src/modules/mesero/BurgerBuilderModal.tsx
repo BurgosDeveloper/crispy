@@ -224,12 +224,12 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   // Lista ESTRICTA de los únicos 5 toppings gratis (Instrucción explícita del usuario)
   const freeToppingsList = useMemo(() => STRICT_FREE_TOPPINGS, []);
 
-  // Lista de Adicionales Pagos (> $0.00 y excluyendo los 5 gratis)
+  // Lista de Adicionales (incluyendo $0.00, excluyendo los 5 toppings gratis estrictos)
   const paidExtrasList = useMemo(() => {
     const freeNames = STRICT_FREE_TOPPINGS.map((t) => t.name.toLowerCase());
     return availableExtras.filter((extra) => {
       const price = getExtraPrice(extra);
-      return price > 0 && !freeNames.includes(extra.name.toLowerCase().trim());
+      return price >= 0 && !freeNames.includes(extra.name.toLowerCase().trim());
     });
   }, [availableExtras]);
 
@@ -320,12 +320,19 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const customizableBaseIngredients = rawBaseIngredients.filter((ing) => !isProteinName(ing));
 
   const toggleRemoveBase = (ingName: string) => {
-    updateCurrentUnit((prev) => ({
-      ...prev,
-      removedIngredients: prev.removedIngredients.includes(ingName)
-        ? prev.removedIngredients.filter((i) => i !== ingName)
-        : [...prev.removedIngredients, ingName],
-    }));
+    updateCurrentUnit((prev) => {
+      const alreadyRemoved = prev.removedIngredients.some(
+        (i) => i.toLowerCase().trim() === ingName.toLowerCase().trim()
+      );
+      return {
+        ...prev,
+        removedIngredients: alreadyRemoved
+          ? prev.removedIngredients.filter(
+              (i) => i.toLowerCase().trim() !== ingName.toLowerCase().trim()
+            )
+          : [...prev.removedIngredients, ingName],
+      };
+    });
   };
 
   const isAllVegetablesRemoved =
@@ -350,9 +357,20 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         const base = prev.removedIngredients.filter(
           (i) => !/lechuga|tomate|cebolla/i.test(i)
         );
+        // Garantizar que los 3 vegetales (Lechuga, Tomate, Cebolla) se incluyan exactamente
+        // con el nombre que tengan en la receta base (o fallback a mayúsculas)
+        const findVegName = (regex: RegExp, fallback: string) => {
+          const found = customizableBaseIngredients.find((ing) => regex.test(ing));
+          return found || fallback;
+        };
+        const vegNames = [
+          findVegName(/lechuga/i, 'LECHUGA'),
+          findVegName(/tomate/i, 'TOMATE'),
+          findVegName(/cebolla/i, 'CEBOLLA'),
+        ];
         return {
           ...prev,
-          removedIngredients: [...base, 'Lechuga', 'Tomate', 'Cebolla'],
+          removedIngredients: [...base, ...vegNames],
         };
       }
     });
@@ -917,7 +935,9 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
               </button>
 
               {customizableBaseIngredients.map((ing) => {
-                const isRemoved = currentUnit.removedIngredients.includes(ing);
+                const isRemoved = currentUnit.removedIngredients.some(
+                  (r) => r.toLowerCase().trim() === ing.toLowerCase().trim()
+                );
                 return (
                   <button
                     key={ing}

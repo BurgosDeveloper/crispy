@@ -73,6 +73,7 @@ module.exports = function(io) {
       let pendingChangeUSD = Math.max(0, totals.tenderedUSD - orderTotal - totals.changeGivenUSD);
 
       let amountPaidUSD = 0;
+      let scopedPaidUSD = 0;
       let tendered = { cashTenderedUSD: 0, cashTenderedCOP: 0, cashTenderedBs: 0 };
       let change = { changeGivenUSD: 0, changeGivenCOP: 0, changeGivenBs: 0 };
 
