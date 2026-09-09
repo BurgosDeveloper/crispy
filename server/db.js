@@ -274,16 +274,26 @@ async function initDb() {
         ON CONFLICT (id) DO NOTHING;`,
       `UPDATE ingredients SET ingredient_type = 'salsa', category = 'Salsas' WHERE id LIKE 'ing-salsa-%' OR category = 'Salsas';`,
 
-      `UPDATE products SET protein_count = 3, default_proteins = ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada'] WHERE id = 'prod-3-0';`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['Carne de novillo', 'Pollo crispy'] WHERE id = 'prod-mixtura';`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada'] WHERE id = 'prod-house';`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['Doble smash de carne'] WHERE id IN ('prod-super-smash', 'prod-tasty');`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['Carne de novillo'] WHERE id = 'prod-bistro';`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['Pollo crispy'] WHERE id = 'prod-crispys';`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['Pechuga de pollo a la plancha'] WHERE id = 'prod-chicken-grill';`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['Chuleta de cerdo ahumada'] WHERE id = 'prod-mr-pork';`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['Carne mechada'] WHERE id = 'prod-street';`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY[]::text[] WHERE id = 'prod-nuggets' OR default_proteins IS NULL;`,
+      `UPDATE products SET protein_count = 3, default_proteins = ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-3-0' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY'] WHERE id = 'prod-mixtura' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-house' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['DOBLE SMASH DE CARNE'] WHERE id IN ('prod-super-smash', 'prod-tasty') AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CARNE DE NOVILLO'] WHERE id = 'prod-bistro' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['POLLO CRISPY'] WHERE id = 'prod-crispys' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['PECHUGA DE POLLO A LA PLANCHA'] WHERE id = 'prod-chicken-grill' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-mr-pork' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CARNE MECHADA'] WHERE id = 'prod-street' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
+      `UPDATE products SET protein_count = 1, default_proteins = ARRAY[]::text[] WHERE (id = 'prod-nuggets' OR default_proteins IS NULL);`,
+
+      // Auto-migración a MAYÚSCULAS para todos los productos (hamburguesas, bebidas, salsas, etc.) e ingredientes (adicionales, proteínas, base)
+      `UPDATE products SET name = UPPER(name);`,
+      `UPDATE ingredients SET name = UPPER(name);`,
+      `UPDATE products SET default_proteins = (
+        SELECT array_agg(UPPER(p)) FROM unnest(default_proteins) AS p
+      ) WHERE default_proteins IS NOT NULL AND array_length(default_proteins, 1) > 0;`,
+      `UPDATE products SET base_ingredients = (
+        SELECT array_agg(UPPER(b)) FROM unnest(base_ingredients) AS b
+      ) WHERE base_ingredients IS NOT NULL AND array_length(base_ingredients, 1) > 0;`,
     ];
 
     for (const q of migrationQueries) {

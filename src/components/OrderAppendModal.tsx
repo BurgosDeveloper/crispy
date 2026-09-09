@@ -365,6 +365,9 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                 <BurgerBuilderModal
                   burger={selectedBurger}
                   availableExtras={availableExtras}
+                  availableProteins={ingredients.filter(
+                    (i) => i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes'
+                  )}
                   isOpen={true}
                   inline={true}
                   onClose={() => setSelectedBurger(null)}

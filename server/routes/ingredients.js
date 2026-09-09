@@ -27,6 +27,7 @@ module.exports = function(io) {
         available,
       } = req.body;
       const id = `ing-${Date.now()}`;
+      const upperName = (name || '').trim().toUpperCase();
       const finalType = ingredientType || (category === 'Salsas' ? 'salsa' : (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional'))));
       const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
       const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
@@ -38,7 +39,7 @@ module.exports = function(io) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ambos')`,
         [
           id,
-          name,
+          upperName,
           finalType,
           finalPrice,
           finalIsBase,
@@ -52,7 +53,7 @@ module.exports = function(io) {
 
       const allIngredients = await fetchAllIngredients();
       io.emit('ingredients:sync', allIngredients);
-      res.status(201).json(allIngredients.find((i) => i.name === name) || { id, name });
+      res.status(201).json(allIngredients.find((i) => i.name === upperName) || { id, name: upperName });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al guardar ingrediente' });
@@ -73,6 +74,7 @@ module.exports = function(io) {
         available,
       } = req.body;
 
+      const upperName = (name || '').trim().toUpperCase();
       const finalType = ingredientType || (category === 'Salsas' ? 'salsa' : (category === 'Gratis' ? 'gratis' : (category === 'Adicionales' ? 'adicional' : (isBase ? 'base' : 'adicional'))));
       const finalPrice = (finalType === 'gratis' || finalType === 'base') ? 0 : (priceUSD !== undefined ? (parseFloat(priceUSD) || 0) : (parseFloat(priceGrandeCompleta) || 0));
       const finalIsBase = finalType === 'base' || finalType === 'proteina' || isBase === true;
@@ -89,7 +91,7 @@ module.exports = function(io) {
              is_base = $5, is_extra = $6, is_base_for_pizza = $7, is_extra_for_pizza = $8, available = $9, shift = 'ambos'
          WHERE id = $10`,
         [
-          name, 
+          upperName, 
           finalType,
           finalCategory, 
           finalPrice,
@@ -102,12 +104,13 @@ module.exports = function(io) {
         ]
       );
 
-      if (oldName && oldName !== name) {
+      if (oldName && oldName !== upperName) {
         await query(
           `UPDATE products 
-           SET base_ingredients = array_replace(base_ingredients, $1, $2) 
-           WHERE $1 = ANY(base_ingredients)`,
-          [oldName, name]
+           SET base_ingredients = array_replace(base_ingredients, $1, $2),
+               default_proteins = array_replace(default_proteins, $1, $2)
+           WHERE $1 = ANY(base_ingredients) OR $1 = ANY(default_proteins)`,
+          [oldName, upperName]
         );
       }
 

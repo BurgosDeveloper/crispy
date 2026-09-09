@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Product, Ingredient, BurgerUnitConfig } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { roundCOP } from '../../utils/currencyRounding';
-import { getCleanItemNote, normalizeProteinName, areProteinsDefault, formatRemovedIngredients } from '../../utils/burgerProteins';
+import { getCleanItemNote, normalizeProteinName, areProteinsDefault, formatRemovedIngredients, getProteinIcon } from '../../utils/burgerProteins';
 import {
   IoClose,
   IoAdd,
@@ -18,12 +18,12 @@ import {
 } from 'react-icons/io5';
 
 export const AVAILABLE_BURGER_PROTEINS = [
-  { id: 'novillo', name: 'Carne de Novillo', icon: '🥩' },
-  { id: 'pollo_crispy', name: 'Pollo Crispy', icon: '🍗' },
-  { id: 'pollo_plancha', name: 'Pechuga a la Plancha', icon: '🍳' },
-  { id: 'chuleta', name: 'Chuleta Ahumada', icon: '🥓' },
-  { id: 'mechada', name: 'Carne Mechada', icon: '🍲' },
-  { id: 'smash', name: 'Smash de Carne', icon: '🍔' },
+  { id: 'novillo', name: 'CARNE DE NOVILLO', icon: '🥩' },
+  { id: 'pollo_crispy', name: 'POLLO CRISPY', icon: '🍗' },
+  { id: 'pollo_plancha', name: 'PECHUGA DE POLLO A LA PLANCHA', icon: '🍳' },
+  { id: 'chuleta', name: 'CHULETA DE CERDO AHUMADA', icon: '🥓' },
+  { id: 'mechada', name: 'CARNE MECHADA', icon: '🍲' },
+  { id: 'smash', name: 'SMASH DE CARNE', icon: '🍔' },
 ];
 
 export const STRICT_FREE_TOPPINGS = [
@@ -43,7 +43,10 @@ const DEFAULT_BURGER_BASE_INGREDIENTS = [
   'Salsa Crispy Especial',
 ];
 
-const getInitialProteins = (burger: Product): string[] => {
+const getInitialProteins = (
+  burger: Product,
+  dbProteins: { id: string; name: string; icon: string }[] = AVAILABLE_BURGER_PROTEINS
+): string[] => {
   const count = burger.proteinCount !== undefined && burger.proteinCount !== null ? burger.proteinCount : 1;
   const nameLower = (burger.name || '').toLowerCase();
   const descLower = (burger.description || '').toLowerCase();
@@ -52,47 +55,71 @@ const getInitialProteins = (burger: Product): string[] => {
     return [];
   }
 
+  // Si el producto tiene defaultProteins configuradas en la BD, resolverlas con dbProteins
   if (burger.defaultProteins && Array.isArray(burger.defaultProteins) && burger.defaultProteins.length > 0) {
-    return [...burger.defaultProteins];
+    return burger.defaultProteins.map((dp) => {
+      const match = dbProteins.find(
+        (p) =>
+          p.name.toUpperCase() === dp.toUpperCase() ||
+          normalizeProteinName(p.name) === normalizeProteinName(dp)
+      );
+      return match ? match.name : dp.toUpperCase();
+    });
   }
 
+  // Fallback si no hay defaultProteins explícitos: buscar la proteína que coincida en la BD
+  const findProtein = (keyword: string) =>
+    dbProteins.find(
+      (p) =>
+        p.name.toLowerCase().includes(keyword) ||
+        normalizeProteinName(p.name).includes(keyword)
+    )?.name;
+
+  const novillo = findProtein('novillo') || findProtein('carne') || findProtein('res') || dbProteins[0]?.name || 'CARNE DE NOVILLO';
+  const polloCrispy = findProtein('crispy') || findProtein('pollo') || novillo;
+  const chuleta = findProtein('chuleta') || findProtein('cerdo') || findProtein('pork') || novillo;
+  const smash = findProtein('smash') || novillo;
+  const mechada = findProtein('mechada') || findProtein('street') || novillo;
+  const plancha = findProtein('plancha') || findProtein('pechuga') || findProtein('grill') || polloCrispy;
+
   if (nameLower.includes('3.0') || nameLower.includes('triple') || count === 3) {
-    return ['Carne de Novillo', 'Pollo Crispy', 'Chuleta Ahumada'];
+    return [novillo, polloCrispy, chuleta];
   }
   if (nameLower.includes('mixtura')) {
-    return ['Carne de Novillo', 'Pollo Crispy'];
+    return [novillo, polloCrispy];
   }
   if (nameLower.includes('house')) {
-    return ['Pollo Crispy', 'Chuleta Ahumada'];
+    return [polloCrispy, chuleta];
   }
   if (nameLower.includes('super smash') || nameLower.includes('tasty')) {
-    return ['Smash de Carne', 'Smash de Carne'];
+    return [smash, smash];
   }
   if (nameLower.includes('doble') || count === 2) {
-    return ['Carne de Novillo', 'Carne de Novillo'];
+    return [novillo, novillo];
   }
   if (nameLower.includes('mr pork') || descLower.includes('chuleta')) {
-    return ['Chuleta Ahumada'];
+    return [chuleta];
   }
   if (nameLower.includes('street') || descLower.includes('mechada')) {
-    return ['Carne Mechada'];
+    return [mechada];
   }
   if (nameLower.includes('chicken grill') || descLower.includes('plancha')) {
-    return ['Pechuga a la Plancha'];
+    return [plancha];
   }
   if (nameLower.includes('crispy') || descLower.includes('pollo')) {
-    return ['Pollo Crispy'];
+    return [polloCrispy];
   }
-  return ['Carne de Novillo'];
+  return [novillo];
 };
 
 const createInitialUnitConfig = (
   unitIndex: number,
   burger: Product,
-  defaultTakeaway: boolean
+  defaultTakeaway: boolean,
+  dbProteins: { id: string; name: string; icon: string }[] = AVAILABLE_BURGER_PROTEINS
 ): BurgerUnitConfig => ({
   unitIndex,
-  proteins: getInitialProteins(burger),
+  proteins: getInitialProteins(burger, dbProteins),
   removedIngredients: [],
   selectedFreeToppings: [],
   selectedPaidExtras: [],
@@ -144,6 +171,7 @@ export interface BurgerOrderConfirmationItem {
 interface BurgerBuilderModalProps {
   burger: Product | null;
   availableExtras: Ingredient[];
+  availableProteins?: Ingredient[];
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (config: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]) => void;
@@ -155,6 +183,7 @@ interface BurgerBuilderModalProps {
 export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   burger,
   availableExtras,
+  availableProteins,
   isOpen,
   onClose,
   onConfirm,
@@ -170,15 +199,27 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   const [showProteinas, setShowProteinas] = useState<boolean>(false);
   const [showAdicionales, setShowAdicionales] = useState<boolean>(false);
 
+  // Lista dinámica de proteínas obtenidas desde la base de datos (o fallback predeterminado)
+  const effectiveProteins = useMemo(() => {
+    if (availableProteins && availableProteins.length > 0) {
+      return availableProteins.map((ing) => ({
+        id: ing.id,
+        name: ing.name.toUpperCase(),
+        icon: getProteinIcon(ing.name),
+      }));
+    }
+    return AVAILABLE_BURGER_PROTEINS;
+  }, [availableProteins]);
+
   useEffect(() => {
     if (burger) {
-      setUnits([createInitialUnitConfig(0, burger, defaultTakeaway)]);
+      setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, effectiveProteins)]);
       setActiveUnitIndex(0);
       setShowProteinas(false);
       setShowAdicionales(false);
       setCopyToast('');
     }
-  }, [burger, defaultTakeaway]);
+  }, [burger, defaultTakeaway, effectiveProteins]);
 
   // Lista ESTRICTA de los únicos 5 toppings gratis (Instrucción explícita del usuario)
   const freeToppingsList = useMemo(() => STRICT_FREE_TOPPINGS, []);
@@ -195,8 +236,8 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   // Proteínas predeterminadas de la receta original
   const defaultRecipeProteins = useMemo(() => {
     if (!burger) return [];
-    return getInitialProteins(burger);
-  }, [burger]);
+    return getInitialProteins(burger, effectiveProteins);
+  }, [burger, effectiveProteins]);
 
   if (!isOpen || !burger || units.length === 0) return null;
 
@@ -261,7 +302,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   // Resetear unidad activa a valores iniciales
   const handleResetCurrentUnit = () => {
     if (!burger) return;
-    const fresh = createInitialUnitConfig(activeUnitIndex, burger, defaultTakeaway);
+    const fresh = createInitialUnitConfig(activeUnitIndex, burger, defaultTakeaway, effectiveProteins);
     updateCurrentUnit(() => fresh);
     setCopyToast(`Hamburguesa #${activeUnitIndex + 1} restablecida a su receta base.`);
     setTimeout(() => setCopyToast(''), 2000);
@@ -758,9 +799,13 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
                       {/* Tarjetas de Proteínas Centrables */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                        {AVAILABLE_BURGER_PROTEINS.map((prot) => {
-                          const isSelected = currentProtein === prot.name;
-                          const isOriginal = defaultProteinForSlot === prot.name;
+                        {effectiveProteins.map((prot) => {
+                          const isSelected =
+                            currentProtein.toUpperCase() === prot.name.toUpperCase() ||
+                            normalizeProteinName(currentProtein) === normalizeProteinName(prot.name);
+                          const isOriginal =
+                            defaultProteinForSlot.toUpperCase() === prot.name.toUpperCase() ||
+                            normalizeProteinName(defaultProteinForSlot) === normalizeProteinName(prot.name);
 
                           return (
                             <button

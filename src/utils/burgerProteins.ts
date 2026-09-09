@@ -34,10 +34,36 @@ export function getCleanItemNote(rawNotes?: string | null): string {
   return cleaned;
 }
 
-export function areProteinsDefault(burgerName: string, proteins?: string[]): boolean {
+export function getProteinIcon(name: string = ''): string {
+  const n = String(name || '').toLowerCase().trim();
+  if (n.includes('pollo') || n.includes('crispy')) return '🍗';
+  if (n.includes('plancha') || n.includes('pechuga') || n.includes('grill')) return '🍳';
+  if (n.includes('chuleta') || n.includes('pork') || n.includes('cerdo')) return '🥓';
+  if (n.includes('mechada') || n.includes('street')) return '🍲';
+  if (n.includes('smash')) return '🍔';
+  if (n.includes('novillo') || n.includes('carne') || n.includes('res') || n.includes('bife') || n.includes('angus')) return '🥩';
+  return '🥩';
+}
+
+export function areProteinsDefault(burgerName: string, proteins?: string[], defaultProteins?: string[]): boolean {
   if (!proteins || !Array.isArray(proteins) || proteins.length === 0) return true;
   const nameLower = String(burgerName || '').toLowerCase().trim();
   if (nameLower.includes('papas') || nameLower.includes('nugget')) return true;
+
+  // Si el producto tiene defaultProteins configurados en la base de datos, validar contra ellos
+  if (defaultProteins && Array.isArray(defaultProteins) && defaultProteins.length > 0) {
+    const pSorted = [...proteins].map((p) => p.trim().toUpperCase()).sort();
+    const dSorted = [...defaultProteins].map((d) => d.trim().toUpperCase()).sort();
+    if (pSorted.length === dSorted.length && pSorted.every((val, idx) => val === dSorted[idx])) {
+      return true;
+    }
+    const pNorm = [...proteins].map(normalizeProteinName).sort();
+    const dNorm = [...defaultProteins].map(normalizeProteinName).sort();
+    if (pNorm.length === dNorm.length && pNorm.every((val, idx) => val === dNorm[idx])) {
+      return true;
+    }
+    return false;
+  }
 
   const pSorted = [...proteins].map(normalizeProteinName).sort();
 

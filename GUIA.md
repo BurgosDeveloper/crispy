@@ -760,4 +760,24 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
       - Tanto en la impresión térmica de pre-cuenta (`server/helpers/thermalPrinter.js` -> `buildReceiptTicket`) como en la pre-visualización HTML (`reportService.ts` -> `generatePreCuentaTicket`), las salsas son filtradas y excluidas al 100% (`!isSalsaItem(it)`), por lo que el comensal no las visualiza en su cuenta ni alteran los subtotales/totales monetarios.
     - **Gestión Administrativa en Menú Admin (`MenuManagementPage.tsx`, `routes/ingredients.js`)**:
       - En la pestaña de Ingredientes se incorpora el tipo `🥣 Salsa` con chip de filtrado y distintivo naranja `🥣 SALSA (NO CONTABLE / COCINA)`.
-      - El usuario administrador puede crear y editar salsas definiendo su nombre y un precio referencial (por defecto \$0.00), manteniéndose su condición no contable en comandas de cocina.
+      - El usuario administrador puede crear y editar salsas definiendo su nombre y un precio referencial (por defecto $0.00), manteniéndose su condición no contable en comandas de cocina.
+
+13. **Experiencia Integral del Cajero, Desacoplamiento de Mesero, Proteínas Dinámicas y Nombres en Mayúsculas**:
+    - **Desacoplamiento Total del Botón Mesero para el Cajero**:
+      - El rol `caja` no navega a `/mesonero`. Se retiró el botón que llevaba a `/mesonero` tanto de la barra superior de caja como del Sidebar.
+      - En `App.web.tsx`, la ruta `/mesonero` está reservada para `allowedRoles={['mesero', 'admin']}`. Si una sesión con rol `caja` intenta acceder a `/mesonero`, el guard de rutas lo redirige automáticamente a `/caja`.
+      - En `LoginPage.tsx`, al iniciar sesión como `caja` o `admin`, el sistema redirige inmediatamente a `/caja`.
+    - **Toma de Pedidos Nativa en Pantalla de Caja (`OrderCreateView.tsx`, `OrderTargetSelectorModal.tsx`)**:
+      - El cajero conserva el 100% de la funcionalidad para tomar y crear pedidos de mesas, delivery y pick-up directamente dentro de `/caja`.
+      - Al pulsar `+ TOMAR PEDIDO` (o seleccionar una mesa libre/delivery/pickup en `TableCompactGrid`), se activa `OrderCreateView`, ofreciendo el catálogo táctil completo de hamburguesas, bebidas, salsas, constructor de hamburguesas con proteínas de BD, tarifa de delivery y confirmación de comanda con botón para volver de inmediato al panel de caja sin perder el Navbar ni el Sidebar.
+    - **Protección con PIN de 4 Dígitos en Operaciones Administrativas y Pestañas Sensibles**:
+      - Para el rol `caja`, el acceso a las pestañas **Histórico** y **Reportes & Cierre** está protegido por el PIN de seguridad de 4 dígitos. Si no ha sido desbloqueado, se muestra una tarjeta de seguridad con el botón `INGRESAR PIN DE SEGURIDAD`.
+      - Las operaciones críticas (Edición de comanda, Anulación, Fusión de comandas, Modificación de Apertura de Caja Chica) requieren igualmente el PIN de seguridad de 4 dígitos.
+    - **Proteínas Dinámicas de Base de Datos (Fin del Hardcoding)**:
+      - Se eliminó el hardcoding de proteínas en las hamburguesas (`BurgerBuilderModal.tsx`, `burgerProteins.ts`). El constructor de hamburguesas lee dinámicamente las proteínas registradas en la tabla `ingredients` (`isProtein === true` o categoría `'Proteínas'`).
+      - Al editar o renombrar una proteína en el módulo de ingredientes (`server/routes/ingredients.js`), el cambio se propaga y sincroniza automáticamente en `products.base_ingredients` y `products.default_proteins` mediante `array_replace`.
+      - En `server/db.js`, la migración idempotente preserva los `default_proteins` modificados por el usuario sin sobreescribirlos con valores de fábrica en cada reinicio.
+    - **Auto-migración y Normalización de Nombres a Mayúsculas**:
+      - En `server/db.js`, la migración ejecuta la conversión automática a MAYÚSCULAS de todos los productos (`UPDATE products SET name = UPPER(name)`), ingredientes (`UPDATE ingredients SET name = UPPER(name)`), y los arrays de recetas (`default_proteins` y `base_ingredients`).
+      - En los endpoints de creación y edición (`server/routes/products.js`, `server/routes/ingredients.js`), todo nuevo producto, ingrediente o receta se persiste de forma normalizada en MAYÚSCULAS.
+

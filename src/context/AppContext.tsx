@@ -27,7 +27,7 @@ export interface UserSession {
 
 interface AppContextType {
   userSession: UserSession | null;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; user?: UserSession; error?: string }>;
   logout: () => void;
   
   products: Product[];
@@ -353,7 +353,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               window.localStorage.removeItem('crispy_user_session');
             } catch (e) {}
           }
-          return { success: true };
+          return { success: true, user: session };
         }
       }
       return { success: false, error: 'Credenciales inválidas. Verifica usuario y contraseña.' };

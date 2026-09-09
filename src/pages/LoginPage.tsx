@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   IoPersonOutline,
@@ -10,6 +11,7 @@ import {
 
 export const LoginPage: React.FC = () => {
   const { login } = useApp();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -21,6 +23,19 @@ export const LoginPage: React.FC = () => {
     const res = await login(username, password);
     if (!res.success) {
       setErrorMessage(res.error || 'Credenciales inválidas');
+    } else {
+      const role = res.user?.role;
+      if (role === 'caja') {
+        navigate('/caja');
+      } else if (role === 'mesero') {
+        navigate('/mesonero');
+      } else if (role === 'cocina') {
+        navigate('/cocina');
+      } else if (role === 'admin') {
+        navigate('/caja');
+      } else {
+        navigate('/caja');
+      }
     }
   };
 

@@ -16,6 +16,8 @@ import {
   IoCheckmarkCircle,
   IoChevronBack,
   IoChevronForward,
+  IoTimeOutline,
+  IoBarChartOutline,
 } from 'react-icons/io5';
 
 interface SidebarProps {
@@ -141,24 +143,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
             <div className="space-y-2">
               <button
-                onClick={() => { navigate('/mesonero'); if (onCloseMobile) onCloseMobile(); }}
-                title="Tomar y Crear Nuevos Pedidos (Mesas, Delivery y PickUp)"
-                className={`w-full flex items-center ${
-                  isCollapsed ? 'justify-center p-3' : 'justify-between p-3.5'
-                } rounded-xl border transition-all duration-200 bg-yellow-400/10 hover:bg-yellow-400/25 border-yellow-400 text-black font-black hover:scale-[1.01] cursor-pointer`}
-              >
-                <div className="flex items-center gap-3">
-                  <IoFastFood className="text-yellow-600 text-xl shrink-0" />
-                  {!isCollapsed && (
-                    <div className="text-left">
-                      <div className="text-sm font-black text-black">➕ Tomar Pedido</div>
-                      <div className="text-[10px] text-gray-600 font-normal">Mesas, Delivery y PickUp</div>
-                    </div>
-                  )}
-                </div>
-              </button>
-
-              <button
                 onClick={() => setSubTab('comandas')}
                 title="Comandas Activas (Cobranza y Entrega)"
                 className={`w-full flex items-center ${
@@ -208,6 +192,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="text-left">
                       <div className="text-sm font-black">Caja Chica</div>
                       <div className="text-[10px] text-gray-500 font-normal">Apertura USD/COP & Arqueo</div>
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <button
+                onClick={() => setSubTab('historico')}
+                title="Histórico de Cobros"
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-between p-3.5'
+                } rounded-xl border transition-all duration-200 ${
+                  activeTab === 'historico'
+                    ? 'bg-yellow-400/15 border-yellow-400 shadow-sm text-black font-black scale-[1.01]'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-black'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <IoTimeOutline className="text-yellow-600 text-xl shrink-0" />
+                  {!isCollapsed && (
+                    <div className="text-left">
+                      <div className="text-sm font-black">Histórico</div>
+                      <div className="text-[10px] text-gray-500 font-normal">Cobros y entregas del día</div>
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <button
+                onClick={() => setSubTab('reportes')}
+                title="Reportes & Cierre de Turno"
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-between p-3.5'
+                } rounded-xl border transition-all duration-200 ${
+                  activeTab === 'reportes'
+                    ? 'bg-yellow-400/15 border-yellow-400 shadow-sm text-black font-black scale-[1.01]'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-black'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <IoBarChartOutline className="text-yellow-600 text-xl shrink-0" />
+                  {!isCollapsed && (
+                    <div className="text-left">
+                      <div className="text-sm font-black">Reportes & Cierre</div>
+                      <div className="text-[10px] text-gray-500 font-normal">Cierre de caja y estadísticas</div>
                     </div>
                   )}
                 </div>
