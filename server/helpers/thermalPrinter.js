@@ -391,7 +391,7 @@ function itemDetails(item, order = {}) {
 
   // 3b. Sabor / Subtipo de bebida:
   const flavor = item.flavor;
-  if (flavor) {
+  if (flavor && !prodName.toUpperCase().includes(String(flavor).toUpperCase())) {
     details.push(`SABOR: ${String(flavor).toUpperCase()}`);
   }
 
@@ -1380,8 +1380,8 @@ async function printKitchenAdditionTicket(order, addedItems, targetPrinter = 'co
 
 function buildReceiptTicket(order, rates = {}) {
   // Priorizar las tasas enviadas explícitamente desde el sistema / UI, luego las guardadas en la comanda, luego las del turno
-  const copRate = Number(rates.COP || order.copRateAtPayment || order.copRate || 3300);
-  const bsRate = Number(rates.Bs || order.bsRateAtPayment || order.bsRate || 850);
+  const copRate = Number(rates.COP || order.copRateAtPayment || order.copRate || 3950);
+  const bsRate = Number(rates.Bs || order.bsRateAtPayment || order.bsRate || 36.5);
   const totalUSD = Number(order.totalUSD || 0);
   const cleanOrderNumber = printableText((order.orderNumber || '').toString().replace(/^#+/, ''));
 
@@ -1425,7 +1425,13 @@ function buildReceiptTicket(order, rates = {}) {
     const unitPrice = Number(it.price) || 0;
     const lineTotalUSD = unitPrice * qty;
 
-    lines.push(formatTwoColumns(`${qty}x ${cleanName}`, `$${lineTotalUSD.toFixed(2)}`));
+    const deliveryTag = it.isDelivery ? ' (DELIVERY)' : '';
+    lines.push(formatTwoColumns(`${qty}x ${cleanName}${deliveryTag}`, `$${lineTotalUSD.toFixed(2)}`));
+
+    // Si tiene sabor y no está en el nombre, listarlo indentado debajo
+    if (it.flavor && !cleanName.toUpperCase().includes(String(it.flavor).toUpperCase())) {
+      lines.push(`  * SABOR: ${printableText(String(it.flavor).toUpperCase())}`);
+    }
 
     // Si tiene adicionales con costo, listarlos indentados debajo
     const extrasList = [];

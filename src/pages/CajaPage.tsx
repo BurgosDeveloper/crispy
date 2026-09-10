@@ -807,6 +807,12 @@ export const CajaPage: React.FC = () => {
                             </p>
                           )}
 
+                          {it.flavor && (
+                            <p className="text-[10px] text-amber-800 font-bold ml-2">
+                              🍹 Sabor: {it.flavor}
+                            </p>
+                          )}
+
                           {it.proteins && it.proteins.length > 0 && !areProteinsDefault(it.productName, it.proteins) && (
                             <p className="text-[10px] text-amber-800 font-bold ml-2">
                               🥩 Proteínas: {it.proteins.join(' + ')}
@@ -1113,6 +1119,12 @@ export const CajaPage: React.FC = () => {
                           {it.sugarPreference && (
                             <p className="text-[10px] text-blue-700 font-bold ml-2">
                               🥤 Azúcar: {it.sugarPreference}
+                            </p>
+                          )}
+
+                          {it.flavor && (
+                            <p className="text-[10px] text-amber-800 font-bold ml-2">
+                              🍹 Sabor: {it.flavor}
                             </p>
                           )}
 

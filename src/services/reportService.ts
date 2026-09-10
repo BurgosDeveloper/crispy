@@ -872,7 +872,7 @@ export class ReportService {
         .filter((it) => it.orderId === ord.id)
         .map((it) => `${it.quantity}x ${this.escapeHtml(it.productName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim())}`)
         .join(', ');
-      const copEquiv = Math.round(ord.totalUSD * (ord.copRateAtPayment || copRateGlobal)).toLocaleString();
+      const copEquiv = roundCOP(ord.totalUSD * (ord.copRateAtPayment || copRateGlobal)).toLocaleString();
       const bsEquiv = (ord.totalUSD * (ord.bsRateAtPayment || bsRateGlobal)).toFixed(2);
       return `
         <tr>
@@ -1161,12 +1161,18 @@ export class ReportService {
           `</div>`;
       }
 
+      let flavorDetail = '';
+      if (it.flavor && !cleanName.toLowerCase().includes(String(it.flavor).toLowerCase())) {
+        flavorDetail = `<div style="font-size: 10px; color: #b45309; font-weight: 700; padding-left: 6px;">🍹 Sabor: ${this.escapeHtml(it.flavor)}</div>`;
+      }
+
       const deliveryBadge = (it as any).isDelivery ? ` <span style="background: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 4px; border-radius: 4px;">🛵 Delivery</span>` : '';
 
       return `
         <tr>
           <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #111827; border-bottom: 1px dashed #e5e7eb;">
             ${qty}x ${this.escapeHtml(cleanName)}${deliveryBadge}
+            ${flavorDetail}
             ${extrasDetail}
           </td>
           <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">

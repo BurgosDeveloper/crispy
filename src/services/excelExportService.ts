@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { roundCOP } from '../utils/currencyRounding';
 
 export interface ReporteIntervaloData {
   orders: Array<{
@@ -427,7 +428,7 @@ export function exportToExcel(data: ReporteIntervaloData): void {
       ord.customerName || 'Cliente Deudor',
       orderItems || 'Consumo general',
       ord.totalUSD.toFixed(2),
-      Math.round(ord.totalUSD * (ord.copRateAtPayment || data.exchangeRates.COP)).toLocaleString(),
+      roundCOP(ord.totalUSD * (ord.copRateAtPayment || data.exchangeRates.COP)).toLocaleString(),
       (ord.totalUSD * (ord.bsRateAtPayment || data.exchangeRates.Bs)).toFixed(2),
     ];
   });

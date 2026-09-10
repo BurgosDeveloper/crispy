@@ -193,6 +193,12 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
                       </p>
                     )}
 
+                    {item.flavor && (
+                      <p className="text-xs text-amber-800 font-bold mt-0.5">
+                        🍹 Sabor: {item.flavor}
+                      </p>
+                    )}
+
                     {item.removedIngredients && item.removedIngredients.length > 0 && (
                       <p className="text-xs text-red-600 font-bold mt-0.5">
                         🚫 SIN: {formatRemovedIngredients(item.removedIngredients).join(', ')}

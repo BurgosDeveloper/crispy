@@ -206,9 +206,9 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     if ((it.changeGivenBs || 0) > 0) return sum + (it.changeGivenBs || 0);
     const rateBs = it.bsRate || exchangeRates.Bs;
     if ((it.changeGivenUSD || 0) > 0) return sum + (it.changeGivenUSD || 0) * rateBs;
-    if ((it.cashTenderedCOP || 0) > 0) {
+    if ((it.changeGivenCOP || 0) > 0) {
       const rateCOP = it.copRate || exchangeRates.COP;
-      return sum + ((it.cashTenderedCOP || 0) / (rateCOP || 1)) * rateBs;
+      return sum + ((it.changeGivenCOP || 0) / (rateCOP || 1)) * rateBs;
     }
     return sum;
   }, 0);
@@ -222,9 +222,10 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
 
   const entryUSD = asUSD(Number(amountLocal) || 0, currency, exchangeRates.COP, exchangeRates.Bs);
 
+  const copToleranceUSD = exchangeRates.COP > 0 ? (1000 / exchangeRates.COP) : 0.05;
   const isReadyToClose =
     Math.max(0, (order?.totalUSD || 0) - fullOrderPaidUSD) <= 0.05 &&
-    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= 0.05;
+    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= Math.max(0.05, copToleranceUSD);
 
   // Auto-switch to change if debt is settled but change is owed
   useEffect(() => {
@@ -250,7 +251,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
       if (currency === 'Bs') setAmountLocal((pendingDebtUSD * exchangeRates.Bs).toFixed(2));
     } else {
       if (currency === 'USD') setAmountLocal(pendingChangeUSD.toFixed(2));
-      if (currency === 'COP') setAmountLocal(String(Math.round(pendingChangeUSD * exchangeRates.COP)));
+      if (currency === 'COP') setAmountLocal(String(roundCOP(pendingChangeUSD * exchangeRates.COP)));
       if (currency === 'Bs') setAmountLocal((pendingChangeUSD * exchangeRates.Bs).toFixed(2));
     }
   };

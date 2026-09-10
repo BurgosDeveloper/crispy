@@ -80,6 +80,7 @@ export interface OrderItem {
   halfDetails?: HalfDetails;
   modifiers?: string[];
   proteins?: string[];
+  defaultProteins?: string[];
   removedIngredients?: string[];
   extras?: OrderItemExtra[];
   sugarPreference?: 'Con azúcar' | 'Sin azúcar' | 'Poca azúcar' | string;

@@ -142,9 +142,11 @@ export const MeseroPage: React.FC = () => {
   const areCartItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
     if (a.productId !== b.productId) return false;
     if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
     if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
     if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
     if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if ((a.flavor || '') !== (b.flavor || '')) return false;
     if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
 
     const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
@@ -181,6 +183,8 @@ export const MeseroPage: React.FC = () => {
 
     if (isCustomizableProduct(product)) {
       setSelectedBurger(product);
+    } else if (product.drinkType === 'jugo' || (product.flavors && product.flavors.length > 0)) {
+      setSelectedDrink(product);
     } else {
       // Direct add to cart for drinks, sides or potatoes (1 solo clic, suma cantidades si se repite)
       const newItem: OrderItem = {
@@ -249,18 +253,24 @@ export const MeseroPage: React.FC = () => {
     drink: Product;
     quantity: number;
     sugarPreference?: string;
+    flavor?: string;
     isTakeaway: boolean;
     notes?: string;
   }) => {
+    const formattedName = config.flavor
+      ? `${config.drink.name} (${config.flavor})`
+      : config.drink.name;
+
     const newItem: OrderItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       productId: config.drink.id,
-      productName: config.drink.name,
+      productName: formattedName,
       price: config.drink.price,
       quantity: config.quantity,
       category: config.drink.category,
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
+      flavor: config.flavor,
       isTakeaway: config.isTakeaway,
       notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: false,
@@ -937,6 +947,13 @@ export const MeseroPage: React.FC = () => {
                           {item.sugarPreference && (
                             <div className="text-xs text-blue-700 font-bold">
                               🥤 Azúcar: {item.sugarPreference}
+                            </div>
+                          )}
+
+                          {/* Drink Flavor */}
+                          {item.flavor && (
+                            <div className="text-xs text-amber-800 font-bold">
+                              🍹 Sabor: {item.flavor}
                             </div>
                           )}
 

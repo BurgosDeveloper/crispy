@@ -600,6 +600,12 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                       {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
                                     </div>
                                   )}
+                                  {item.flavor && (
+                                    <div className="text-amber-800 font-bold">🍹 Sabor: {item.flavor}</div>
+                                  )}
+                                  {item.sugarPreference && (
+                                    <div className="text-sky-700 font-bold">🥤 Azúcar: {item.sugarPreference}</div>
+                                  )}
                                   {getCleanItemNote(item.notes) && (
                                     <div className="italic text-gray-500">"{getCleanItemNote(item.notes)}"</div>
                                   )}

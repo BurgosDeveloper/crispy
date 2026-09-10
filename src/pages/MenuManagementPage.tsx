@@ -168,7 +168,16 @@ export const MenuManagementPage: React.FC = () => {
     e.preventDefault();
     if (!drinkName || !drinkPrice) return;
 
-    const finalFlavors = drinkFlavors.map((f) => (f || '').trim()).filter(Boolean);
+    const currentList = [...drinkFlavors];
+    if (flavorInput.trim()) {
+      const parts = flavorInput.split(',').map((f) => f.trim()).filter(Boolean);
+      for (const p of parts) {
+        if (!currentList.some((ex) => ex.toLowerCase() === p.toLowerCase())) {
+          currentList.push(p);
+        }
+      }
+    }
+    const finalFlavors = currentList.map((f) => (f || '').trim()).filter(Boolean);
 
     const drinkData = {
       name: drinkName,
@@ -1607,9 +1616,15 @@ export const MenuManagementPage: React.FC = () => {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        const trimmed = flavorInput.trim();
-                        if (trimmed && !drinkFlavors.includes(trimmed)) {
-                          setDrinkFlavors([...drinkFlavors, trimmed]);
+                        const parts = flavorInput.split(',').map((f) => f.trim()).filter(Boolean);
+                        if (parts.length > 0) {
+                          const next = [...drinkFlavors];
+                          for (const p of parts) {
+                            if (!next.some((ex) => ex.toLowerCase() === p.toLowerCase())) {
+                              next.push(p);
+                            }
+                          }
+                          setDrinkFlavors(next);
                           setFlavorInput('');
                         }
                       }
@@ -1620,9 +1635,15 @@ export const MenuManagementPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const trimmed = flavorInput.trim();
-                      if (trimmed && !drinkFlavors.includes(trimmed)) {
-                        setDrinkFlavors([...drinkFlavors, trimmed]);
+                      const parts = flavorInput.split(',').map((f) => f.trim()).filter(Boolean);
+                      if (parts.length > 0) {
+                        const next = [...drinkFlavors];
+                        for (const p of parts) {
+                          if (!next.some((ex) => ex.toLowerCase() === p.toLowerCase())) {
+                            next.push(p);
+                          }
+                        }
+                        setDrinkFlavors(next);
                         setFlavorInput('');
                       }
                     }}

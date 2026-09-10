@@ -51,15 +51,18 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
 
   const isJugo = drink.drinkType === 'jugo';
   const totalPrice = drink.price * quantity;
+  const isFlavorRequired = Boolean(drink.flavors && drink.flavors.length > 0);
+  const isAddDisabled = isFlavorRequired && !selectedFlavor;
 
   const handleSave = () => {
+    if (isAddDisabled) return;
     onConfirm({
       drink,
       quantity,
       sugarPreference: isJugo ? sugarPreference : undefined,
       isTakeaway,
       notes: notes.trim() || undefined,
-      flavor: drink.flavors && drink.flavors.length > 0 ? selectedFlavor : undefined,
+      flavor: isFlavorRequired ? selectedFlavor : undefined,
     });
     onClose();
   };
@@ -224,7 +227,12 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+              disabled={isAddDisabled}
+              className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm transition-all ${
+                isAddDisabled
+                  ? 'bg-gray-200 text-gray-400 border-2 border-gray-300 cursor-not-allowed'
+                  : 'bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-[0.98] cursor-pointer'
+              }`}
             >
               <IoCheckmark className="text-lg" />
               <span>AGREGAR ({quantity})</span>

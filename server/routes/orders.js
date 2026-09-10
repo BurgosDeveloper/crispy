@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../db');
-const { fetchAllOrders, fetchAllTables } = require('../helpers/fetchAll');
+const { fetchAllOrders, fetchAllTables, safeJsonParse, safeJsonParseObj } = require('../helpers/fetchAll');
 const { postCompletedOrderCashMovements } = require('../helpers/cashLedger');
 const { requireRole } = require('../helpers/sessionAuth');
 const { assertShiftAccess } = require('../helpers/shiftScope');
@@ -625,14 +625,17 @@ module.exports = function(io) {
         newTotalUSD += itemPrice * (parseInt(it.quantity) || 1);
       }
 
+      const totalDeliveryFeeUSD = allInvolved.reduce((sum, o) => sum + (parseFloat(o.deliveryFeeUSD || o.delivery_fee_usd) || 0), 0);
+      newTotalUSD += totalDeliveryFeeUSD;
+
       const { rows: sumPayments } = await query(`SELECT COALESCE(SUM(amount_paid_usd), 0) as paid FROM order_payments WHERE order_id = $1`, [targetOrderId]);
       const newPaidUSD = parseFloat(sumPayments[0]?.paid || 0);
       const newPaymentStatus = newPaidUSD >= (newTotalUSD - 0.01) ? 'pagado' : 'no_pagado';
 
       const updatedNotes = `${targetOrder.kitchenNotes || ''} (Fusionada con comandas ${sourceNumbers})`.trim();
       await query(
-        `UPDATE orders SET total_usd = $1, paid_amount_usd = $2, payment_status = $3, kitchen_notes = $4, merged_from_orders = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
-        [newTotalUSD, newPaidUSD, newPaymentStatus, updatedNotes, sourceOrders.map((o) => o.orderNumber), targetOrderId]
+        `UPDATE orders SET total_usd = $1, paid_amount_usd = $2, payment_status = $3, kitchen_notes = $4, merged_from_orders = $5, delivery_fee_usd = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7`,
+        [newTotalUSD, newPaidUSD, newPaymentStatus, updatedNotes, sourceOrders.map((o) => o.orderNumber), totalDeliveryFeeUSD, targetOrderId]
       );
 
       await query(
@@ -1080,7 +1083,13 @@ module.exports = function(io) {
       const { rows: orderRows } = await query(`SELECT * FROM orders WHERE id = $1`, [id]);
       if (orderRows.length === 0) return res.status(404).json({ error: 'Comanda no encontrada' });
       const ord = orderRows[0];
-      const { rows: items } = await query(`SELECT * FROM order_items WHERE order_id = $1`, [id]);
+      const { rows: items } = await query(
+        `SELECT oi.*, p.default_proteins 
+         FROM order_items oi 
+         LEFT JOIN products p ON (oi.product_id = p.id OR LOWER(oi.product_name) = LOWER(p.name))
+         WHERE oi.order_id = $1`,
+        [id]
+      );
       const fullOrder = {
         ...ord,
         orderNumber: ord.order_number,
@@ -1104,6 +1113,10 @@ module.exports = function(io) {
           halfDetails: safeJsonParseObj(it.half_details),
           extras: safeJsonParse(it.extras_json),
           removedIngredients: Array.isArray(it.removed_ingredients) ? it.removed_ingredients : (safeJsonParse(it.removed_ingredients) || []),
+          proteins: it.proteins || [],
+          defaultProteins: it.default_proteins || [],
+          isDelivery: !!it.is_delivery,
+          flavor: it.flavor || undefined,
           notes: it.notes,
           isTakeaway: it.is_takeaway,
         }))

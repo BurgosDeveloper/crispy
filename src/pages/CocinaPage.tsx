@@ -341,6 +341,12 @@ export const CocinaPage: React.FC = () => {
                             </div>
                           )}
 
+                          {it.flavor && (
+                            <div className="ml-8 text-xs font-black text-amber-900 bg-amber-400/20 px-2 py-1 rounded-lg border border-yellow-400 flex items-center gap-1">
+                              🍹 SABOR: {it.flavor}
+                            </div>
+                          )}
+
                           {getCleanItemNote(it.notes) && (
                             <div className="ml-8 text-xs font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
                               📝 NOTA: {getCleanItemNote(it.notes)}

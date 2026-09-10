@@ -344,6 +344,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     </div>
                   )}
 
+                  {item.flavor && (
+                    <div className="text-xs sm:text-sm font-black pl-2 mt-1 text-amber-800">
+                      🍹 Sabor: {item.flavor}
+                    </div>
+                  )}
+
                   {getCleanItemNote(item.notes) && (
                     <div className="text-xs sm:text-sm font-semibold italic pl-2 mt-1 text-slate-600">
                       📝 Nota: "{getCleanItemNote(item.notes)}"

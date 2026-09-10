@@ -10,8 +10,8 @@ function isValidPaymentMethod(currency, paymentMethod) {
 
 function toUsd(amountLocal, currency, copRate, bsRate) {
   const amount = Number(amountLocal) || 0;
-  if (currency === 'COP') return amount / copRate;
-  if (currency === 'Bs') return amount / bsRate;
+  if (currency === 'COP') return (copRate && copRate > 0) ? amount / copRate : 0;
+  if (currency === 'Bs') return (bsRate && bsRate > 0) ? amount / bsRate : 0;
   return amount;
 }
 
@@ -61,8 +61,8 @@ function paymentHistoryTotals(payments) {
 
     totals.changeGivenUSD +=
       (Number(payment.change_given_usd) || 0) +
-      (Number(payment.change_given_cop) || 0) / copRate +
-      (Number(payment.change_given_bs) || 0) / bsRate;
+      (copRate > 0 ? (Number(payment.change_given_cop) || 0) / copRate : 0) +
+      (bsRate > 0 ? (Number(payment.change_given_bs) || 0) / bsRate : 0);
     return totals;
   }, { paidUSD: 0, tenderedUSD: 0, changeGivenUSD: 0 });
 }

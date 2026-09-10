@@ -37,7 +37,13 @@ async function fetchAllOrders() {
   const orderIds = orders.map((order) => order.id);
   if (orderIds.length === 0) return [];
 
-  const { rows: items } = await query(`SELECT * FROM order_items WHERE order_id = ANY($1::text[])`, [orderIds]);
+  const { rows: items } = await query(
+    `SELECT oi.*, p.default_proteins 
+     FROM order_items oi 
+     LEFT JOIN products p ON (oi.product_id = p.id OR LOWER(oi.product_name) = LOWER(p.name))
+     WHERE oi.order_id = ANY($1::text[])`,
+    [orderIds]
+  );
   const { rows: payments } = await query(`SELECT * FROM order_payments WHERE order_id = ANY($1::text[]) ORDER BY created_at ASC`, [orderIds]);
 
   return orders.map((ord) => ({
@@ -100,6 +106,7 @@ async function fetchAllOrders() {
         halfDetails: safeJsonParseObj(it.half_details),
         removedIngredients: it.removed_ingredients || [],
         proteins: it.proteins || [],
+        defaultProteins: it.default_proteins || [],
         extras: safeJsonParse(it.extras_json),
         sugarPreference: it.sugar_preference || undefined,
         drinkType: it.drink_type || undefined,

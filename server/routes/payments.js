@@ -138,7 +138,8 @@ module.exports = function(io) {
         }
         tendered = paymentAmounts(localAmount, currency);
       } else {
-        if (amountUSD > pendingChangeUSD + 0.01) {
+        const copToleranceUSD = currency === 'COP' && copRate > 0 ? (1000 / copRate) : 0.01;
+        if (amountUSD > pendingChangeUSD + copToleranceUSD) {
           await client.query('ROLLBACK');
           client.release();
           client = null;
@@ -218,7 +219,12 @@ module.exports = function(io) {
       const totalUSD = Number(order.total_usd) || 0;
       const pendingDebtUSD = Math.max(0, totalUSD - totals.paidUSD);
       const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
-      if (pendingDebtUSD > 0.05 || pendingChangeUSD > 0.05) {
+      const hasCopPayment = paymentRows.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
+      const copRateFinalize = Number(order.cop_rate_at_payment) || 3950;
+      const copToleranceUSD = (hasCopPayment && copRateFinalize > 0) ? (1000 / copRateFinalize) : 0.05;
+      const maxChangeToleranceUSD = Math.max(0.05, copToleranceUSD);
+
+      if (pendingDebtUSD > 0.05 || pendingChangeUSD > maxChangeToleranceUSD) {
         await client.query('ROLLBACK');
         return res.status(409).json({
           error: pendingDebtUSD > 0.05 ? 'Aún falta pago por registrar.' : 'Aún hay vuelto pendiente por entregar.',
@@ -390,7 +396,7 @@ module.exports = function(io) {
         const total = parseFloat(order.total_usd || 0);
         const pendingDebtUSD = Math.max(0, total - newPaid);
         const pendingChangeUSD = Math.max(0, remainingTotals.tenderedUSD - total - remainingTotals.changeGivenUSD);
-        const newStatus = pendingDebtUSD <= 0.01 && pendingChangeUSD <= 0.01 ? 'pagado' : 'no_pagado';
+        const newStatus = pendingDebtUSD <= 0.05 && pendingChangeUSD <= 0.05 ? 'pagado' : 'no_pagado';
 
         await client.query(`UPDATE orders SET paid_amount_usd = $1, payment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, [newPaid, newStatus, id]);
 
