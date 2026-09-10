@@ -8,7 +8,7 @@ export interface Product {
   id: string;
   name: string;
   category: 'Hamburguesas' | 'Bebidas' | 'Acompañantes' | 'Combos' | 'Pizzas' | 'Platos' | string;
-  drinkType?: 'refresco' | 'jugo' | 'licor';
+  drinkType?: 'refresco' | 'jugo' | 'licor' | 'granizado' | 'te' | 'agua' | string;
   price: number; // En USD
   priceSmall?: number; // En USD (retrocompatibilidad)
   description: string;

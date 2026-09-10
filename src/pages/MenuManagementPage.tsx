@@ -147,7 +147,7 @@ export const MenuManagementPage: React.FC = () => {
   const [isAddDrinkOpen, setIsAddDrinkOpen] = useState(false);
   const [editingDrinkId, setEditingDrinkId] = useState<string | null>(null);
   const [drinkName, setDrinkName] = useState('');
-  const [drinkType, setDrinkType] = useState<'refresco' | 'jugo' | 'licor'>('refresco');
+  const [drinkType, setDrinkType] = useState<string>('refresco');
   const [drinkPrice, setDrinkPrice] = useState('');
   const [drinkDesc, setDrinkDesc] = useState('');
   const [drinkFlavors, setDrinkFlavors] = useState<string[]>([]);
@@ -1570,11 +1570,14 @@ export const MenuManagementPage: React.FC = () => {
                 <label className="text-xs font-bold text-gray-700 block mb-1">Tipo de Bebida:</label>
                 <select
                   value={drinkType}
-                  onChange={(e) => setDrinkType(e.target.value as 'refresco' | 'jugo' | 'licor')}
+                  onChange={(e) => setDrinkType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-gray-300 text-xs text-black outline-none focus:border-yellow-400 font-bold"
                 >
                   <option value="refresco">Refresco / Gaseosa</option>
                   <option value="jugo">Jugo Natural</option>
+                  <option value="granizado">Granizado / Slush</option>
+                  <option value="te">Té Frío</option>
+                  <option value="agua">Agua Mineral</option>
                   <option value="licor">Cerveza / Licor</option>
                 </select>
               </div>

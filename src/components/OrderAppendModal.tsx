@@ -412,21 +412,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
           <div className={`flex-1 md:w-[65%] ${selectedBurger ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
             
             {/* Contenedor del Catálogo de Productos (Oculto mientras se personaliza para dar máxima altura) */}
-            {!selectedBurger ? (
-              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                <ProductTextCatalog
-                  products={activeProducts}
-                  onSelectProduct={handleSelectProduct}
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  exchangeRates={exchangeRates}
-                  salsas={availableSalsas}
-                  onSelectSalsa={handleSelectSalsa}
-                />
-              </div>
-            ) : (
+            {selectedBurger ? (
               /* SECCIÓN INLINE DE PERSONALIZACIÓN DE HAMBURGUESAS (Llega hasta arriba con máxima altura) */
               <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                 <BurgerBuilderModal
@@ -444,6 +430,36 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   }}
                   defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
                   exchangeRates={exchangeRates}
+                />
+              </div>
+            ) : selectedDrink ? (
+              /* SECCIÓN INLINE DE SELECCIÓN DE BEBIDAS / SABORES */
+              <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <DrinkSelectorModal
+                  drink={selectedDrink}
+                  isOpen={true}
+                  inline={true}
+                  onClose={() => setSelectedDrink(null)}
+                  onConfirm={(config) => {
+                    handleConfirmDrinkAdd(config);
+                    setSelectedDrink(null);
+                  }}
+                  defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
+                  exchangeRates={exchangeRates}
+                />
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                <ProductTextCatalog
+                  products={activeProducts}
+                  onSelectProduct={handleSelectProduct}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  exchangeRates={exchangeRates}
+                  salsas={availableSalsas}
+                  onSelectSalsa={handleSelectSalsa}
                 />
               </div>
             )}
@@ -814,16 +830,6 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
         </div>
       </div>
-
-      {/* MODAL SELECTOR DE BEBIDAS (SABORES / JUGOS) */}
-      <DrinkSelectorModal
-        drink={selectedDrink}
-        isOpen={Boolean(selectedDrink)}
-        onClose={() => setSelectedDrink(null)}
-        onConfirm={handleConfirmDrinkAdd}
-        defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
-        exchangeRates={exchangeRates}
-      />
 
       {/* MODAL DE PIN PARA AUTORIZACIÓN DE ELIMINACIÓN DE ÍTEMS EXISTENTES */}
       <AdminPinModal

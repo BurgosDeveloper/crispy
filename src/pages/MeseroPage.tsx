@@ -757,24 +757,9 @@ export const MeseroPage: React.FC = () => {
 
           {/* Body: Split View (Catalog + Inline Customizer on Left 65%, Cart on Right 35%) */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
-            {/* LEFT: 100% TEXT CATALOG & INLINE BURGER BUILDER */}
-            <div className={`flex-1 md:w-[65%] ${selectedBurger ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
-              {/* Product Catalog (Visible cuando no hay hamburguesa en personalización) */}
-              {!selectedBurger ? (
-                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                  <ProductTextCatalog
-                    products={activeProducts}
-                    onSelectProduct={handleSelectProduct}
-                    selectedCategory={selectedCategory}
-                    onSelectCategory={setSelectedCategory}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    exchangeRates={exchangeRates}
-                    salsas={availableSalsas}
-                    onSelectSalsa={handleSelectSalsa}
-                  />
-                </div>
-              ) : (
+            {/* LEFT: 100% TEXT CATALOG & INLINE BURGER / DRINK BUILDER */}
+            <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+              {selectedBurger ? (
                 /* INLINE BURGER BUILDER (Llega hasta arriba con máxima altura) */
                 <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                   <BurgerBuilderModal
@@ -790,6 +775,37 @@ export const MeseroPage: React.FC = () => {
                     }}
                     defaultTakeaway={activeOrderTarget.type === 'pickup' || activeOrderTarget.type === 'delivery'}
                     exchangeRates={exchangeRates}
+                  />
+                </div>
+              ) : selectedDrink ? (
+                /* INLINE DRINK SELECTOR (Llega hasta arriba con máxima altura) */
+                <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <DrinkSelectorModal
+                    drink={selectedDrink}
+                    isOpen={true}
+                    inline={true}
+                    onClose={() => setSelectedDrink(null)}
+                    onConfirm={(config) => {
+                      handleConfirmDrinkAdd(config);
+                      setSelectedDrink(null);
+                    }}
+                    defaultTakeaway={activeOrderTarget.type === 'pickup' || activeOrderTarget.type === 'delivery'}
+                    exchangeRates={exchangeRates}
+                  />
+                </div>
+              ) : (
+                /* Product Catalog (Visible cuando no hay personalización) */
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                  <ProductTextCatalog
+                    products={activeProducts}
+                    onSelectProduct={handleSelectProduct}
+                    selectedCategory={selectedCategory}
+                    onSelectCategory={setSelectedCategory}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    exchangeRates={exchangeRates}
+                    salsas={availableSalsas}
+                    onSelectSalsa={handleSelectSalsa}
                   />
                 </div>
               )}
@@ -1100,15 +1116,17 @@ export const MeseroPage: React.FC = () => {
         />
       )}
 
-      {/* MODAL 3: SELECTOR DE BEBIDAS / JUGOS */}
-      <DrinkSelectorModal
-        drink={selectedDrink}
-        isOpen={!!selectedDrink}
-        onClose={() => setSelectedDrink(null)}
-        onConfirm={handleConfirmDrinkAdd}
-        defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
-        exchangeRates={exchangeRates}
-      />
+      {/* MODAL 3: SELECTOR DE BEBIDAS / JUGOS (Solo cuando no está en comanda activa) */}
+      {!activeOrderTarget && (
+        <DrinkSelectorModal
+          drink={selectedDrink}
+          isOpen={!!selectedDrink}
+          onClose={() => setSelectedDrink(null)}
+          onConfirm={handleConfirmDrinkAdd}
+          defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
+          exchangeRates={exchangeRates}
+        />
+      )}
 
       {/* MODAL 4: CAMBIO DE MESA O SERVICIO */}
       {tableChangeOrder && (

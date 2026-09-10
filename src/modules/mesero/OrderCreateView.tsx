@@ -346,23 +346,9 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
 
       {/* 2. Cuerpo: Split View (Catálogo a la izquierda 65%, Carrito a la derecha 35%) */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
-        {/* IZQUIERDA: Catálogo e Inline Burger Builder (65%) */}
-        <div className={`flex-1 md:w-[65%] ${selectedBurger ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
-          {!selectedBurger ? (
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <ProductTextCatalog
-                products={activeProducts}
-                onSelectProduct={handleSelectProduct}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                exchangeRates={exchangeRates}
-                salsas={availableSalsas}
-                onSelectSalsa={handleSelectSalsa}
-              />
-            </div>
-          ) : (
+        {/* IZQUIERDA: Catálogo e Inline Burger / Drink Builder (65%) */}
+        <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+          {selectedBurger ? (
             <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               <BurgerBuilderModal
                 burger={selectedBurger}
@@ -377,6 +363,35 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 }}
                 defaultTakeaway={target.type === 'pickup' || target.type === 'delivery'}
                 exchangeRates={exchangeRates}
+              />
+            </div>
+          ) : selectedDrink ? (
+            <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <DrinkSelectorModal
+                drink={selectedDrink}
+                isOpen={true}
+                inline={true}
+                onClose={() => setSelectedDrink(null)}
+                onConfirm={(config) => {
+                  handleConfirmDrinkAdd(config);
+                  setSelectedDrink(null);
+                }}
+                defaultTakeaway={target.type === 'pickup' || target.type === 'delivery'}
+                exchangeRates={exchangeRates}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <ProductTextCatalog
+                products={activeProducts}
+                onSelectProduct={handleSelectProduct}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                exchangeRates={exchangeRates}
+                salsas={availableSalsas}
+                onSelectSalsa={handleSelectSalsa}
               />
             </div>
           )}
@@ -681,16 +696,6 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Selector Modal de Bebidas (si aplica) */}
-      <DrinkSelectorModal
-        drink={selectedDrink}
-        isOpen={!!selectedDrink}
-        onClose={() => setSelectedDrink(null)}
-        onConfirm={handleConfirmDrinkAdd}
-        defaultTakeaway={target.type === 'pickup' || target.type === 'delivery'}
-        exchangeRates={exchangeRates}
-      />
     </div>
   );
 };

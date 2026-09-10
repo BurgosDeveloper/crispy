@@ -297,9 +297,13 @@ async function initDb() {
       `UPDATE products SET base_ingredients = (
         SELECT array_agg(UPPER(b) ORDER BY ord) FROM unnest(base_ingredients) WITH ORDINALITY AS t(b, ord)
       ) WHERE base_ingredients IS NOT NULL AND array_length(base_ingredients, 1) > 0;`,
-      `UPDATE products SET name = 'LIPTON' WHERE name = 'NESTEA';`,
-      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'] WHERE name IN ('LIPTON', 'NESTEA', 'TÉ LIPTON') AND (flavors IS NULL OR array_length(flavors, 1) IS NULL OR array_length(flavors, 1) = 0);`,
-      `UPDATE products SET flavors = ARRAY['Coca-Cola', 'Pepsi', 'Frescolita', 'Chinotto'] WHERE name IN ('REFRESCO 350ML', 'LATA') AND (flavors IS NULL OR array_length(flavors, 1) IS NULL OR array_length(flavors, 1) = 0);`,
+      `UPDATE products SET flavors = ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'CHINOTO', '7UP', 'FRESCOLITA', 'TORONJA', 'NARANJA', 'UVA', 'PIÑA', 'GOLDEN MANZANA', 'GOLDEN PIÑA', 'GOLDEN COLITA', 'PEPSI ORIGINAL', 'PEPSI ZERO'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%2lt%' OR LOWER(name) LIKE '%2 lt%' OR LOWER(name) LIKE '%2 litro%' OR LOWER(name) LIKE '%2l%';`,
+      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te' WHERE LOWER(name) LIKE '%lipton%';`,
+      `UPDATE products SET flavors = ARRAY['Fresa', 'Parchita'], drink_type = 'granizado' WHERE LOWER(name) LIKE '%granizado%';`,
+      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te' WHERE LOWER(name) LIKE '%nestea%';`,
+      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, protein_count, default_proteins, flavors, shift) VALUES ('prod-nestea-drink', 'NESTEA', 'Bebidas', 'te', 1.00, 'Té frío Nestea bien frío.', '', NULL, 0, ARRAY[]::text[], ARRAY['Limón', 'Durazno'], 'ambos') ON CONFLICT (id) DO UPDATE SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te';`,
+      `UPDATE products SET flavors = ARRAY['PIÑA', 'PEPSI ORIGINAL', 'PEPSI ZERO', 'GOLDEN COLITA', 'MANZANA', '7UP', 'COCA COLA ORIGINAL', 'COCACOLA ZERO'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%lata%' AND LOWER(name) NOT LIKE '%350%';`,
+      `UPDATE products SET flavors = ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'NARANJA', 'UVA', 'TORONJA', 'CHINOTO', 'FRESCOLITA'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%350%';`,
     ];
 
     for (const q of migrationQueries) {
