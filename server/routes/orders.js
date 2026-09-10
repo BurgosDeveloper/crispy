@@ -109,8 +109,8 @@ module.exports = function(io) {
       for (const item of items) {
         const itemId = `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         await client.query(
-          `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, notes, drink_type, category, proteins, is_cut, cut_preference)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+          `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, notes, drink_type, category, proteins, is_cut, cut_preference, flavor)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
           [
             itemId,
             orderId,
@@ -132,6 +132,7 @@ module.exports = function(io) {
             item.proteins || [],
             !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
             item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
+            item.flavor || null,
           ]
         );
       }
@@ -421,8 +422,8 @@ module.exports = function(io) {
         for (const item of items) {
           const itemId = `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
           await client.query(
-            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference, flavor)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
             [
               itemId,
               id,
@@ -445,6 +446,7 @@ module.exports = function(io) {
               item.proteins || [],
               !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
               item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
+              item.flavor || null,
             ]
           );
         }
@@ -957,8 +959,8 @@ module.exports = function(io) {
         for (const item of addedItems) {
           const itemId = item.id || `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
           await client.query(
-            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE, $15, $16, $17, $18, $19, $20)`,
+            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference, flavor)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE, $15, $16, $17, $18, $19, $20, $21)`,
             [
               itemId,
               id,
@@ -980,6 +982,7 @@ module.exports = function(io) {
               item.proteins || [],
               !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
               item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
+              item.flavor || null,
             ]
           );
         }

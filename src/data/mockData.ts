@@ -17,6 +17,7 @@ export interface Product {
   baseIngredients?: string[];
   proteinCount?: number;
   defaultProteins?: string[];
+  flavors?: string[];
   recipe: RecipeIngredient[];
   shift?: 'manana' | 'noche' | 'ambos';
 }
@@ -89,6 +90,7 @@ export interface OrderItem {
   isNewOrModified?: boolean;
   isPaidIndividually?: boolean;
   paidByName?: string;
+  flavor?: string;
   notes?: string;
 }
 

@@ -168,6 +168,51 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   const tenderedUSD = scopedHistory.reduce((total, item) => total + getEntryTenderedUSD(item), 0);
   const changeGivenUSD = scopedHistory.reduce((total, item) => total + getEntryChangeUSD(item), 0);
 
+  // Totales nativos en cada moneda para evitar desvíos o errores de redondeo al convertir de ida y vuelta
+  const totalTenderedCOP = scopedHistory.reduce((sum, it) => {
+    if ((it.cashTenderedCOP || 0) > 0) return sum + (it.cashTenderedCOP || 0);
+    const rate = it.copRate || exchangeRates.COP;
+    if ((it.cashTenderedUSD || 0) > 0) return sum + (it.cashTenderedUSD || 0) * rate;
+    if ((it.cashTenderedBs || 0) > 0) {
+      const rateBs = it.bsRate || exchangeRates.Bs;
+      return sum + ((it.cashTenderedBs || 0) / (rateBs || 1)) * rate;
+    }
+    return sum + (it.amountPaidUSD || 0) * rate;
+  }, 0);
+
+  const totalChangeGivenCOP = scopedHistory.reduce((sum, it) => {
+    if ((it.changeGivenCOP || 0) > 0) return sum + (it.changeGivenCOP || 0);
+    const rate = it.copRate || exchangeRates.COP;
+    if ((it.changeGivenUSD || 0) > 0) return sum + (it.changeGivenUSD || 0) * rate;
+    if ((it.changeGivenBs || 0) > 0) {
+      const rateBs = it.bsRate || exchangeRates.Bs;
+      return sum + ((it.changeGivenBs || 0) / (rateBs || 1)) * rate;
+    }
+    return sum;
+  }, 0);
+
+  const totalTenderedBs = scopedHistory.reduce((sum, it) => {
+    if ((it.cashTenderedBs || 0) > 0) return sum + (it.cashTenderedBs || 0);
+    const rateBs = it.bsRate || exchangeRates.Bs;
+    if ((it.cashTenderedUSD || 0) > 0) return sum + (it.cashTenderedUSD || 0) * rateBs;
+    if ((it.cashTenderedCOP || 0) > 0) {
+      const rateCOP = it.copRate || exchangeRates.COP;
+      return sum + ((it.cashTenderedCOP || 0) / (rateCOP || 1)) * rateBs;
+    }
+    return sum + (it.amountPaidUSD || 0) * rateBs;
+  }, 0);
+
+  const totalChangeGivenBs = scopedHistory.reduce((sum, it) => {
+    if ((it.changeGivenBs || 0) > 0) return sum + (it.changeGivenBs || 0);
+    const rateBs = it.bsRate || exchangeRates.Bs;
+    if ((it.changeGivenUSD || 0) > 0) return sum + (it.changeGivenUSD || 0) * rateBs;
+    if ((it.cashTenderedCOP || 0) > 0) {
+      const rateCOP = it.copRate || exchangeRates.COP;
+      return sum + ((it.cashTenderedCOP || 0) / (rateCOP || 1)) * rateBs;
+    }
+    return sum;
+  }, 0);
+
   const pendingDebtUSD = Math.max(0, scopeTotalUSD - paidUSD);
   const pendingChangeUSD = Math.max(0, tenderedUSD - scopeTotalUSD - changeGivenUSD);
 
@@ -345,14 +390,14 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               </div>
               <div className="flex justify-between items-baseline font-bold">
                 <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado / Recibido:</span>
-                <span className="text-lg sm:text-xl font-black text-blue-700">{((tenderedUSD > 0 ? tenderedUSD : paidUSD) * exchangeRates.Bs).toFixed(2)}</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{totalTenderedBs.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
                 <span className="text-sm sm:text-base text-gray-600 font-bold">
                   {pendingChangeUSD > 0.005 ? 'Vuelto por dar:' : 'Vueltos en bolívares:'}
                 </span>
                 <span className={`text-lg sm:text-xl font-black ${pendingChangeUSD > 0.005 ? 'text-amber-700' : 'text-gray-700'}`}>
-                  {((pendingChangeUSD > 0.005 ? pendingChangeUSD : changeGivenUSD) * exchangeRates.Bs).toFixed(2)}
+                  {((pendingChangeUSD > 0.005 ? pendingChangeUSD * exchangeRates.Bs : totalChangeGivenBs)).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -365,14 +410,14 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               </div>
               <div className="flex justify-between items-baseline font-bold">
                 <span className="text-sm sm:text-base text-gray-600 font-bold">Abonado / Recibido:</span>
-                <span className="text-lg sm:text-xl font-black text-blue-700">{Math.round((tenderedUSD > 0 ? tenderedUSD : paidUSD) * exchangeRates.COP).toLocaleString()}</span>
+                <span className="text-lg sm:text-xl font-black text-blue-700">{Math.round(totalTenderedCOP).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-baseline font-bold">
                 <span className="text-sm sm:text-base text-gray-600 font-bold">
                   {pendingChangeUSD > 0.005 ? 'Vuelto por dar:' : 'Vueltos en pesos:'}
                 </span>
                 <span className={`text-lg sm:text-xl font-black ${pendingChangeUSD > 0.005 ? 'text-amber-700' : 'text-gray-700'}`}>
-                  {Math.round((pendingChangeUSD > 0.005 ? pendingChangeUSD : changeGivenUSD) * exchangeRates.COP).toLocaleString()}
+                  {Math.round(pendingChangeUSD > 0.005 ? pendingChangeUSD * exchangeRates.COP : totalChangeGivenCOP).toLocaleString()}
                 </span>
               </div>
             </div>

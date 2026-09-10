@@ -13,6 +13,7 @@ interface DrinkSelectorModalProps {
     sugarPreference?: string;
     isTakeaway: boolean;
     notes?: string;
+    flavor?: string;
   }) => void;
   defaultTakeaway?: boolean;
   exchangeRates?: { COP: number; Bs: number };
@@ -32,6 +33,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
   const [sugarPreference, setSugarPreference] = useState<string>('Con azúcar');
   const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway);
   const [notes, setNotes] = useState<string>('');
+  const [selectedFlavor, setSelectedFlavor] = useState<string>('');
 
   useEffect(() => {
     if (drink) {
@@ -39,6 +41,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
       setSugarPreference('Con azúcar');
       setIsTakeaway(defaultTakeaway);
       setNotes('');
+      setSelectedFlavor(drink.flavors && drink.flavors.length > 0 ? drink.flavors[0] : '');
     }
   }, [drink, defaultTakeaway]);
 
@@ -56,6 +59,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
       sugarPreference: isJugo ? sugarPreference : undefined,
       isTakeaway,
       notes: notes.trim() || undefined,
+      flavor: drink.flavors && drink.flavors.length > 0 ? selectedFlavor : undefined,
     });
     onClose();
   };
@@ -125,6 +129,34 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
               <span>📦 Para Llevar</span>
             </label>
           </div>
+
+          {/* Flavor / Subtype selector */}
+          {drink.flavors && drink.flavors.length > 0 && (
+            <div>
+              <label className="block text-xs font-black uppercase text-gray-800 tracking-wider mb-2">
+                Sabor / Subtipo:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {drink.flavors.map((flavor) => {
+                  const isSelected = selectedFlavor === flavor;
+                  return (
+                    <button
+                      key={flavor}
+                      type="button"
+                      onClick={() => setSelectedFlavor(flavor)}
+                      className={`py-2 px-2.5 text-center rounded-xl text-xs sm:text-sm font-black transition-all border cursor-pointer ${
+                        isSelected
+                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
+                          : 'bg-stone-50 text-gray-800 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {isSelected ? '✓ ' : ''}{flavor}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Sugar Preference for Fresh Juices */}
           {isJugo && (

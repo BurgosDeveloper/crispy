@@ -105,6 +105,7 @@ async function initDb() {
       `CREATE TABLE IF NOT EXISTS products (id VARCHAR(64) PRIMARY KEY, name VARCHAR(128) NOT NULL, category VARCHAR(64) NOT NULL DEFAULT 'Hamburguesas', drink_type VARCHAR(32), price NUMERIC(10, 2) NOT NULL DEFAULT 0.00, description TEXT, image TEXT, badge VARCHAR(64), base_ingredients TEXT[], protein_count INT DEFAULT 1, default_proteins TEXT[], shift VARCHAR(32) DEFAULT 'ambos', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS protein_count INT DEFAULT 1;`,
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS default_proteins TEXT[];`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS flavors TEXT[];`,
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_small NUMERIC(10, 2);`,
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS shift VARCHAR(32) DEFAULT 'ambos';`,
 
@@ -136,6 +137,7 @@ async function initDb() {
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_cut BOOLEAN DEFAULT FALSE;`,
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cut_preference VARCHAR(32) DEFAULT 'Entera';`,
       `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS flavor VARCHAR(64);`,
 
       `CREATE TABLE IF NOT EXISTS order_payments (id VARCHAR(64) PRIMARY KEY, order_id VARCHAR(64) REFERENCES orders(id) ON DELETE CASCADE, payer_name VARCHAR(128) DEFAULT 'Cliente General', payment_method VARCHAR(32) NOT NULL, amount_paid_usd NUMERIC(10, 2) NOT NULL DEFAULT 0.00, cash_tendered_usd NUMERIC(10, 2) DEFAULT 0.00, cash_tendered_cop NUMERIC(12, 2) DEFAULT 0.00, cash_tendered_bs NUMERIC(12, 2) DEFAULT 0.00, change_given_usd NUMERIC(10, 2) DEFAULT 0.00, change_given_cop NUMERIC(12, 2) DEFAULT 0.00, change_given_bs NUMERIC(12, 2) DEFAULT 0.00, item_ids TEXT[], cop_rate NUMERIC(10, 2) DEFAULT 3950.00, bs_rate NUMERIC(10, 2) DEFAULT 36.50, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
       `ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS cash_tendered_bs NUMERIC(12, 2) DEFAULT 0.00;`,
@@ -295,6 +297,9 @@ async function initDb() {
       `UPDATE products SET base_ingredients = (
         SELECT array_agg(UPPER(b) ORDER BY ord) FROM unnest(base_ingredients) WITH ORDINALITY AS t(b, ord)
       ) WHERE base_ingredients IS NOT NULL AND array_length(base_ingredients, 1) > 0;`,
+      `UPDATE products SET name = 'LIPTON' WHERE name = 'NESTEA';`,
+      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'] WHERE name IN ('LIPTON', 'NESTEA', 'TÉ LIPTON') AND (flavors IS NULL OR array_length(flavors, 1) IS NULL OR array_length(flavors, 1) = 0);`,
+      `UPDATE products SET flavors = ARRAY['Coca-Cola', 'Pepsi', 'Frescolita', 'Chinotto'] WHERE name IN ('REFRESCO 350ML', 'LATA') AND (flavors IS NULL OR array_length(flavors, 1) IS NULL OR array_length(flavors, 1) = 0);`,
     ];
 
     for (const q of migrationQueries) {

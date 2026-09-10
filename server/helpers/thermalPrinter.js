@@ -271,10 +271,24 @@ function getCleanItemNote(rawNotes) {
   return cleaned;
 }
 
-function areProteinsDefault(burgerName, proteins) {
+function areProteinsDefault(burgerName, proteins, defaultProteins) {
   if (!proteins || !Array.isArray(proteins) || proteins.length === 0) return true;
   const nameLower = String(burgerName || '').toLowerCase().trim();
   if (nameLower.includes('papas') || nameLower.includes('nugget')) return true;
+
+  if (defaultProteins && Array.isArray(defaultProteins) && defaultProteins.length > 0) {
+    const pSorted = [...proteins].map((p) => String(p).trim().toUpperCase()).sort();
+    const dSorted = [...defaultProteins].map((d) => String(d).trim().toUpperCase()).sort();
+    if (pSorted.length === dSorted.length && pSorted.every((val, idx) => val === dSorted[idx])) {
+      return true;
+    }
+    const pNorm = [...proteins].map(normalizeProteinName).sort();
+    const dNorm = [...defaultProteins].map(normalizeProteinName).sort();
+    if (pNorm.length === dNorm.length && pNorm.every((val, idx) => val === dNorm[idx])) {
+      return true;
+    }
+    return false;
+  }
 
   const pSorted = [...proteins].map(normalizeProteinName).sort();
 
@@ -370,9 +384,15 @@ function itemDetails(item, order = {}) {
   // 3. Proteínas: Solo si cambiaron respecto a la receta original
   const prodName = item.productName || item.name || '';
   if (item.proteins && Array.isArray(item.proteins) && item.proteins.length > 0) {
-    if (!areProteinsDefault(prodName, item.proteins)) {
+    if (!areProteinsDefault(prodName, item.proteins, item.defaultProteins || item.default_proteins)) {
       details.push(`PROTEINAS: ${[...item.proteins].sort().join(' + ')}`);
     }
+  }
+
+  // 3b. Sabor / Subtipo de bebida:
+  const flavor = item.flavor;
+  if (flavor) {
+    details.push(`SABOR: ${String(flavor).toUpperCase()}`);
   }
 
   // 4. Ingredientes removidos (SIN)

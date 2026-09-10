@@ -87,6 +87,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
     if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
     if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if ((a.flavor || '') !== (b.flavor || '')) return false;
     if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
 
     const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
@@ -123,7 +124,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
 
     if (isCustomizableProduct(product)) {
       setSelectedBurger(product);
-    } else if (product.drinkType === 'jugo') {
+    } else if (product.drinkType === 'jugo' || (product.flavors && product.flavors.length > 0)) {
       setSelectedDrink(product);
     } else {
       // Adición directa al carrito para bebidas o acompañantes estándar
@@ -195,16 +196,22 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     sugarPreference?: string;
     isTakeaway: boolean;
     notes?: string;
+    flavor?: string;
   }) => {
+    const formattedName = config.flavor
+      ? `${config.drink.name} (${config.flavor})`
+      : config.drink.name;
+
     const newItem: OrderItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       productId: config.drink.id,
-      productName: config.drink.name,
+      productName: formattedName,
       price: config.drink.price,
       quantity: config.quantity,
       category: config.drink.category,
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
+      flavor: config.flavor,
       isTakeaway: config.isTakeaway,
       notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: false,

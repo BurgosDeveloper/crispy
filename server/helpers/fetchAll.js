@@ -111,6 +111,7 @@ async function fetchAllOrders() {
         isNewOrModified: !!it.is_new_or_modified,
         isPaidIndividually: !!it.is_paid_individually,
         paidByName: it.paid_by_name || undefined,
+        flavor: it.flavor || undefined,
         notes: it.notes || '',
       })),
   }));
@@ -131,6 +132,7 @@ async function fetchAllProducts() {
     baseIngredients: p.base_ingredients || [],
     proteinCount: p.protein_count !== undefined && p.protein_count !== null ? Number(p.protein_count) : 1,
     defaultProteins: p.default_proteins || [],
+    flavors: p.flavors || [],
     recipe: [],
     shift: 'ambos',
   }));

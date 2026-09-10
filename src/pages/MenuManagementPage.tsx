@@ -80,6 +80,17 @@ export const MenuManagementPage: React.FC = () => {
   const [burgerDefaultProteins, setBurgerDefaultProteins] = useState<string[]>([]);
   const [selectedBaseIngredients, setSelectedBaseIngredients] = useState<string[]>([]);
 
+  const handleSetSlotProtein = (slotIdx: number, proteinName: string) => {
+    setBurgerDefaultProteins((prev) => {
+      const next = [...prev];
+      while (next.length <= slotIdx) {
+        next.push('');
+      }
+      next[slotIdx] = proteinName;
+      return next;
+    });
+  };
+
   const handleStartEditPizza = (product: Product) => {
     setEditingProductId(product.id);
     setPizzaName(product.name);
@@ -97,6 +108,10 @@ export const MenuManagementPage: React.FC = () => {
     if (!pizzaName || !pizzaPrice) return;
 
     const pPrice = parseFloat(pizzaPrice) || 0;
+    const finalDefaultProteins = burgerDefaultProteins
+      .slice(0, burgerProteinCount)
+      .map((p) => (p || '').trim())
+      .filter(Boolean);
 
     const productData = {
       name: pizzaName,
@@ -106,7 +121,7 @@ export const MenuManagementPage: React.FC = () => {
       image: '/crispy_burger_logo.png',
       baseIngredients: selectedBaseIngredients,
       proteinCount: burgerProteinCount,
-      defaultProteins: burgerDefaultProteins,
+      defaultProteins: finalDefaultProteins,
       recipe: [] as RecipeIngredient[],
       shift: userSession?.shift || 'ambos'
     };
@@ -135,6 +150,8 @@ export const MenuManagementPage: React.FC = () => {
   const [drinkType, setDrinkType] = useState<'refresco' | 'jugo' | 'licor'>('refresco');
   const [drinkPrice, setDrinkPrice] = useState('');
   const [drinkDesc, setDrinkDesc] = useState('');
+  const [drinkFlavors, setDrinkFlavors] = useState<string[]>([]);
+  const [flavorInput, setFlavorInput] = useState('');
 
   const handleStartEditDrink = (p: Product) => {
     setEditingDrinkId(p.id);
@@ -142,12 +159,16 @@ export const MenuManagementPage: React.FC = () => {
     setDrinkType(p.drinkType || 'refresco');
     setDrinkPrice(p.price.toString());
     setDrinkDesc(p.description || '');
+    setDrinkFlavors(p.flavors || []);
+    setFlavorInput('');
     setIsAddDrinkOpen(true);
   };
 
   const handleCreateDrink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!drinkName || !drinkPrice) return;
+
+    const finalFlavors = drinkFlavors.map((f) => (f || '').trim()).filter(Boolean);
 
     const drinkData = {
       name: drinkName,
@@ -156,6 +177,7 @@ export const MenuManagementPage: React.FC = () => {
       price: parseFloat(drinkPrice) || 0,
       description: drinkDesc || 'Bebida bien fría.',
       image: '/crispy_burger_logo.png',
+      flavors: finalFlavors,
       recipe: [] as RecipeIngredient[],
       shift: userSession?.shift || 'ambos'
     };
@@ -170,6 +192,8 @@ export const MenuManagementPage: React.FC = () => {
     setDrinkName('');
     setDrinkPrice('');
     setDrinkDesc('');
+    setDrinkFlavors([]);
+    setFlavorInput('');
     setIsAddDrinkOpen(false);
   };
 
@@ -272,18 +296,12 @@ export const MenuManagementPage: React.FC = () => {
     );
   };
 
-  const toggleBurgerDefaultProtein = (name: string) => {
-    setBurgerDefaultProteins((prev: string[]) =>
-      prev.includes(name) ? prev.filter((n: string) => n !== name) : [...prev, name]
-    );
-  };
-
   const shiftProducts = products.filter(p => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const pizzas = shiftProducts.filter((p) => p.category !== 'Bebidas').sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const bebidas = shiftProducts.filter((p) => p.category === 'Bebidas').sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const shiftIngredients = ingredients.filter(i => !i.shift || i.shift === 'ambos' || i.shift === userSession?.shift).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const baseIngredientsAvailable = shiftIngredients.filter((i) => i.ingredientType === 'base' || i.isBaseForPizza).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-  const proteinsAvailable = shiftIngredients.filter((i) => i.ingredientType === 'proteina' || i.category === 'Proteínas').sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const proteinsAvailable = ingredients.filter((i) => i.ingredientType === 'proteina' || i.category === 'Proteínas').sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
 
   const filteredIngredients = shiftIngredients.filter((ing) => {
     if (ingredientFilter === 'todos') return true;
@@ -507,6 +525,18 @@ export const MenuManagementPage: React.FC = () => {
                   </div>
                   {p.description && (
                     <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{p.description}</p>
+                  )}
+                  {p.flavors && p.flavors.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {p.flavors.map((flv, idx) => (
+                        <span
+                          key={idx}
+                          className="bg-sky-50 text-sky-800 text-[10px] font-bold px-1.5 py-0.5 rounded border border-sky-200"
+                        >
+                          🥤 {flv}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
 
@@ -1401,31 +1431,47 @@ export const MenuManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Selección de Proteínas por Defecto */}
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">
-                  Proteínas por Defecto de esta Hamburguesa:
-                </label>
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar p-2 bg-stone-50 rounded-xl border border-gray-200">
-                  {proteinsAvailable.map((prot) => {
-                    const isSelected = burgerDefaultProteins.includes(prot.name);
+              {/* Selección de Proteínas por Defecto por Ranura */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700 block">
+                    Proteínas por Defecto ({burgerProteinCount} {burgerProteinCount === 1 ? 'ranura' : 'ranuras'}):
+                  </label>
+                  <span className="text-[11px] text-gray-500 font-semibold">
+                    (Directo de ingredientes de la BD)
+                  </span>
+                </div>
+
+                <div className="space-y-2 p-2.5 bg-stone-50 rounded-xl border border-gray-200">
+                  {Array.from({ length: burgerProteinCount }).map((_, slotIdx) => {
+                    const currentVal = burgerDefaultProteins[slotIdx] || '';
                     return (
-                      <button
-                        key={prot.id}
-                        type="button"
-                        onClick={() => toggleBurgerDefaultProtein(prot.name)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-yellow-400 text-black border-yellow-500 font-black'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-stone-100'
-                        }`}
-                      >
-                        {isSelected ? '✓ ' : '+ '}🥩 {prot.name}
-                      </button>
+                      <div key={slotIdx} className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-700 w-24 shrink-0 flex items-center gap-1">
+                          <span>🥩 Ranura {slotIdx + 1}:</span>
+                        </span>
+                        <select
+                          value={currentVal}
+                          onChange={(e) => handleSetSlotProtein(slotIdx, e.target.value)}
+                          className="flex-1 text-xs font-bold bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 cursor-pointer"
+                        >
+                          <option value="">-- Seleccionar Proteína (BD) --</option>
+                          {proteinsAvailable.map((prot) => (
+                            <option key={prot.id} value={prot.name}>
+                              {prot.name}
+                            </option>
+                          ))}
+                          {currentVal && !proteinsAvailable.some((p) => p.name.toUpperCase() === currentVal.toUpperCase()) && (
+                            <option value={currentVal}>{currentVal} (Actual)</option>
+                          )}
+                        </select>
+                      </div>
                     );
                   })}
                   {proteinsAvailable.length === 0 && (
-                    <span className="text-xs text-gray-400 p-1">No hay ingredientes clasificados como "Proteína".</span>
+                    <span className="text-xs text-gray-400 p-1 block">
+                      No hay ingredientes clasificados como "Proteína" en la base de datos.
+                    </span>
                   )}
                 </div>
               </div>
@@ -1546,6 +1592,67 @@ export const MenuManagementPage: React.FC = () => {
                   placeholder="Ej: Lata bien fría"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-gray-300 text-xs text-black outline-none focus:border-yellow-400 font-medium"
                 />
+              </div>
+
+              {/* Sabores / Subtipos */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  Sabores / Subtipos (Opcional):
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={flavorInput}
+                    onChange={(e) => setFlavorInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const trimmed = flavorInput.trim();
+                        if (trimmed && !drinkFlavors.includes(trimmed)) {
+                          setDrinkFlavors([...drinkFlavors, trimmed]);
+                          setFlavorInput('');
+                        }
+                      }
+                    }}
+                    placeholder="Ej: Limón, Durazno, Manzana..."
+                    className="flex-1 px-3 py-2 rounded-xl bg-stone-50 border border-gray-300 text-xs text-black outline-none focus:border-yellow-400 font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = flavorInput.trim();
+                      if (trimmed && !drinkFlavors.includes(trimmed)) {
+                        setDrinkFlavors([...drinkFlavors, trimmed]);
+                        setFlavorInput('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black rounded-xl border border-yellow-500 cursor-pointer"
+                  >
+                    + Agregar
+                  </button>
+                </div>
+                {drinkFlavors.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-stone-50 rounded-xl border border-gray-200">
+                    {drinkFlavors.map((flv, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-950 border border-sky-300"
+                      >
+                        <span>{flv}</span>
+                        <button
+                          type="button"
+                          onClick={() => setDrinkFlavors(drinkFlavors.filter((_, i) => i !== idx))}
+                          className="hover:text-red-600 font-black cursor-pointer text-sm leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <span className="text-[11px] text-gray-500 font-medium block mt-1">
+                  Si defines sabores, el mesero o cajero seleccionará el sabor antes de agregar la bebida.
+                </span>
               </div>
 
               <button

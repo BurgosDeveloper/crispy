@@ -3,6 +3,7 @@ import { Order, OrderItem, Product, Ingredient } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
+import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
 import { AdminPinModal } from './AdminPinModal';
 import { DeliveryFeeSelector } from './DeliveryFeeSelector';
 import { roundCOP } from '../utils/currencyRounding';
@@ -44,6 +45,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
   // Estado para hamburguesa seleccionada (personalización INLINE, idéntica a MeseroPage)
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
+  // Estado para bebida seleccionada (sabores / jugos)
+  const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order.deliveryFeeUSD || 0);
 
   // Modal de PIN para eliminar ítems ya existentes
@@ -72,6 +75,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSearchQuery('');
       setSelectedCategory('Todas');
       setSelectedBurger(null);
+      setSelectedDrink(null);
       setDeliveryFeeUSD(order?.deliveryFeeUSD || 0);
     }
   }, [isOpen, order?.id, order?.deliveryFeeUSD]);
@@ -98,6 +102,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
     if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
     if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if ((a.flavor || '') !== (b.flavor || '')) return false;
     if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
 
     const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
@@ -128,10 +133,12 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     return [...list, item];
   };
 
-  // Manejo de selección de producto: Hamburguesas abren sección inline; Bebidas, papas y acompañantes directos se agregan en 1 clic
+  // Manejo de selección de producto: Hamburguesas abren sección inline; Bebidas con sabores o jugos abren modal; otros directos en 1 clic
   const handleSelectProduct = (prod: Product) => {
     if (isCustomizableProduct(prod)) {
       setSelectedBurger(prod);
+    } else if (prod.drinkType === 'jugo' || (prod.flavors && prod.flavors.length > 0)) {
+      setSelectedDrink(prod);
     } else {
       // Producto directo (1 solo clic, suma cantidades si se repite)
       const newItem: OrderItem = {
@@ -150,6 +157,39 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSuccessToast(`¡${prod.name} agregado!`);
       setTimeout(() => setSuccessToast(''), 2500);
     }
+  };
+
+  // Confirmar Bebida seleccionada (Sabores / Jugos)
+  const handleConfirmDrinkAdd = (config: {
+    drink: Product;
+    quantity: number;
+    sugarPreference?: string;
+    isTakeaway: boolean;
+    notes?: string;
+    flavor?: string;
+  }) => {
+    const formattedName = config.flavor
+      ? `${config.drink.name} (${config.flavor})`
+      : config.drink.name;
+
+    const newItem: OrderItem = {
+      id: `add-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: config.drink.id,
+      productName: formattedName,
+      price: config.drink.price,
+      quantity: config.quantity,
+      category: config.drink.category || 'Bebidas',
+      drinkType: config.drink.drinkType,
+      sugarPreference: config.sugarPreference,
+      flavor: config.flavor,
+      isTakeaway: config.isTakeaway || order.type === 'pickup',
+      isDelivery: order.type === 'delivery',
+      notes: getCleanItemNote(config.notes) || undefined,
+      isNewOrModified: true,
+    };
+    setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
+    setSuccessToast(`¡${formattedName} agregado!`);
+    setTimeout(() => setSuccessToast(''), 2500);
   };
 
   // Manejo de adición directa de salsas (No contable, costo 0.00)
@@ -768,6 +808,16 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
         </div>
       </div>
+
+      {/* MODAL SELECTOR DE BEBIDAS (SABORES / JUGOS) */}
+      <DrinkSelectorModal
+        drink={selectedDrink}
+        isOpen={Boolean(selectedDrink)}
+        onClose={() => setSelectedDrink(null)}
+        onConfirm={handleConfirmDrinkAdd}
+        defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
+        exchangeRates={exchangeRates}
+      />
 
       {/* MODAL DE PIN PARA AUTORIZACIÓN DE ELIMINACIÓN DE ÍTEMS EXISTENTES */}
       <AdminPinModal
