@@ -2378,18 +2378,22 @@ export const CajaPage: React.FC = () => {
       />
 
       {/* Modal de Cambio / Reubicación de Mesa o Servicio */}
-      <OrderServiceTransferModal
-        order={tableChangeOrder}
-        isOpen={!!tableChangeOrder}
-        onClose={() => setTableChangeOrder(null)}
-      />
+      {tableChangeOrder && (
+        <OrderServiceTransferModal
+          order={tableChangeOrder}
+          isOpen={!!tableChangeOrder}
+          onClose={() => setTableChangeOrder(null)}
+        />
+      )}
 
       {/* Modal de Adición Rápida de Ítems a la Comanda */}
-      <OrderAppendModal
-        order={orderAppendModalOrder}
-        isOpen={!!orderAppendModalOrder}
-        onClose={() => setOrderAppendModalOrder(null)}
-      />
+      {orderAppendModalOrder && (
+        <OrderAppendModal
+          order={orderAppendModalOrder}
+          isOpen={!!orderAppendModalOrder}
+          onClose={() => setOrderAppendModalOrder(null)}
+        />
+      )}
 
       {/* Modal Selector de Impresora Térmica para Pre-Cuenta */}
       <PrinterSelectModal

@@ -47,7 +47,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   // Estado para bebida seleccionada (sabores / jugos)
   const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
-  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order.deliveryFeeUSD || 0);
+  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order?.deliveryFeeUSD || 0);
 
   // Modal de PIN para eliminar ítems ya existentes
   const [pinModalState, setPinModalState] = useState<{
