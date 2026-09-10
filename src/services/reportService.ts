@@ -1161,10 +1161,12 @@ export class ReportService {
           `</div>`;
       }
 
+      const deliveryBadge = (it as any).isDelivery ? ` <span style="background: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 4px; border-radius: 4px;">🛵 Delivery</span>` : '';
+
       return `
         <tr>
           <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #111827; border-bottom: 1px dashed #e5e7eb;">
-            ${qty}x ${this.escapeHtml(cleanName)}
+            ${qty}x ${this.escapeHtml(cleanName)}${deliveryBadge}
             ${extrasDetail}
           </td>
           <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; vertical-align: top; border-bottom: 1px dashed #e5e7eb;">
@@ -1175,7 +1177,7 @@ export class ReportService {
     }).join('');
 
     const deliveryFee = Number(order.deliveryFeeUSD) || 0;
-    const deliveryHtml = order.type === 'delivery' && deliveryFee > 0 ? `
+    const deliveryHtml = deliveryFee > 0 ? `
       <tr>
         <td style="padding: 4px 0; font-weight: 800; font-size: 12px; color: #111827; border-bottom: 1px dashed #e5e7eb;">1x Servicio Delivery</td>
         <td style="padding: 4px 0; text-align: right; font-weight: 800; font-size: 12px; border-bottom: 1px dashed #e5e7eb;">$${deliveryFee.toFixed(2)}</td>

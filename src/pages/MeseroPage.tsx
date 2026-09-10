@@ -6,7 +6,7 @@ import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
-import { ChangeTableModal } from '../components/ChangeTableModal';
+import { OrderServiceTransferModal } from '../components/OrderServiceTransferModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
 import { OrderEditModal } from '../components/OrderEditModal';
@@ -1093,9 +1093,9 @@ export const MeseroPage: React.FC = () => {
         exchangeRates={exchangeRates}
       />
 
-      {/* MODAL 4: CAMBIO DE MESA */}
+      {/* MODAL 4: CAMBIO DE MESA O SERVICIO */}
       {tableChangeOrder && (
-        <ChangeTableModal
+        <OrderServiceTransferModal
           order={tableChangeOrder}
           isOpen={!!tableChangeOrder}
           onClose={() => setTableChangeOrder(null)}

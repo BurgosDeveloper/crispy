@@ -89,7 +89,17 @@ interface AppContextType {
   deletePaymentEntry: (orderId: string, paymentId: string) => Promise<Order>;
   mergeOrders: (targetOrderId: string, sourceOrderIds: string[]) => Promise<void>;
   changeOrderTable: (orderId: string, newTableNumber: number) => Promise<Order>;
-  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna') => Promise<void>;
+  transferOrderService: (
+    orderId: string,
+    transferData: {
+      action: 'change-table' | 'to-mesa' | 'to-delivery' | 'to-pickup' | 'assign-delivery-items';
+      newTableNumber?: number;
+      customerName?: string;
+      deliveryFeeUSD?: number;
+      selectedItemIds?: string[];
+    }
+  ) => Promise<Order>;
+  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna', deliveryFeeUSD?: number) => Promise<void>;
 
   aperturarCajaChica: (usdCash: number, copCash: number) => Promise<void>;
   addCajaTransaction: (trans: { type: 'ingreso' | 'egreso'; amountUSD: number; amountCOP: number; amountBs: number; paymentMethod: string; description: string }) => Promise<void>;
@@ -671,16 +681,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return response as Order;
   };
 
+  const transferOrderService = async (
+    orderId: string,
+    transferData: {
+      action: 'change-table' | 'to-mesa' | 'to-delivery' | 'to-pickup' | 'assign-delivery-items';
+      newTableNumber?: number;
+      customerName?: string;
+      deliveryFeeUSD?: number;
+      selectedItemIds?: string[];
+    }
+  ) => {
+    const res = await apiFetch(`${backendUrl}/api/orders/${orderId}/transfer-service`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(transferData),
+    });
+    const response = await requireApiSuccess(res, 'No se pudo transferir o cambiar el servicio de la comanda.');
+    setOrders((prev) => prev.map((order) => (order.id === orderId ? response : order)));
+    fetchTables();
+    return response as Order;
+  };
+
   const appendOrderItems = async (
     orderId: string,
     addedItems: OrderItem[],
     removedItemIds: string[] = [],
-    targetPrinter: 'cocina' | 'caja' | 'ambas' | 'ninguna' = 'cocina'
+    targetPrinter: 'cocina' | 'caja' | 'ambas' | 'ninguna' = 'cocina',
+    deliveryFeeUSD?: number
   ) => {
     const res = await apiFetch(`${backendUrl}/api/orders/${orderId}/append-items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addedItems, removedItemIds, targetPrinter }),
+      body: JSON.stringify({ addedItems, removedItemIds, targetPrinter, deliveryFeeUSD }),
     });
     const response = await requireApiSuccess(res, 'No se pudo adicionar productos a la comanda.');
     if (response?.order) {
@@ -995,6 +1027,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deletePaymentEntry,
         mergeOrders,
         changeOrderTable,
+        transferOrderService,
         appendOrderItems,
         aperturarCajaChica,
         addCajaTransaction,

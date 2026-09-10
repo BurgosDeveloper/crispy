@@ -7,6 +7,7 @@ import { DrinkSelectorModal } from './DrinkSelectorModal';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../../utils/burgerProteins';
 import { isCustomizableProduct } from '../../utils/productClassifier';
 
+import { DeliveryFeeSelector } from '../../components/DeliveryFeeSelector';
 import {
   IoClose,
   IoTrashOutline,
@@ -229,20 +230,36 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     setCartItems((prev) => prev.filter((i) => i.id !== itemId));
   };
 
+  const setItemPackaging = (itemId: string, mode: 'salon' | 'llevar' | 'delivery') => {
+    setCartItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        return {
+          ...it,
+          isTakeaway: mode === 'llevar',
+          isDelivery: mode === 'delivery',
+        };
+      })
+    );
+  };
+
+  const hasAnyDeliveryItem = cartItems.some((i) => i.isDelivery);
+  const isDeliveryOrder = target.type === 'delivery' || hasAnyDeliveryItem;
+
   const itemsSubtotalUSD = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartTotalUSD = itemsSubtotalUSD + (target.type === 'delivery' ? deliveryFeeUSD : 0);
+  const cartTotalUSD = itemsSubtotalUSD + (isDeliveryOrder ? deliveryFeeUSD : 0);
 
   // Envío de Comanda
   const handleSubmitOrder = async () => {
     if (cartItems.length === 0 || isSubmittingOrder) return;
 
-    if (target.type === 'delivery') {
+    if (isDeliveryOrder) {
       if (!customerName.trim()) {
-        setOrderError('⚠️ Para Delivery es obligatorio ingresar nombre y dirección del cliente.');
+        setOrderError('⚠️ Para pedidos con Delivery es obligatorio ingresar el nombre del cliente.');
         return;
       }
       if (deliveryFeeUSD <= 0) {
-        setOrderError('⚠️ Debe seleccionar el costo del Delivery.');
+        setOrderError('⚠️ Debe seleccionar o ingresar el costo del Delivery.');
         return;
       }
     }
@@ -263,7 +280,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
         kitchenNotes: getCleanItemNote(kitchenNotes) || undefined,
         items: cartItems,
         totalUSD: cartTotalUSD,
-        deliveryFeeUSD: target.type === 'delivery' ? deliveryFeeUSD : 0,
+        deliveryFeeUSD: isDeliveryOrder ? deliveryFeeUSD : 0,
         shift: userSession?.shift || 'ambos',
         targetPrinter,
       } as any);
@@ -397,33 +414,15 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 />
               </div>
 
-              {/* Selector de Envío para Delivery */}
-              {target.type === 'delivery' && (
+              {/* Selector de Envío para Delivery (si comanda es delivery o tiene ítems para delivery) */}
+              {isDeliveryOrder && (
                 <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-black uppercase text-gray-800">
-                      Costo de Envío Delivery:
-                    </span>
-                    <span className="text-sm font-black text-black bg-yellow-400 px-2 py-0.5 rounded-lg border border-yellow-500">
-                      ${deliveryFeeUSD.toFixed(2)} USD
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[1, 1.5, 2, 2.5, 3, 4, 5].map((fee) => (
-                      <button
-                        key={fee}
-                        type="button"
-                        onClick={() => setDeliveryFeeUSD(fee)}
-                        className={`px-3 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer ${
-                          deliveryFeeUSD === fee
-                            ? 'bg-yellow-400 border-yellow-500 text-black shadow-xs font-black scale-[1.03]'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        ${fee}
-                      </button>
-                    ))}
-                  </div>
+                  <DeliveryFeeSelector
+                    value={deliveryFeeUSD}
+                    onChange={setDeliveryFeeUSD}
+                    exchangeRates={exchangeRates}
+                    label={target.type === 'delivery' ? 'Costo de Envío Delivery:' : 'Costo de Envío (Ítems Delivery):'}
+                  />
                 </div>
               )}
             </div>
@@ -453,22 +452,58 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                         <span className="text-sm sm:text-base font-black text-gray-950 block leading-tight">
                           {item.productName}
                         </span>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {item.isTakeaway && (
-                            <span className="text-[11px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md inline-block">
-                              📦 Para Llevar
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {/* Selector de Empaque / Servicio para este ítem */}
+                          <button
+                            type="button"
+                            onClick={() => setItemPackaging(item.id, 'salon')}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                              !item.isTakeaway && !item.isDelivery
+                                ? 'bg-yellow-400 border-yellow-500 text-black shadow-2xs scale-[1.02]'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                            }`}
+                            title="Servir en mesa (Salón)"
+                          >
+                            🍽️ Salón
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setItemPackaging(item.id, 'llevar')}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                              item.isTakeaway && !item.isDelivery
+                                ? 'bg-amber-200 border-amber-400 text-amber-950 shadow-2xs scale-[1.02]'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                            }`}
+                            title="Empaquetar para llevar"
+                          >
+                            🛍️ Llevar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setItemPackaging(item.id, 'delivery');
+                              if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+                            }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                              item.isDelivery
+                                ? 'bg-blue-100 border-blue-400 text-blue-950 shadow-2xs scale-[1.02]'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                            }`}
+                            title="Marcar este producto para Servicio Delivery"
+                          >
+                            🛵 Delivery
+                          </button>
+
                           {item.category === 'Salsas' ? (
-                            <span className="text-[11px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
+                            <span className="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
                               🥣 Salsa
                             </span>
                           ) : (item.isCut || item.cutPreference === 'Picada') ? (
-                            <span className="text-[11px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
+                            <span className="text-[10px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
                               🔪 Picada
                             </span>
                           ) : (
-                            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md inline-block">
+                            <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md inline-block">
                               🍔 Entera
                             </span>
                           )}
@@ -563,7 +598,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 <span className="text-black font-black">${itemsSubtotalUSD.toFixed(2)} USD</span>
               </div>
 
-              {target.type === 'delivery' && (
+              {isDeliveryOrder && (
                 <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-600">
                   <span>Costo Delivery:</span>
                   <span className="text-black font-black">+${deliveryFeeUSD.toFixed(2)} USD</span>

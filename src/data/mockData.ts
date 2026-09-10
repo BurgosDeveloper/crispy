@@ -83,6 +83,7 @@ export interface OrderItem {
   extras?: OrderItemExtra[];
   sugarPreference?: 'Con azúcar' | 'Sin azúcar' | 'Poca azúcar' | string;
   isTakeaway?: boolean;
+  isDelivery?: boolean;
   isCut?: boolean;
   cutPreference?: 'Picada' | 'Entera';
   isNewOrModified?: boolean;

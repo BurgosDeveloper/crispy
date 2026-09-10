@@ -354,8 +354,10 @@ function itemDetails(item, order = {}) {
   const details = [];
   const orderType = (order.type || '').toLowerCase();
 
-  // 1. Para llevar en ítems: Solo si es mesa y este ítem se pidió específicamente para llevar
-  if (orderType === 'mesa' && (item.isTakeaway || item.is_takeaway)) {
+  // 1. Para llevar / Delivery en ítems:
+  if (item.isDelivery || item.is_delivery) {
+    details.push('*** PARA DELIVERY ***');
+  } else if (orderType === 'mesa' && (item.isTakeaway || item.is_takeaway)) {
     details.push('*** PARA LLEVAR ***');
   }
 
@@ -1425,8 +1427,9 @@ function buildReceiptTicket(order, rates = {}) {
     }
   }
 
-  if (order.type === 'delivery' && Number(order.deliveryFeeUSD) > 0) {
-    lines.push(formatTwoColumns('1x SERVICIO DELIVERY', `$${Number(order.deliveryFeeUSD).toFixed(2)}`));
+  const deliveryFee = Number(order.deliveryFeeUSD || order.delivery_fee_usd || 0);
+  if (deliveryFee > 0) {
+    lines.push(formatTwoColumns('1x SERVICIO DELIVERY', `$${deliveryFee.toFixed(2)}`));
   }
 
   lines.push(divider('-'));

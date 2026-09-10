@@ -258,6 +258,15 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                           <span className="font-black text-slate-900 text-base sm:text-lg">
                             {item.productName}
                           </span>
+                          {item.isDelivery ? (
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-blue-100 border border-blue-300 text-blue-900">
+                              🛵 Delivery
+                            </span>
+                          ) : item.isTakeaway ? (
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-900">
+                              🛍️ Llevar
+                            </span>
+                          ) : null}
                           {item.size && (
                             <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-sky-100 border border-sky-300 text-sky-900">
                               {item.size}
@@ -345,7 +354,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             })}
 
             {/* Servicio de Delivery */}
-            {order.type === 'delivery' && (order.deliveryFeeUSD || 0) > 0 && (
+            {((order.deliveryFeeUSD || 0) > 0 || order.items.some((i) => i.isDelivery)) && (
               <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-xl bg-sky-100 border border-sky-300 text-sky-900 font-black text-xs sm:text-sm flex items-center gap-1">
@@ -354,7 +363,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   <span className="font-black text-slate-900 text-base sm:text-lg">Servicio Delivery</span>
                 </div>
                 <span className="font-black text-base sm:text-lg text-emerald-700">
-                  ${order.deliveryFeeUSD!.toFixed(2)}
+                  ${(order.deliveryFeeUSD || 0).toFixed(2)}
                 </span>
               </div>
             )}
@@ -576,8 +585,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     </button>
                   )}
 
-                  {/* CAMBIAR MESA */}
-                  {onChangeTable && order.type === 'mesa' && !isPaid && !isDelivered && (
+                  {/* CAMBIAR SERVICIO / MESA */}
+                  {onChangeTable && !isPaid && !isDelivered && (
                     <button
                       type="button"
                       onClick={() => {
@@ -585,10 +594,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                         onChangeTable(order);
                       }}
                       className="px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      title="Reubicar orden a otra mesa del salón"
+                      title="Cambiar mesa, convertir a delivery/para llevar o asignar ítems a delivery"
                     >
                       <IoSwapHorizontal className="text-base" />
-                      <span>🔄 CAMBIAR MESA</span>
+                      <span>🔄 SERVICIO / MESA</span>
                     </button>
                   )}
 

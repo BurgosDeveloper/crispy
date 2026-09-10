@@ -109,8 +109,8 @@ module.exports = function(io) {
       for (const item of items) {
         const itemId = `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         await client.query(
-          `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, notes, drink_type, category, proteins, is_cut, cut_preference)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+          `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, notes, drink_type, category, proteins, is_cut, cut_preference)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
           [
             itemId,
             orderId,
@@ -125,6 +125,7 @@ module.exports = function(io) {
             JSON.stringify(item.extras || []),
             item.sugarPreference || null,
             !!item.isTakeaway,
+            !!(item.isDelivery || item.is_delivery),
             item.notes || '',
             item.drinkType || item.drink_type || null,
             item.category || null,
@@ -420,8 +421,8 @@ module.exports = function(io) {
         for (const item of items) {
           const itemId = `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
           await client.query(
-            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
             [
               itemId,
               id,
@@ -436,6 +437,7 @@ module.exports = function(io) {
               JSON.stringify(item.extras || []),
               item.sugarPreference || null,
               !!item.isTakeaway,
+              !!(item.isDelivery || item.is_delivery),
               item.isNewOrModified !== false,
               item.notes || '',
               item.drinkType || item.drink_type || null,
@@ -753,6 +755,159 @@ module.exports = function(io) {
     }
   });
 
+  // Transferir o cambiar servicio / mesa de una comanda (Mesa <-> PickUp <-> Delivery)
+  router.patch('/:id/transfer-service', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
+    let client;
+    try {
+      const { id } = req.params;
+      const { action, newTableNumber, customerName, deliveryFeeUSD, selectedItemIds } = req.body;
+
+      if (!action || !['change-table', 'to-mesa', 'to-delivery', 'to-pickup', 'assign-delivery-items'].includes(action)) {
+        return res.status(400).json({ error: 'Acción de transferencia no válida.' });
+      }
+
+      client = await getClient();
+      await client.query('BEGIN');
+
+      const { rows: orderRows } = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+      if (!orderRows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Comanda no encontrada.' });
+      }
+      const order = orderRows[0];
+      assertShiftAccess(req.user, order.shift);
+
+      if (order.status === 'cancelado' || order.status === 'fusionada') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No se puede modificar una comanda cancelada o fusionada.' });
+      }
+
+      const oldTableNumber = order.table_number;
+
+      // Obtener subtotal real de los ítems actuales
+      const { rows: itemsRows } = await client.query(
+        'SELECT price, quantity, extras_json FROM order_items WHERE order_id = $1',
+        [id]
+      );
+      let itemsSubtotal = 0;
+      for (const it of itemsRows) {
+        let p = Number(it.price) || 0;
+        let extras = [];
+        try { extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json || '[]') : (it.extras_json || []); } catch (_) {}
+        if (Array.isArray(extras)) {
+          for (const ex of extras) { p += Number(ex.price) || 0; }
+        }
+        itemsSubtotal += p * (Number(it.quantity) || 1);
+      }
+      itemsSubtotal = Number(itemsSubtotal.toFixed(2));
+
+      if (action === 'change-table' || action === 'to-mesa') {
+        const parsedTable = parseInt(newTableNumber, 10);
+        if (!parsedTable || parsedTable <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Debe seleccionar una mesa válida.' });
+        }
+        if (action === 'change-table' && oldTableNumber === parsedTable) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'La comanda ya está en esa mesa.' });
+        }
+
+        // Mantener delivery_fee_usd si la comanda tiene ítems marcados para delivery, de lo contrario 0
+        const { rows: delItemRows } = await client.query(
+          'SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND is_delivery = true',
+          [id]
+        );
+        const hasDeliveryItems = Number(delItemRows[0]?.count || 0) > 0;
+        const currentFee = hasDeliveryItems ? (Number(order.delivery_fee_usd) || 0) : 0;
+        const newTotal = Number((itemsSubtotal + currentFee).toFixed(2));
+
+        await client.query(
+          `UPDATE orders SET type = 'mesa', table_number = $1, delivery_fee_usd = $2, total_usd = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+          [parsedTable, currentFee, newTotal, id]
+        );
+
+        await client.query("UPDATE tables_config SET status = 'ocupada' WHERE number = $1", [parsedTable]);
+
+        if (oldTableNumber && oldTableNumber !== parsedTable) {
+          const { rows: otherOrders } = await client.query(
+            "SELECT id FROM orders WHERE table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL",
+            [oldTableNumber, id]
+          );
+          if (otherOrders.length === 0) {
+            await client.query("UPDATE tables_config SET status = 'libre' WHERE number = $1", [oldTableNumber]);
+          }
+        }
+      } else if (action === 'to-delivery') {
+        const fee = deliveryFeeUSD !== undefined ? Number(deliveryFeeUSD) : (Number(order.delivery_fee_usd) || 0);
+        const finalCustName = customerName ? customerName.trim() : (order.customer_name || 'Cliente Delivery');
+        const newTotal = Number((itemsSubtotal + fee).toFixed(2));
+
+        await client.query(
+          `UPDATE orders SET type = 'delivery', table_number = NULL, customer_name = $1, delivery_fee_usd = $2, total_usd = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+          [finalCustName, fee, newTotal, id]
+        );
+
+        if (oldTableNumber) {
+          const { rows: otherOrders } = await client.query(
+            "SELECT id FROM orders WHERE table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL",
+            [oldTableNumber, id]
+          );
+          if (otherOrders.length === 0) {
+            await client.query("UPDATE tables_config SET status = 'libre' WHERE number = $1", [oldTableNumber]);
+          }
+        }
+      } else if (action === 'to-pickup') {
+        const newTotal = itemsSubtotal;
+        await client.query(
+          `UPDATE orders SET type = 'pickup', table_number = NULL, delivery_fee_usd = 0, total_usd = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [newTotal, id]
+        );
+
+        if (oldTableNumber) {
+          const { rows: otherOrders } = await client.query(
+            "SELECT id FROM orders WHERE table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL",
+            [oldTableNumber, id]
+          );
+          if (otherOrders.length === 0) {
+            await client.query("UPDATE tables_config SET status = 'libre' WHERE number = $1", [oldTableNumber]);
+          }
+        }
+      } else if (action === 'assign-delivery-items') {
+        // Asignar servicio delivery a ítems específicos dentro de la comanda
+        const targetIds = Array.isArray(selectedItemIds) ? selectedItemIds : [];
+        await client.query(
+          'UPDATE order_items SET is_delivery = (id = ANY($2::text[])) WHERE order_id = $1',
+          [id, targetIds]
+        );
+        const fee = deliveryFeeUSD !== undefined ? Number(deliveryFeeUSD) : (Number(order.delivery_fee_usd) || 0);
+        const newTotal = Number((itemsSubtotal + fee).toFixed(2));
+        await client.query(
+          `UPDATE orders SET delivery_fee_usd = $1, total_usd = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+          [fee, newTotal, id]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      const updatedOrdersList = await fetchAllOrders(req.user);
+      const allTables = await fetchAllTables(req.user);
+      const updatedOrder = updatedOrdersList.find((o) => o.id === id);
+
+      io.emit('orders:sync', updatedOrdersList);
+      io.emit('tables:sync', allTables);
+      io.emit('order:status_updated', updatedOrder);
+
+      console.log(`🔄 [TRASLADO DE SERVICIO] Comanda #${order.order_number}: Acción ${action} procesada`);
+      res.json(updatedOrder);
+    } catch (err) {
+      if (client) await client.query('ROLLBACK');
+      console.error('Error al transferir servicio:', err);
+      res.status(500).json({ error: err.message || 'Error al transferir servicio' });
+    } finally {
+      if (client) client.release();
+    }
+  });
+
   // Adicionar productos a una comanda abierta (Mesero, Caja, Admin)
   router.post('/:id/append-items', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     const { id } = req.params;
@@ -802,8 +957,8 @@ module.exports = function(io) {
         for (const item of addedItems) {
           const itemId = item.id || `it-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
           await client.query(
-            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14, $15, $16, $17, $18, $19)`,
+            `INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, size, is_half_half, half_details, removed_ingredients, extras_json, sugar_preference, is_takeaway, is_delivery, is_new_or_modified, notes, drink_type, category, proteins, is_cut, cut_preference)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE, $15, $16, $17, $18, $19, $20)`,
             [
               itemId,
               id,
@@ -818,6 +973,7 @@ module.exports = function(io) {
               JSON.stringify(item.extras || []),
               item.sugarPreference || null,
               !!item.isTakeaway,
+              !!(item.isDelivery || item.is_delivery),
               item.notes || '',
               item.drinkType || item.drink_type || null,
               item.category || null,
@@ -848,7 +1004,7 @@ module.exports = function(io) {
         itemsTotalUSD += itemPrice * qty;
       }
 
-      const deliveryFee = order.type === 'delivery' ? (Number(order.delivery_fee_usd) || 0) : 0;
+      const deliveryFee = (req.body.deliveryFeeUSD !== undefined ? Number(req.body.deliveryFeeUSD) : Number(order.delivery_fee_usd)) || 0;
       const newTotalUSD = Number((itemsTotalUSD + deliveryFee).toFixed(2));
 
       // Si la orden estaba como lista o entregada pero se le añadieron ítems de cocina (o cualquier ítem en delivery/pickup), reabrir a 'en_preparacion'
@@ -861,8 +1017,8 @@ module.exports = function(io) {
       }
 
       await client.query(
-        `UPDATE orders SET total_usd = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
-        [newTotalUSD, nextStatus, id]
+        `UPDATE orders SET total_usd = $1, status = $2, delivery_fee_usd = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+        [newTotalUSD, nextStatus, deliveryFee, id]
       );
 
       // Registrar auditoría de edición en order_edits

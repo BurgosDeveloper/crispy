@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { AdminPinModal } from './AdminPinModal';
+import { DeliveryFeeSelector } from './DeliveryFeeSelector';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
 import { isCustomizableProduct } from '../utils/productClassifier';
@@ -43,6 +44,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
 
   // Estado para hamburguesa seleccionada (personalización INLINE, idéntica a MeseroPage)
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
+  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order.deliveryFeeUSD || 0);
 
   // Modal de PIN para eliminar ítems ya existentes
   const [pinModalState, setPinModalState] = useState<{
@@ -70,8 +72,9 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSearchQuery('');
       setSelectedCategory('Todas');
       setSelectedBurger(null);
+      setDeliveryFeeUSD(order?.deliveryFeeUSD || 0);
     }
-  }, [isOpen, order?.id]);
+  }, [isOpen, order?.id, order?.deliveryFeeUSD]);
 
   if (!isOpen || !order) return null;
 
@@ -91,6 +94,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
   const areAppendItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
     if (a.productId !== b.productId) return false;
     if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
     if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
     if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
     if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
@@ -138,7 +142,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
         quantity: 1,
         category: prod.category || 'Otros',
         drinkType: prod.drinkType,
-        isTakeaway: order.type === 'pickup' || order.type === 'delivery',
+        isTakeaway: order.type === 'pickup',
+        isDelivery: order.type === 'delivery',
         isNewOrModified: true,
       };
       setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
@@ -156,7 +161,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       price: 0,
       quantity: 1,
       category: 'Salsas',
-      isTakeaway: order.type === 'pickup' || order.type === 'delivery',
+      isTakeaway: order.type === 'pickup',
+      isDelivery: order.type === 'delivery',
       isNewOrModified: true,
     };
     setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
@@ -182,7 +188,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
           proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
           removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
           extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: config.isTakeaway,
+          isTakeaway: config.isTakeaway || order.type === 'pickup',
+          isDelivery: order.type === 'delivery',
           isCut: config.isCut,
           cutPreference: config.cutPreference,
           notes: getCleanItemNote(config.notes) || undefined,
@@ -195,6 +202,22 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     setSelectedBurger(null);
     setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
     setTimeout(() => setSuccessToast(''), 2500);
+  };
+
+  // Cambiar modo de empaque de ítem a adicionar (Salón, Llevar, Delivery)
+  const setAddedItemPackaging = (index: number, mode: 'salon' | 'llevar' | 'delivery') => {
+    setItemsToAdd((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        isTakeaway: mode === 'llevar',
+        isDelivery: mode === 'delivery',
+      };
+      return updated;
+    });
+    if (mode === 'delivery' && deliveryFeeUSD === 0) {
+      setDeliveryFeeUSD(1.5);
+    }
   };
 
   // Modificar cantidades de ítems por adicionar
@@ -249,8 +272,12 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     0
   );
 
-  const deliveryFee = order.type === 'delivery' ? (order.deliveryFeeUSD || 0) : 0;
-  const newTotalUSD = currentSubtotalUSD + addedSubtotalUSD + deliveryFee;
+  const hasDeliveryItems =
+    (order.items || []).some((it) => it.isDelivery && !removedItemIds.includes(it.id)) ||
+    itemsToAdd.some((it) => it.isDelivery);
+  const isDeliveryOrder = order.type === 'delivery' || hasDeliveryItems;
+  const effectiveDeliveryFee = isDeliveryOrder ? deliveryFeeUSD : 0;
+  const newTotalUSD = currentSubtotalUSD + addedSubtotalUSD + effectiveDeliveryFee;
 
   // Detección si hay productos de cocina entre los agregados
   const hasKitchenItemsToAdd = itemsToAdd.some(
@@ -267,7 +294,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     setIsSubmitting(true);
     setError('');
     try {
-      await appendOrderItems(order.id, itemsToAdd, removedItemIds, targetPrinter);
+      await appendOrderItems(order.id, itemsToAdd, removedItemIds, targetPrinter, effectiveDeliveryFee);
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Error al adicionar productos a la comanda.');
@@ -418,9 +445,19 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                         <div className="min-w-0">
                           <div className="font-black text-black truncate flex items-center gap-1.5 text-xs sm:text-sm">
                             <span>{it.quantity}x {it.productName}</span>
-                            <span className="text-[9px] font-bold text-gray-500 uppercase bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                              ✓ En Comanda
-                            </span>
+                            {it.isDelivery ? (
+                              <span className="text-[9px] font-bold text-blue-700 uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                🛵 Delivery
+                              </span>
+                            ) : it.isTakeaway ? (
+                              <span className="text-[9px] font-bold text-amber-700 uppercase bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                🛍️ Llevar
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-gray-500 uppercase bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                ✓ En Comanda
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-600 font-bold mt-0.5">
                             ${((it.price || 0) * (it.quantity || 1)).toFixed(2)} USD
@@ -527,6 +564,43 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                     <div className="italic text-gray-500">"{getCleanItemNote(item.notes)}"</div>
                                   )}
                                 </div>
+
+                                {/* Selector de empaque individual: Salón / Llevar / Delivery */}
+                                <div className="flex items-center gap-1 mt-1 bg-stone-100 p-0.5 rounded-lg w-fit">
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddedItemPackaging(idx, 'salon')}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors cursor-pointer ${
+                                      !item.isTakeaway && !item.isDelivery
+                                        ? 'bg-white text-black shadow-xs border border-gray-200'
+                                        : 'text-gray-500 hover:text-black'
+                                    }`}
+                                  >
+                                    🍽️ Salón
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddedItemPackaging(idx, 'llevar')}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors cursor-pointer ${
+                                      item.isTakeaway && !item.isDelivery
+                                        ? 'bg-amber-400 text-black shadow-xs'
+                                        : 'text-gray-500 hover:text-black'
+                                    }`}
+                                  >
+                                    🛍️ Llevar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddedItemPackaging(idx, 'delivery')}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors cursor-pointer ${
+                                      item.isDelivery
+                                        ? 'bg-blue-500 text-white shadow-xs'
+                                        : 'text-gray-500 hover:text-black'
+                                    }`}
+                                  >
+                                    🛵 Delivery
+                                  </button>
+                                </div>
                               </div>
 
                               <div className="text-right shrink-0">
@@ -588,12 +662,30 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
               </div>
             </div>
 
+            {/* Selector de costo de delivery si la comanda es o incluye delivery */}
+            {isDeliveryOrder && (
+              <div className="bg-white p-2.5 rounded-2xl border border-gray-200 shadow-xs shrink-0 mt-2">
+                <DeliveryFeeSelector
+                  valueUSD={deliveryFeeUSD}
+                  onChange={setDeliveryFeeUSD}
+                  exchangeRates={exchangeRates}
+                />
+              </div>
+            )}
+
             {/* TOTALES DE LA ADICIÓN Y BOTONES DE ACCIÓN */}
             <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-xs space-y-2.5 shrink-0 mt-2">
               <div className="flex items-baseline justify-between font-bold text-xs sm:text-sm text-gray-600">
                 <span>Actual: ${currentSubtotalUSD.toFixed(2)}</span>
                 <span>+ Adición: <strong className="text-yellow-700 font-black">+${addedSubtotalUSD.toFixed(2)}</strong></span>
               </div>
+
+              {isDeliveryOrder && (
+                <div className="flex items-baseline justify-between font-bold text-xs sm:text-sm text-gray-600">
+                  <span>Costo Delivery:</span>
+                  <span className="text-black font-black">+${effectiveDeliveryFee.toFixed(2)} USD</span>
+                </div>
+              )}
 
               <div className="flex items-baseline justify-between pt-1.5 border-t border-gray-100">
                 <span className="text-xs sm:text-sm font-black text-gray-800 uppercase">Nuevo Total:</span>

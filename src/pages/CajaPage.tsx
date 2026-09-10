@@ -5,7 +5,7 @@ import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { SplitPaymentSelectionModal } from '../components/SplitPaymentSelectionModal';
 import { ExchangeRateModal } from '../components/ExchangeRateModal';
 import { AdminPinModal } from '../components/AdminPinModal';
-import { ChangeTableModal } from '../components/ChangeTableModal';
+import { OrderServiceTransferModal } from '../components/OrderServiceTransferModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
@@ -2365,8 +2365,8 @@ export const CajaPage: React.FC = () => {
         onClose={() => setPinModalState((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Modal de Cambio / Reubicación de Mesa */}
-      <ChangeTableModal
+      {/* Modal de Cambio / Reubicación de Mesa o Servicio */}
+      <OrderServiceTransferModal
         order={tableChangeOrder}
         isOpen={!!tableChangeOrder}
         onClose={() => setTableChangeOrder(null)}

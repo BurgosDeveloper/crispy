@@ -105,6 +105,7 @@ async function fetchAllOrders() {
         drinkType: it.drink_type || undefined,
         category: it.category || undefined,
         isTakeaway: !!it.is_takeaway,
+        isDelivery: !!it.is_delivery,
         isCut: !!it.is_cut,
         cutPreference: it.cut_preference || (it.is_cut ? 'Picada' : 'Entera'),
         isNewOrModified: !!it.is_new_or_modified,
