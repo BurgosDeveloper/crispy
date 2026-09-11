@@ -1703,16 +1703,12 @@ export const CajaPage: React.FC = () => {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => {
-                  requireAdminPin(
-                    'Arqueo Diario y Cierre de Turno',
-                    '🔐 AUTORIZACIÓN PARA CIERRE DE TURNO',
-                    () => { setCierreError(''); setIsCierreModalOpen(true); },
-                    'Ingrese el PIN de seguridad de 4 dígitos para realizar el arqueo y cierre:'
-                  );
+                  setCierreError('');
+                  setIsCierreModalOpen(true);
                 }}
-                className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs transition-all"
+                className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs transition-all cursor-pointer"
               >
-                <IoLockClosedOutline className="text-base" />
+                <IoCashOutline className="text-base" />
                 <span>ARQUEO DIARIO DE EFECTIVO</span>
               </button>
             </div>
@@ -2028,7 +2024,7 @@ export const CajaPage: React.FC = () => {
           <div className="relative w-full max-w-lg bg-white border border-gray-200 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto text-black">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-lg font-black text-black flex items-center gap-2">
-                <IoLockClosedOutline className="text-yellow-600 text-xl" />
+                <IoCashOutline className="text-yellow-600 text-xl" />
                 <span>ARQUEO DIARIO Y REINICIO DE CAJA</span>
               </h3>
               <button
@@ -2094,7 +2090,7 @@ export const CajaPage: React.FC = () => {
                 disabled={isSubmittingCierre}
                 className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs border border-yellow-500 shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <IoLockClosedOutline className="text-base" />
+                <IoCheckmarkCircle className="text-base" />
                 <span>{isSubmittingCierre ? 'CONFIRMANDO Y REINICIANDO...' : 'CONFIRMAR Y REINICIAR CAJA'}</span>
               </button>
             </div>
