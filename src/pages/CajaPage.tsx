@@ -2404,7 +2404,6 @@ export const CajaPage: React.FC = () => {
         onClose={() => setPrinterSelectOrder(null)}
         onSelectPrinter={async (target) => {
           if (printerSelectOrder) {
-            reportService.generatePreCuentaTicket(printerSelectOrder, exchangeRates);
             await printOrderReceipt(printerSelectOrder.id, target);
           }
         }}

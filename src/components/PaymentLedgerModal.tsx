@@ -10,7 +10,6 @@ import {
 } from 'react-icons/io5';
 import { useApp } from '../context/AppContext';
 import { Order, PaymentMethod } from '../data/mockData';
-import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 
 type Currency = 'USD' | 'COP' | 'Bs';
@@ -65,6 +64,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     deletePaymentEntry,
     finalizeOrder,
     closeOrderAsCredit,
+    printOrderReceipt,
   } = useApp();
 
   // Form Fields
@@ -862,9 +862,15 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setShowReceiptPrompt(false);
-                  reportService.generatePreCuentaTicket(liveOrder, exchangeRates);
+                  if (printOrderReceipt && liveOrder) {
+                    try {
+                      await printOrderReceipt(liveOrder.id, 'caja');
+                    } catch (err) {
+                      console.error('Error al imprimir recibo térmico:', err);
+                    }
+                  }
                   onClose();
                 }}
                 className="px-3 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 shadow-xs transition-all text-center"

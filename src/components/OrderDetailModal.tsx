@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
-import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
 import { PrinterSelectModal } from './PrinterSelectModal';
@@ -88,14 +87,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     setIsPrintingReceipt(true);
     setReprintMessage('');
     try {
-      reportService.generatePreCuentaTicket(order, exchangeRates);
       if (printOrderReceipt) {
         await printOrderReceipt(order.id, 'caja');
         setReprintMessage('✅ Pre-cuenta enviada a Caja');
         setTimeout(() => setReprintMessage(''), 3000);
       }
     } catch (e: any) {
-      setReprintMessage(`⚠️ Ticket abierto (${e.message || 'Sin impresora térmica'})`);
+      setReprintMessage(`⚠️ Error al imprimir (${e.message || 'Sin impresora térmica'})`);
       setTimeout(() => setReprintMessage(''), 4000);
     } finally {
       setIsPrintingReceipt(false);

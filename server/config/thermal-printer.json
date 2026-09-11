@@ -2,9 +2,9 @@
   "cocina": {
     "name": "Impresora Cocina / KDS",
     "enabled": true,
-    "connectionType": "usb",
+    "connectionType": "lan",
     "paperWidth": "80mm",
-    "host": "",
+    "host": "192.168.1.10",
     "port": 9100,
     "usbDeviceName": "POS-80",
     "timeoutMs": 8000,

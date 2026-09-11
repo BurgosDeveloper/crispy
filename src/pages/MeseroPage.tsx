@@ -13,7 +13,6 @@ import { OrderDetailModal } from '../components/OrderDetailModal';
 import { OrderEditModal } from '../components/OrderEditModal';
 import { PaymentLedgerModal } from '../components/PaymentLedgerModal';
 import { PrinterSelectModal } from '../components/PrinterSelectModal';
-import { reportService } from '../services/reportService';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
 import { isCustomizableProduct } from '../utils/productClassifier';
@@ -1353,7 +1352,6 @@ export const MeseroPage: React.FC = () => {
         onClose={() => setPrinterSelectOrder(null)}
         onSelectPrinter={async (target) => {
           if (printerSelectOrder) {
-            reportService.generatePreCuentaTicket(printerSelectOrder, exchangeRates);
             await printOrderReceipt(printerSelectOrder.id, target);
             setSentAlert(`🧾 Pre-cuenta de la comanda #${printerSelectOrder.orderNumber} enviada a imprimir.`);
             setTimeout(() => setSentAlert(null), 4000);
