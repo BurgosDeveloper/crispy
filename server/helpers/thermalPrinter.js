@@ -364,15 +364,36 @@ function formatKitchenTime(dateValue) {
   return `${strHours}:${strMinutes} ${ampm}`;
 }
 
+function orderHasSalonItem(order = {}) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  return items.some((it) => {
+    const isTk = !!(it.isTakeaway || it.is_takeaway);
+    const isDel = !!(it.isDelivery || it.is_delivery);
+    return !isTk && !isDel;
+  });
+}
+
 function itemDetails(item, order = {}) {
   const details = [];
   const orderType = (order.type || '').toLowerCase();
 
   // 1. Para llevar / Delivery en ítems:
-  if (item.isDelivery || item.is_delivery) {
-    details.push('*** PARA DELIVERY ***');
-  } else if (orderType === 'mesa' && (item.isTakeaway || item.is_takeaway)) {
-    details.push('*** PARA LLEVAR ***');
+  if (orderType === 'delivery') {
+    // Cuando el pedido es delivery, NUNCA se coloca 'para delivery' ni 'para llevar' en ningún ítem
+  } else if (orderType === 'pickup') {
+    // Para pickup: solo distinguir cuando haya al menos un ítem para comer en el lugar/salón
+    const hasSalon = orderHasSalonItem(order);
+    const isItemSalon = !(item.isTakeaway || item.is_takeaway) && !(item.isDelivery || item.is_delivery);
+    if (hasSalon && !isItemSalon) {
+      details.push('LLEVAR');
+    }
+  } else {
+    // Mesa u otros servicios:
+    if (item.isDelivery || item.is_delivery) {
+      details.push('DELIVERY');
+    } else if (item.isTakeaway || item.is_takeaway) {
+      details.push('LLEVAR');
+    }
   }
 
   // 2. Picada: Solo si está marcada como picada (sin ENTERA)
@@ -521,7 +542,7 @@ function reportTimestamp(value) {
 function reportService(order) {
   if (order.type === 'mesa') return `MESA #${order.tableNumber || '?'}`;
   if (order.type === 'delivery') return 'DELIVERY';
-  if (order.type === 'pickup') return 'PARA LLEVAR';
+  if (order.type === 'pickup') return 'PICKUP';
   return printableText(order.type || 'SIN TIPO');
 }
 
@@ -1119,10 +1140,6 @@ function buildKitchenTicket(order) {
     lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
   }
 
-  if (isPickupOrDelivery) {
-    lines.push('PEDIDO PARA LLEVAR COMPLETO');
-  }
-
   lines.push(kitchenDivider('-'));
 
   const consolidated = consolidateKitchenItems(kitchenItems, order);
@@ -1184,13 +1201,18 @@ function buildKitchenAdditionTicket(order, addedItems) {
     lines.push(...kitchenWrap(`CLIENTE: ${order.customerName}`));
   }
 
-  if (isPickupOrDelivery) {
-    lines.push('PEDIDO PARA LLEVAR COMPLETO');
-  }
-
   lines.push(kitchenDivider('-'));
 
-  const consolidated = consolidateKitchenItems(kitchenItems, order);
+  const combinedItems = [
+    ...(Array.isArray(order.items) ? order.items : []),
+    ...(Array.isArray(addedItems) ? addedItems : []),
+  ];
+  const orderForConsolidation = {
+    ...order,
+    items: combinedItems,
+  };
+
+  const consolidated = consolidateKitchenItems(kitchenItems, orderForConsolidation);
 
   for (const item of consolidated) {
     lines.push(...kitchenWrap(`${item.quantity}x ${item.name}`));
@@ -1470,8 +1492,26 @@ function buildReceiptTicket(order, rates = {}) {
     const unitPrice = Number(it.price) || 0;
     const lineTotalUSD = unitPrice * qty;
 
-    const deliveryTag = it.isDelivery ? ' (DELIVERY)' : '';
-    lines.push(formatTwoColumns(`${qty}x ${cleanName}${deliveryTag}`, `$${lineTotalUSD.toFixed(2)}`));
+    let packagingTag = '';
+    if (order.type !== 'delivery') {
+      if (it.isDelivery || it.is_delivery) {
+        packagingTag = ' (DELIVERY)';
+      } else if (it.isTakeaway || it.is_takeaway) {
+        if (order.type === 'mesa' || (order.type === 'pickup' && orderHasSalonItem(order))) {
+          packagingTag = ' (LLEVAR)';
+        }
+      }
+    }
+
+    const priceCol = `$${lineTotalUSD.toFixed(2)}`;
+    const maxLeft = Math.max(1, LINE_WIDTH - priceCol.length - 1);
+    const combinedLine = `${qty}x ${cleanName}${packagingTag}`;
+    if (packagingTag && combinedLine.length > maxLeft) {
+      lines.push(formatTwoColumns(`${qty}x ${cleanName}`, priceCol));
+      lines.push(`  * ${packagingTag.trim().replace(/^\(|\)$/g, '')}`);
+    } else {
+      lines.push(formatTwoColumns(combinedLine, priceCol));
+    }
 
     // Si tiene sabor y no está en el nombre, listarlo indentado debajo
     if (it.flavor && !cleanName.toUpperCase().includes(String(it.flavor).toUpperCase())) {

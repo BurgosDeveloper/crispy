@@ -1217,7 +1217,17 @@ export class ReportService {
         flavorDetail = `<div style="font-size: 10px; color: #b45309; font-weight: 700; padding-left: 6px;">🍹 Sabor: ${this.escapeHtml(it.flavor)}</div>`;
       }
 
-      const deliveryBadge = (it as any).isDelivery ? ` <span style="background: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 4px; border-radius: 4px;">🛵 Delivery</span>` : '';
+      let deliveryBadge = '';
+      if (order.type !== 'delivery') {
+        if ((it as any).isDelivery) {
+          deliveryBadge = ` <span style="background: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 4px; border-radius: 4px;">🛵 Delivery</span>`;
+        } else if ((it as any).isTakeaway) {
+          const hasSalon = (order.items || []).some(item => !(item as any).isTakeaway && !(item as any).isDelivery);
+          if (order.type === 'mesa' || (order.type === 'pickup' && hasSalon)) {
+            deliveryBadge = ` <span style="background: #fef3c7; color: #92400e; font-size: 10px; padding: 1px 4px; border-radius: 4px;">🛍️ Llevar</span>`;
+          }
+        }
+      }
 
       return `
         <tr>
