@@ -137,21 +137,31 @@ async function waitForBackend() {
 }
 
 async function launch() {
-  killOldPosInstances();
+  // 1. Si el backend ya está activo y respondiendo, abrir directamente el navegador
   try {
     const connectionInfo = await getConnectionInfo();
+    console.log('✅ Servidor POS ya activo en:', connectionInfo.backendUrl);
     await openPos(connectionInfo.backendUrl);
     return;
-  } catch (error) {
-    killOldPosInstances();
-    startBackend();
+  } catch (err) {
+    console.log('El servidor POS no está activo aún. Iniciando...');
   }
 
+  // 2. Si no responde, asegurar puerto 3001 e iniciar backend
+  killOldPosInstances();
+  startBackend();
+
+  // 3. Esperar a que el backend esté listo
   const connectionInfo = await waitForBackend();
+  console.log('✅ Servidor POS iniciado en:', connectionInfo.backendUrl);
   await openPos(connectionInfo.backendUrl);
 }
 
 launch().catch((error) => {
-  console.error(error.message);
+  console.error('Error al iniciar Crispy Burger:', error.message);
+  try {
+    const safeMsg = String(error.message || 'Error desconocido').replace(/'/g, '').replace(/"/g, '');
+    execSync(`powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${safeMsg}', 'Crispy Burger POS - Error de Inicio', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)"`, { stdio: 'ignore' });
+  } catch (e) {}
   process.exitCode = 1;
 });

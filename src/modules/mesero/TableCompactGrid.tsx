@@ -142,11 +142,11 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
       </div>
 
       {/* 2. CUERPO PRINCIPAL DIVIDIDO EN 3 SECCIONES A PANTALLA COMPLETA */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 overflow-y-auto lg:overflow-hidden">
         {/* ========================================================= */}
         {/* SECCIÓN 1: MESAS (COLUMNA IZQUIERDA ~40-42%, 4 POR FILA)   */}
         {/* ========================================================= */}
-        <div className="w-full lg:w-[42%] xl:w-[40%] flex flex-col min-h-0 bg-white/70 backdrop-blur-xs rounded-2xl border border-gray-200 p-2.5 overflow-hidden shadow-xs">
+        <div className="w-full lg:w-[42%] xl:w-[40%] flex flex-col min-h-[260px] lg:min-h-0 bg-white/70 backdrop-blur-xs rounded-2xl border border-gray-200 p-2.5 overflow-hidden shadow-xs shrink-0 lg:shrink">
           <div className="text-center pb-2 shrink-0 border-b border-gray-100 mb-2 flex items-center justify-between px-2">
             <h3 className="font-black text-sm uppercase text-gray-800 tracking-widest text-center">
               MESAS ({tables.length})
@@ -261,7 +261,7 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
         {/* ========================================================= */}
         {/* SECCIÓN 2 Y 3: DELIVERY Y PICKUP (COLUMNA DERECHA ~58-60%)*/}
         {/* ========================================================= */}
-        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col gap-2.5 min-h-0 overflow-hidden">
+        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col gap-2.5 min-h-[380px] lg:min-h-0 overflow-hidden shrink-0 lg:shrink">
           {/* ------------------------------------------------------- */}
           {/* SECCIÓN 2: DELIVERY (ARRIBA DERECHA - COLOR AZUL)       */}
           {/* ------------------------------------------------------- */}

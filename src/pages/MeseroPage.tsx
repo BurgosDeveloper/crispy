@@ -830,7 +830,7 @@ export const MeseroPage: React.FC = () => {
           {/* Body: Split View (Catalog + Inline Customizer on Left 65%, Cart on Right 35%) */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
             {/* LEFT: 100% TEXT CATALOG & INLINE BURGER / DRINK BUILDER / DELIVERY CONFIG (65%) */}
-            <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+            <div className={`flex-1 w-full md:w-[60%] lg:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-b md:border-b-0 md:border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
               {selectedBurger ? (
                 /* INLINE BURGER BUILDER (Llega hasta arriba con máxima altura) */
                 <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -904,7 +904,7 @@ export const MeseroPage: React.FC = () => {
             </div>
 
             {/* RIGHT: COMPACT CART & ORDER FORM (35%) */}
-            <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
+            <div className="w-full md:w-[40%] lg:w-[35%] h-[48vh] md:h-full p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-t md:border-t-0 md:border-l border-gray-200 shrink-0 md:shrink">
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
                   
                   {/* SECCIÓN SUPERIOR COMPACTA DE LA COMANDA */}
