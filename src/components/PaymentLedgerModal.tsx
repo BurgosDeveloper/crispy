@@ -359,6 +359,11 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                 🍽️ Mesa #{order.tableNumber}
               </span>
             )}
+            {((order.deliveryFeeUSD || 0) > 0 || order.type === 'delivery') && (
+              <span className="text-xs sm:text-sm bg-blue-50 text-blue-900 px-3 py-1 rounded-lg font-black border border-blue-200">
+                🛵 Delivery: +${(order.deliveryFeeUSD || 0).toFixed(2)} USD
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -460,8 +465,15 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               </span>
             )}
 
-            <div className="text-sm sm:text-base text-gray-700 font-extrabold bg-gray-100 px-4 py-2 rounded-2xl border border-gray-200">
-              Tasa COP: {exchangeRates.COP.toLocaleString()} | Tasa Bs: {exchangeRates.Bs.toFixed(2)}
+            <div className="flex items-center gap-2 flex-wrap">
+              {((order.deliveryFeeUSD || 0) > 0 || order.type === 'delivery') && (
+                <div className="text-xs sm:text-sm text-blue-950 font-bold bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+                  📦 Ítems: ${((order.totalUSD || 0) - (order.deliveryFeeUSD || 0)).toFixed(2)} + 🛵 Delivery: ${(order.deliveryFeeUSD || 0).toFixed(2)} USD
+                </div>
+              )}
+              <div className="text-sm sm:text-base text-gray-700 font-extrabold bg-gray-100 px-4 py-2 rounded-2xl border border-gray-200">
+                Tasa COP: {exchangeRates.COP.toLocaleString()} | Tasa Bs: {exchangeRates.Bs.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>

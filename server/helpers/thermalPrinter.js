@@ -587,18 +587,63 @@ function buildReportTicket(reportType, data) {
 
   if (reportType === 'pizzas' || reportType === 'hamburguesas') {
     const grouped = new Map();
+
+    // 1. Productos y Adicionales
     for (const item of data.items || []) {
       const catLower = (item.category || '').toLowerCase();
       const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || (item.productName || '').toLowerCase().includes('burger') || (item.productName || '').toLowerCase().includes('crispy');
       const fullName = (item.productName || item.name || 'Item')
         .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
         .trim();
+      const itQty = Number(item.quantity) || 1;
+
+      // Extraer adicionales pagos
+      const extrasList = [];
+      if (Array.isArray(item.extras)) extrasList.push(...item.extras);
+      else if (item.extrasJson && Array.isArray(item.extrasJson)) extrasList.push(...item.extrasJson);
+      else if (typeof item.extrasJson === 'string') {
+        try {
+          const parsed = JSON.parse(item.extrasJson);
+          if (Array.isArray(parsed)) extrasList.push(...parsed);
+        } catch (e) {}
+      }
+
+      let paidExtrasUnitCost = 0;
+      for (const extra of extrasList) {
+        const extraPrice = Number(extra.price) || 0;
+        const extraName = (extra.name || 'Adicional').trim();
+        if (extraPrice > 0) {
+          paidExtrasUnitCost += extraPrice;
+          const extraKey = `Adicionales|ADD ${extraName}`;
+          const currentExtra = grouped.get(extraKey) || { category: 'Adicionales', name: `ADD ${extraName}`, quantity: 0, totalUSD: 0 };
+          currentExtra.quantity += itQty;
+          currentExtra.totalUSD += extraPrice * itQty;
+          grouped.set(extraKey, currentExtra);
+        }
+      }
+
+      const rawPrice = Number(item.price) || 0;
+      const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
       const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoria');
       const key = `${category}|${fullName}`;
       const current = grouped.get(key) || { category, name: fullName, quantity: 0, totalUSD: 0 };
-      current.quantity += Number(item.quantity) || 0;
-      current.totalUSD += (Number(item.price) || 0) * (Number(item.quantity) || 0);
+      current.quantity += itQty;
+      current.totalUSD += baseUnitPrice * itQty;
       grouped.set(key, current);
+    }
+
+    // 2. Servicios de Delivery Facturados
+    for (const ord of (data.orders || [])) {
+      const fee = Number(ord.deliveryFeeUSD) || 0;
+      if (fee > 0 || ord.type === 'delivery') {
+        const fullName = fee > 0 ? `Servicio Delivery ($${fee.toFixed(2)})` : 'Servicio Delivery';
+        const category = 'Delivery';
+        const key = `${category}|${fullName}`;
+        const current = grouped.get(key) || { category, name: fullName, quantity: 0, totalUSD: 0 };
+        current.quantity += 1;
+        current.totalUSD += fee;
+        grouped.set(key, current);
+      }
     }
     const items = [...grouped.values()].sort((left, right) => left.category.localeCompare(right.category) || left.name.localeCompare(right.name));
     const totalUnits = items.reduce((total, item) => total + item.quantity, 0);

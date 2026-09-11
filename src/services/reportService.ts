@@ -259,21 +259,72 @@ export class ReportService {
     const tally: Record<string, { qty: number; revenueUSD: number; category: string }> = {};
 
     paidOrders.forEach((o) => {
+      // 1. Productos y Adicionales
       o.items.forEach((it) => {
         const catLower = (it.category || '').toLowerCase();
         const cleanName = (it.productName || 'Producto').replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
         const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
         const displayName = cleanName;
+        const itQty = it.quantity || 1;
+
+        // Extraer adicionales pagos
+        const extrasList: any[] = [];
+        if (Array.isArray(it.extras)) extrasList.push(...it.extras);
+        else if ((it as any).extrasJson && Array.isArray((it as any).extrasJson)) extrasList.push(...(it as any).extrasJson);
+        else if (typeof (it as any).extrasJson === 'string') {
+          try {
+            const parsed = JSON.parse((it as any).extrasJson);
+            if (Array.isArray(parsed)) extrasList.push(...parsed);
+          } catch (e) {}
+        }
+
+        let paidExtrasUnitCost = 0;
+        extrasList.forEach((extra) => {
+          const price = Number(extra.price) || 0;
+          const extraName = (extra.name || 'Adicional').trim();
+          if (price > 0) {
+            paidExtrasUnitCost += price;
+            const extraDisplayName = `ADD ${extraName}`;
+            if (!tally[extraDisplayName]) {
+              tally[extraDisplayName] = {
+                qty: 0,
+                revenueUSD: 0,
+                category: 'Adicionales',
+              };
+            }
+            tally[extraDisplayName].qty += itQty;
+            tally[extraDisplayName].revenueUSD += price * itQty;
+          }
+        });
+
+        // Producto a precio base
+        const rawPrice = Number(it.price) || 0;
+        const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
         if (!tally[displayName]) {
           tally[displayName] = {
             qty: 0,
             revenueUSD: 0,
-            category: isBurger ? 'Hamburguesas' : (it.category || 'Bebidas/Adicionales'),
+            category: isBurger ? 'Hamburguesas' : (it.category || 'Bebidas/Otros'),
           };
         }
-        tally[displayName].qty += it.quantity;
-        tally[displayName].revenueUSD += it.price * it.quantity;
+        tally[displayName].qty += itQty;
+        tally[displayName].revenueUSD += baseUnitPrice * itQty;
       });
+
+      // 2. Servicios de Delivery Facturados (tanto pedidos Delivery como mesas con delivery)
+      const deliveryFee = Number(o.deliveryFeeUSD) || 0;
+      if (deliveryFee > 0 || o.type === 'delivery') {
+        const dName = deliveryFee > 0 ? `Servicio Delivery ($${deliveryFee.toFixed(2)})` : 'Servicio Delivery';
+        if (!tally[dName]) {
+          tally[dName] = {
+            qty: 0,
+            revenueUSD: 0,
+            category: 'Delivery',
+          };
+        }
+        tally[dName].qty += 1;
+        tally[dName].revenueUSD += deliveryFee;
+      }
     });
 
     const entries = Object.entries(tally).sort((a, b) => b[1].qty - a[1].qty);
