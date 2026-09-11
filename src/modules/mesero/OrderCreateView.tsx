@@ -4,10 +4,10 @@ import { Product, OrderItem, Ingredient } from '../../data/mockData';
 import { ProductTextCatalog } from './ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from './BurgerBuilderModal';
 import { DrinkSelectorModal } from './DrinkSelectorModal';
+import { DeliveryConfigPanel } from './DeliveryConfigPanel';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../../utils/burgerProteins';
 import { isCustomizableProduct } from '../../utils/productClassifier';
 
-import { DeliveryFeeSelector } from '../../components/DeliveryFeeSelector';
 import {
   IoClose,
   IoTrashOutline,
@@ -50,7 +50,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [customerName, setCustomerName] = useState<string>('');
   const [kitchenNotes, setKitchenNotes] = useState<string>('');
-  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(0);
+  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(target.type === 'delivery' ? 1.0 : 0);
+  const [showDeliveryConfig, setShowDeliveryConfig] = useState<boolean>(target.type === 'delivery');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [targetPrinter, setTargetPrinter] = useState<'cocina' | 'caja' | 'ambas' | 'ninguna'>('cocina');
@@ -237,24 +238,58 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     setCartItems((prev) => prev.filter((i) => i.id !== itemId));
   };
 
+  const hasAnyDeliveryItem = cartItems.some((i) => i.isDelivery);
+  const isDeliveryOrder = target.type === 'delivery' || hasAnyDeliveryItem;
+  const effectiveDeliveryFee = (hasAnyDeliveryItem || target.type === 'delivery') ? deliveryFeeUSD : 0;
+  const itemsSubtotalUSD = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartTotalUSD = itemsSubtotalUSD + effectiveDeliveryFee;
+
   const setItemPackaging = (itemId: string, mode: 'salon' | 'llevar' | 'delivery') => {
-    setCartItems((prev) =>
-      prev.map((it) => {
+    setCartItems((prev) => {
+      const next = prev.map((it) => {
         if (it.id !== itemId) return it;
         return {
           ...it,
           isTakeaway: mode === 'llevar',
           isDelivery: mode === 'delivery',
         };
-      })
-    );
+      });
+
+      const stillHasDelivery = next.some((i) => i.isDelivery);
+      if (mode === 'delivery') {
+        if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+        setShowDeliveryConfig(true);
+      } else if (!stillHasDelivery && target.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
+
+      return next;
+    });
   };
 
-  const hasAnyDeliveryItem = cartItems.some((i) => i.isDelivery);
-  const isDeliveryOrder = target.type === 'delivery' || hasAnyDeliveryItem;
+  const handleSetAllDelivery = (isDelivery: boolean) => {
+    setCartItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        isDelivery,
+        isTakeaway: isDelivery ? false : item.isTakeaway,
+      }))
+    );
+    if (isDelivery) {
+      if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+      setShowDeliveryConfig(true);
+    } else {
+      if (target.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
+    }
+  };
 
-  const itemsSubtotalUSD = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartTotalUSD = itemsSubtotalUSD + (isDeliveryOrder ? deliveryFeeUSD : 0);
+  const handleClearAllDelivery = () => {
+    handleSetAllDelivery(false);
+  };
 
   // Envío de Comanda
   const handleSubmitOrder = async () => {
@@ -262,11 +297,13 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
 
     if (isDeliveryOrder) {
       if (!customerName.trim()) {
-        setOrderError('⚠️ Para pedidos con Delivery es obligatorio ingresar el nombre del cliente.');
+        setOrderError('⚠️ Para pedidos con Delivery es obligatorio ingresar el nombre y dirección del cliente.');
+        setShowDeliveryConfig(true);
         return;
       }
-      if (deliveryFeeUSD <= 0) {
-        setOrderError('⚠️ Debe seleccionar o ingresar el costo del Delivery.');
+      if (effectiveDeliveryFee <= 0) {
+        setOrderError('⚠️ Debe seleccionar o ingresar el costo del Delivery (mínimo $0.50).');
+        setShowDeliveryConfig(true);
         return;
       }
     }
@@ -287,7 +324,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
         kitchenNotes: getCleanItemNote(kitchenNotes) || undefined,
         items: cartItems,
         totalUSD: cartTotalUSD,
-        deliveryFeeUSD: isDeliveryOrder ? deliveryFeeUSD : 0,
+        deliveryFeeUSD: effectiveDeliveryFee,
         shift: userSession?.shift || 'ambos',
         targetPrinter,
       } as any);
@@ -346,8 +383,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
 
       {/* 2. Cuerpo: Split View (Catálogo a la izquierda 65%, Carrito a la derecha 35%) */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
-        {/* IZQUIERDA: Catálogo e Inline Burger / Drink Builder (65%) */}
-        <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+        {/* IZQUIERDA: Catálogo e Inline Burger / Drink / Delivery Config Panel (65%) */}
+        <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
           {selectedBurger ? (
             <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               <BurgerBuilderModal
@@ -380,6 +417,23 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 exchangeRates={exchangeRates}
               />
             </div>
+          ) : showDeliveryConfig && isDeliveryOrder ? (
+            <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <DeliveryConfigPanel
+                customerName={customerName}
+                onCustomerNameChange={setCustomerName}
+                kitchenNotes={kitchenNotes}
+                onKitchenNotesChange={setKitchenNotes}
+                deliveryFeeUSD={deliveryFeeUSD}
+                onDeliveryFeeChange={setDeliveryFeeUSD}
+                cartItems={cartItems}
+                onSetItemPackaging={setItemPackaging}
+                onSetAllDelivery={handleSetAllDelivery}
+                exchangeRates={exchangeRates}
+                onClose={() => setShowDeliveryConfig(false)}
+                onClearAllDelivery={handleClearAllDelivery}
+              />
+            </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               <ProductTextCatalog
@@ -400,62 +454,86 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
         {/* DERECHA: Carrito y Formulario (35%) */}
         <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
           <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
-            {/* Campos de Cliente y Notas */}
-            <div className="space-y-2 shrink-0 bg-white p-3 rounded-2xl border border-gray-200 shadow-xs">
-              <div>
-                <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
-                  {target.type === 'delivery'
-                    ? 'Cliente y Dirección (*Obligatorio):'
-                    : target.type === 'pickup'
-                    ? 'Cliente / Referencia (*Obligatorio):'
-                    : 'Nombre o Referencia (Opcional):'}
-                </label>
+            
+            {/* SECCIÓN SUPERIOR COMPACTA DE LA COMANDA */}
+            {isDeliveryOrder ? (
+              /* Banner interactivo de Delivery: Abre o minimiza la sección en el menú */
+              <div className="p-2.5 rounded-2xl bg-blue-50 border-2 border-blue-400 shadow-xs flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-2xl shrink-0 p-1 bg-white rounded-xl border border-blue-200">🛵</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-blue-950 uppercase">DELIVERY ACTIVO</span>
+                      <span className="text-[11px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                        +${effectiveDeliveryFee.toFixed(2)} USD
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-blue-800 truncate block mt-0.5">
+                      {customerName.trim() ? customerName : '⚠️ Toca para configurar cliente/dirección'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryConfig((prev) => !prev)}
+                  className={`px-3 py-2 rounded-xl font-black text-xs transition-all border cursor-pointer shadow-xs flex items-center gap-1 shrink-0 ${
+                    showDeliveryConfig
+                      ? 'bg-white border-blue-400 text-blue-900 hover:bg-blue-100'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 active:scale-95'
+                  }`}
+                  title={showDeliveryConfig ? 'Minimizar sección para ver el menú' : 'Abrir sección de configuración de delivery en el panel izquierdo'}
+                >
+                  <span>{showDeliveryConfig ? '➖ Minimizar' : '✏️ Configurar'}</span>
+                </button>
+              </div>
+            ) : (
+              /* Para Mesa o Salón: Entrada compacta y delgada de cliente/referencia */
+              <div className="bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2 shrink-0">
+                <span className="text-xs font-black text-gray-700 uppercase whitespace-nowrap">
+                  {target.type === 'pickup' ? '👤 Cliente *:' : '👤 Cliente:'}
+                </span>
                 <input
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder={
-                    target.type === 'delivery'
-                      ? 'Ej: Juan Pérez / Calle 5 #10-20'
-                      : 'Ej: Juan Pérez'
-                  }
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-bold mt-1 shadow-2xs"
+                  placeholder={target.type === 'pickup' ? 'Nombre o Referencia (*Obligatorio)' : 'Nombre o referencia (opcional)'}
+                  className="flex-1 text-xs font-bold text-gray-900 bg-transparent outline-none placeholder-gray-400"
                 />
               </div>
+            )}
 
-              <div>
-                <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
-                  Nota de cocina / Observación general:
-                </label>
-                <input
-                  type="text"
-                  value={kitchenNotes}
-                  onChange={(e) => setKitchenNotes(e.target.value)}
-                  placeholder="Ej: Servir todo junto, sin cubiertos..."
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-semibold mt-1 shadow-2xs"
-                />
-              </div>
-
-              {/* Selector de Envío para Delivery (si comanda es delivery o tiene ítems para delivery) */}
-              {isDeliveryOrder && (
-                <div className="pt-2 border-t border-gray-100">
-                  <DeliveryFeeSelector
-                    value={deliveryFeeUSD}
-                    onChange={setDeliveryFeeUSD}
-                    exchangeRates={exchangeRates}
-                    label={target.type === 'delivery' ? 'Costo de Envío Delivery:' : 'Costo de Envío (Ítems Delivery):'}
-                  />
+            {/* Cabecera de Ítems del Carrito con selector de lote */}
+            <div className="flex items-center justify-between text-xs font-black uppercase text-gray-600 px-1 shrink-0 pt-1">
+              <span>Ítems Agregados ({cartItems.reduce((s, i) => s + i.quantity, 0)})</span>
+              {cartItems.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllDelivery(true)}
+                    className="text-[10px] font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5"
+                    title="Marcar todos los productos como delivery"
+                  >
+                    🛵 Todos Delivery
+                  </button>
+                  {hasAnyDeliveryItem && (
+                    <>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        type="button"
+                        onClick={handleClearAllDelivery}
+                        className="text-[10px] font-bold text-gray-600 hover:underline cursor-pointer flex items-center gap-0.5"
+                        title="Desmarcar delivery y pasar todos a salón"
+                      >
+                        🍽️ Todos Salón
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Lista Scrollable de Ítems en el Carrito */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[140px]">
-              <div className="flex items-center justify-between text-xs font-black uppercase text-gray-600 px-1">
-                <span>Ítems Agregados ({cartItems.reduce((s, i) => s + i.quantity, 0)})</span>
-                <span>Total</span>
-              </div>
-
               {cartItems.length === 0 ? (
                 <div className="h-32 flex flex-col items-center justify-center text-center text-gray-400 text-sm border border-dashed border-gray-300 rounded-2xl bg-white/60 p-3">
                   <span className="font-bold">El carrito está vacío</span>

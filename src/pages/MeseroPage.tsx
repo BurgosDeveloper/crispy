@@ -6,6 +6,7 @@ import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
+import { DeliveryConfigPanel } from '../modules/mesero/DeliveryConfigPanel';
 import { OrderServiceTransferModal } from '../components/OrderServiceTransferModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
@@ -59,12 +60,16 @@ export const MeseroPage: React.FC = () => {
     const tableParam = searchParams.get('table');
     if (typeParam === 'delivery') {
       setActiveOrderTarget({ type: 'delivery', title: 'Nuevo Pedido Delivery 🛵' });
+      setDeliveryFeeUSD(1.0);
+      setShowDeliveryConfig(true);
     } else if (typeParam === 'pickup') {
       setActiveOrderTarget({ type: 'pickup', title: 'Nuevo Pedido PickUp 🛍️' });
+      setShowDeliveryConfig(false);
     } else if (typeParam === 'mesa' && tableParam) {
       const tNum = parseInt(tableParam, 10);
       if (!isNaN(tNum)) {
         setActiveOrderTarget({ type: 'mesa', tableNumber: tNum, title: `Mesa #${tNum}` });
+        setShowDeliveryConfig(false);
       }
     }
   }, [searchParams]);
@@ -74,6 +79,7 @@ export const MeseroPage: React.FC = () => {
   const [customerName, setCustomerName] = useState<string>('');
   const [kitchenNotes, setKitchenNotes] = useState<string>('');
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(0);
+  const [showDeliveryConfig, setShowDeliveryConfig] = useState<boolean>(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
   const [sentAlert, setSentAlert] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
@@ -135,7 +141,8 @@ export const MeseroPage: React.FC = () => {
     setCartItems([]);
     setCustomerName('');
     setKitchenNotes('');
-    setDeliveryFeeUSD(0);
+    setDeliveryFeeUSD(type === 'delivery' ? 1.0 : 0);
+    setShowDeliveryConfig(type === 'delivery');
     setOrderError(null);
   };
 
@@ -297,21 +304,73 @@ export const MeseroPage: React.FC = () => {
     setCartItems((prev) => prev.filter((i) => i.id !== itemId));
   };
 
-  // Cart Totals
+  // Delivery & Cart Calculations
+  const hasAnyDeliveryItem = cartItems.some((i) => i.isDelivery);
+  const isDeliveryOrder = activeOrderTarget?.type === 'delivery' || hasAnyDeliveryItem;
+  const effectiveDeliveryFee = (hasAnyDeliveryItem || activeOrderTarget?.type === 'delivery') ? deliveryFeeUSD : 0;
   const itemsSubtotalUSD = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartTotalUSD = itemsSubtotalUSD + (activeOrderTarget?.type === 'delivery' ? deliveryFeeUSD : 0);
+  const cartTotalUSD = itemsSubtotalUSD + effectiveDeliveryFee;
+
+  const setItemPackaging = (itemId: string, mode: 'salon' | 'llevar' | 'delivery') => {
+    setCartItems((prev) => {
+      const next = prev.map((it) => {
+        if (it.id !== itemId) return it;
+        return {
+          ...it,
+          isTakeaway: mode === 'llevar',
+          isDelivery: mode === 'delivery',
+        };
+      });
+
+      const stillHasDelivery = next.some((i) => i.isDelivery);
+      if (mode === 'delivery') {
+        if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+        setShowDeliveryConfig(true);
+      } else if (!stillHasDelivery && activeOrderTarget?.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
+
+      return next;
+    });
+  };
+
+  const handleSetAllDelivery = (isDelivery: boolean) => {
+    setCartItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        isDelivery,
+        isTakeaway: isDelivery ? false : item.isTakeaway,
+      }))
+    );
+    if (isDelivery) {
+      if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+      setShowDeliveryConfig(true);
+    } else {
+      if (activeOrderTarget?.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
+    }
+  };
+
+  const handleClearAllDelivery = () => {
+    handleSetAllDelivery(false);
+  };
 
   // Submit Order to Server
   const handleSubmitOrder = async () => {
     if (!activeOrderTarget || cartItems.length === 0 || isSubmittingOrder) return;
 
-    if (activeOrderTarget.type === 'delivery') {
+    if (isDeliveryOrder) {
       if (!customerName.trim()) {
-        setOrderError('⚠️ Para Delivery es obligatorio ingresar nombre y dirección del cliente.');
+        setOrderError('⚠️ Para pedidos con Delivery es obligatorio ingresar el nombre y dirección del cliente.');
+        setShowDeliveryConfig(true);
         return;
       }
-      if (deliveryFeeUSD <= 0) {
-        setOrderError('⚠️ Debe seleccionar el costo del Delivery.');
+      if (effectiveDeliveryFee <= 0) {
+        setOrderError('⚠️ Debe seleccionar o ingresar el costo del Delivery (mínimo $0.50).');
+        setShowDeliveryConfig(true);
         return;
       }
     }
@@ -332,7 +391,7 @@ export const MeseroPage: React.FC = () => {
         kitchenNotes: getCleanItemNote(kitchenNotes) || undefined,
         items: cartItems,
         totalUSD: cartTotalUSD,
-        deliveryFeeUSD: activeOrderTarget.type === 'delivery' ? deliveryFeeUSD : 0,
+        deliveryFeeUSD: effectiveDeliveryFee,
         shift: userSession?.shift || 'ambos',
         targetPrinter,
       } as any);
@@ -345,6 +404,7 @@ export const MeseroPage: React.FC = () => {
       setCustomerName('');
       setKitchenNotes('');
       setDeliveryFeeUSD(0);
+      setShowDeliveryConfig(false);
     } catch (err: any) {
       setOrderError(err?.message || 'Error al enviar la comanda a cocina y caja.');
     } finally {
@@ -739,6 +799,8 @@ export const MeseroPage: React.FC = () => {
               onClick={() => {
                 setActiveOrderTarget(null);
                 setSelectedBurger(null);
+                setSelectedDrink(null);
+                setShowDeliveryConfig(false);
               }}
               className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors flex items-center gap-1.5 font-black text-xs cursor-pointer border border-gray-200"
             >
@@ -757,8 +819,8 @@ export const MeseroPage: React.FC = () => {
 
           {/* Body: Split View (Catalog + Inline Customizer on Left 65%, Cart on Right 35%) */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
-            {/* LEFT: 100% TEXT CATALOG & INLINE BURGER / DRINK BUILDER */}
-            <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+            {/* LEFT: 100% TEXT CATALOG & INLINE BURGER / DRINK BUILDER / DELIVERY CONFIG (65%) */}
+            <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
               {selectedBurger ? (
                 /* INLINE BURGER BUILDER (Llega hasta arriba con máxima altura) */
                 <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -793,8 +855,26 @@ export const MeseroPage: React.FC = () => {
                     exchangeRates={exchangeRates}
                   />
                 </div>
+              ) : showDeliveryConfig && isDeliveryOrder ? (
+                /* INLINE DELIVERY CONFIG PANEL */
+                <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <DeliveryConfigPanel
+                    customerName={customerName}
+                    onCustomerNameChange={setCustomerName}
+                    kitchenNotes={kitchenNotes}
+                    onKitchenNotesChange={setKitchenNotes}
+                    deliveryFeeUSD={deliveryFeeUSD}
+                    onDeliveryFeeChange={setDeliveryFeeUSD}
+                    cartItems={cartItems}
+                    onSetItemPackaging={setItemPackaging}
+                    onSetAllDelivery={handleSetAllDelivery}
+                    exchangeRates={exchangeRates}
+                    onClose={() => setShowDeliveryConfig(false)}
+                    onClearAllDelivery={handleClearAllDelivery}
+                  />
+                </div>
               ) : (
-                /* Product Catalog (Visible cuando no hay personalización) */
+                /* Product Catalog (Visible cuando no hay personalización ni config de delivery) */
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                   <ProductTextCatalog
                     products={activeProducts}
@@ -811,83 +891,90 @@ export const MeseroPage: React.FC = () => {
               )}
             </div>
 
-            {/* RIGHT: COMPACT CART & ORDER FORM */}
+            {/* RIGHT: COMPACT CART & ORDER FORM (35%) */}
             <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
-                  {/* Customer and General Notes Inputs */}
-                  <div className="space-y-2 shrink-0 bg-white p-3 rounded-2xl border border-gray-200 shadow-xs">
-                    <div>
-                      <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
-                        {activeOrderTarget.type === 'delivery'
-                          ? 'Cliente y Dirección (*Obligatorio):'
-                          : activeOrderTarget.type === 'pickup'
-                          ? 'Cliente / Referencia (*Obligatorio):'
-                          : 'Nombre o Referencia (Opcional):'}
-                      </label>
+                  
+                  {/* SECCIÓN SUPERIOR COMPACTA DE LA COMANDA */}
+                  {isDeliveryOrder ? (
+                    /* Banner interactivo de Delivery: Abre o minimiza la sección en el menú */
+                    <div className="p-2.5 rounded-2xl bg-blue-50 border-2 border-blue-400 shadow-xs flex items-center justify-between gap-2 shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-2xl shrink-0 p-1 bg-white rounded-xl border border-blue-200">🛵</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-black text-blue-950 uppercase">DELIVERY ACTIVO</span>
+                            <span className="text-[11px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                              +${effectiveDeliveryFee.toFixed(2)} USD
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-bold text-blue-800 truncate block mt-0.5">
+                            {customerName.trim() ? customerName : '⚠️ Toca para configurar cliente/dirección'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowDeliveryConfig((prev) => !prev)}
+                        className={`px-3 py-2 rounded-xl font-black text-xs transition-all border cursor-pointer shadow-xs flex items-center gap-1 shrink-0 ${
+                          showDeliveryConfig
+                            ? 'bg-white border-blue-400 text-blue-900 hover:bg-blue-100'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 active:scale-95'
+                        }`}
+                        title={showDeliveryConfig ? 'Minimizar sección para ver el menú' : 'Abrir sección de configuración de delivery en el panel izquierdo'}
+                      >
+                        <span>{showDeliveryConfig ? '➖ Minimizar' : '✏️ Configurar'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Para Mesa o Salón: Entrada compacta y delgada de cliente/referencia */
+                    <div className="bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-black text-gray-700 uppercase whitespace-nowrap">
+                        {activeOrderTarget.type === 'pickup' ? '👤 Cliente *:' : '👤 Cliente:'}
+                      </span>
                       <input
                         type="text"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder={
-                          activeOrderTarget.type === 'delivery'
-                            ? 'Ej: Juan Pérez / Calle 5 #10-20'
-                            : 'Ej: Juan Pérez'
-                        }
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-bold mt-1 shadow-2xs"
+                        placeholder={activeOrderTarget.type === 'pickup' ? 'Nombre o Referencia (*Obligatorio)' : 'Nombre o referencia (opcional)'}
+                        className="flex-1 text-xs font-bold text-gray-900 bg-transparent outline-none placeholder-gray-400"
                       />
                     </div>
+                  )}
 
-                    <div>
-                      <label className="block text-xs font-black uppercase text-gray-800 tracking-wider">
-                        Nota de cocina / Observación general:
-                      </label>
-                      <input
-                        type="text"
-                        value={kitchenNotes}
-                        onChange={(e) => setKitchenNotes(e.target.value)}
-                        placeholder="Ej: Servir todo junto, sin cubiertos..."
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-semibold mt-1 shadow-2xs"
-                      />
-                    </div>
-
-                    {/* Delivery Fee Selector (only for delivery) */}
-                    {activeOrderTarget.type === 'delivery' && (
-                      <div className="pt-2 border-t border-gray-100">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-black uppercase text-gray-800">
-                            Costo de Envío Delivery:
-                          </span>
-                          <span className="text-sm font-black text-black bg-yellow-400 px-2 py-0.5 rounded-lg border border-yellow-500">
-                            ${deliveryFeeUSD.toFixed(2)} USD
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[1, 1.5, 2, 2.5, 3, 4, 5].map((fee) => (
+                  {/* Cabecera de Ítems del Carrito con selector de lote */}
+                  <div className="flex items-center justify-between text-xs font-black uppercase text-gray-600 px-1 shrink-0 pt-1">
+                    <span>Ítems Agregados ({cartItems.reduce((s, i) => s + i.quantity, 0)})</span>
+                    {cartItems.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllDelivery(true)}
+                          className="text-[10px] font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5"
+                          title="Marcar todos los productos como delivery"
+                        >
+                          🛵 Todos Delivery
+                        </button>
+                        {hasAnyDeliveryItem && (
+                          <>
+                            <span className="text-gray-300">|</span>
                             <button
-                              key={fee}
                               type="button"
-                              onClick={() => setDeliveryFeeUSD(fee)}
-                              className={`px-3 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer ${
-                                deliveryFeeUSD === fee
-                                  ? 'bg-yellow-400 border-yellow-500 text-black shadow-xs font-black scale-[1.03]'
-                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                              }`}
+                              onClick={handleClearAllDelivery}
+                              className="text-[10px] font-bold text-gray-600 hover:underline cursor-pointer flex items-center gap-0.5"
+                              title="Desmarcar delivery y pasar todos a salón"
                             >
-                              ${fee}
+                              🍽️ Todos Salón
                             </button>
-                          ))}
-                        </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
 
                   {/* Cart Items List */}
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[140px]">
-                    <div className="flex items-center justify-between text-xs font-black uppercase text-gray-600 px-1">
-                      <span>Ítems Agregados ({cartItems.reduce((s, i) => s + i.quantity, 0)})</span>
-                      <span>Total</span>
-                    </div>
-
                     {cartItems.length === 0 ? (
                       <div className="h-32 flex flex-col items-center justify-center text-center text-gray-400 text-sm border border-dashed border-gray-300 rounded-2xl bg-white/60 p-3">
                         <span className="font-bold">El carrito está vacío</span>
@@ -906,22 +993,58 @@ export const MeseroPage: React.FC = () => {
                               <span className="text-sm sm:text-base font-black text-gray-950 block leading-tight">
                                 {item.productName}
                               </span>
-                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                {item.isTakeaway && (
-                                  <span className="text-[11px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md inline-block">
-                                    📦 Para Llevar
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                {/* Selector de Empaque / Servicio para este ítem */}
+                                <button
+                                  type="button"
+                                  onClick={() => setItemPackaging(item.id, 'salon')}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                                    !item.isTakeaway && !item.isDelivery
+                                      ? 'bg-yellow-400 border-yellow-500 text-black shadow-2xs scale-[1.02]'
+                                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                  }`}
+                                  title="Servir en mesa (Salón)"
+                                >
+                                  🍽️ Salón
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setItemPackaging(item.id, 'llevar')}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                                    item.isTakeaway && !item.isDelivery
+                                      ? 'bg-amber-200 border-amber-400 text-amber-950 shadow-2xs scale-[1.02]'
+                                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                  }`}
+                                  title="Empaquetar para llevar"
+                                >
+                                  🛍️ Llevar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setItemPackaging(item.id, 'delivery');
+                                    if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+                                  }}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-all cursor-pointer ${
+                                    item.isDelivery
+                                      ? 'bg-blue-100 border-blue-400 text-blue-950 shadow-2xs scale-[1.02]'
+                                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                  }`}
+                                  title="Marcar este producto para Servicio Delivery"
+                                >
+                                  🛵 Delivery
+                                </button>
+
                                 {item.category === 'Salsas' ? (
-                                  <span className="text-[11px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
+                                  <span className="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
                                     🥣 Salsa
                                   </span>
                                 ) : (item.isCut || item.cutPreference === 'Picada') ? (
-                                  <span className="text-[11px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
+                                  <span className="text-[10px] font-black text-red-800 bg-red-100 px-1.5 py-0.5 rounded-md inline-block">
                                     🔪 Picada
                                   </span>
                                 ) : (
-                                  <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md inline-block">
+                                  <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md inline-block">
                                     🍔 Entera
                                   </span>
                                 )}
@@ -1023,10 +1146,10 @@ export const MeseroPage: React.FC = () => {
                       <span className="text-black font-black">${itemsSubtotalUSD.toFixed(2)} USD</span>
                     </div>
 
-                    {activeOrderTarget.type === 'delivery' && (
+                    {effectiveDeliveryFee > 0 && (
                       <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-600">
                         <span>Costo Delivery:</span>
-                        <span className="text-black font-black">+${deliveryFeeUSD.toFixed(2)} USD</span>
+                        <span className="text-black font-black">+${effectiveDeliveryFee.toFixed(2)} USD</span>
                       </div>
                     )}
 
