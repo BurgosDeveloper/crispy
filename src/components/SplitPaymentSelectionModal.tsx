@@ -166,8 +166,11 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded-lg bg-yellow-100 text-yellow-900 border border-yellow-300 font-black text-xs sm:text-sm">
+                        {item.quantity}x
+                      </span>
                       <span className="text-base sm:text-lg font-black text-gray-900">
-                        {item.quantity}x {item.productName}
+                        {item.productName}
                       </span>
                       {item.isTakeaway && (
                         <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200">

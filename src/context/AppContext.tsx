@@ -100,6 +100,7 @@ interface AppContextType {
     }
   ) => Promise<Order>;
   appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna', deliveryFeeUSD?: number, customerName?: string, kitchenNotes?: string) => Promise<void>;
+  expandOrderItemsForSplit: (orderId: string) => Promise<Order>;
 
   aperturarCajaChica: (usdCash: number, copCash: number) => Promise<void>;
   addCajaTransaction: (trans: { type: 'ingreso' | 'egreso'; amountUSD: number; amountCOP: number; amountBs: number; paymentMethod: string; description: string }) => Promise<void>;
@@ -814,6 +815,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await requireApiSuccess(res, 'No se pudo reimprimir la comanda de cocina.');
   };
 
+  const expandOrderItemsForSplit = async (orderId: string): Promise<Order> => {
+    const res = await apiFetch(`${backendUrl}/api/orders/${orderId}/expand-split-items`, {
+      method: 'POST',
+    });
+    const data = await requireApiSuccess(res, 'No se pudo preparar la división de ítems.');
+    return data.order;
+  };
+
   const getPrintersConfig = async (): Promise<DualPrintersConfig> => {
     const res = await apiFetch(`${backendUrl}/api/printers/config`);
     return await requireApiSuccess(res, 'No se pudo obtener la configuración de impresoras.');
@@ -1031,6 +1040,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         changeOrderTable,
         transferOrderService,
         appendOrderItems,
+        expandOrderItemsForSplit,
         aperturarCajaChica,
         addCajaTransaction,
         realizarCierreCaja,

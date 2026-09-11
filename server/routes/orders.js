@@ -913,6 +913,112 @@ module.exports = function(io) {
     }
   });
 
+  // Expandir ítems con cantidad > 1 a filas individuales de 1x para cobro por persona / cuenta separada
+  router.post('/:id/expand-split-items', requireRole('caja', 'admin', 'mesero'), async (req, res) => {
+    const { id } = req.params;
+    let client = null;
+    try {
+      client = await getClient();
+      await client.query('BEGIN');
+
+      const { rows: orderRows } = await client.query(
+        `SELECT id, order_number, shift FROM orders WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+
+      if (orderRows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Comanda no encontrada.' });
+      }
+
+      assertShiftAccess(req.user, orderRows[0].shift);
+
+      const { rows: items } = await client.query(
+        `SELECT * FROM order_items WHERE order_id = $1 AND quantity > 1 FOR UPDATE`,
+        [id]
+      );
+
+      let expandedCount = 0;
+      for (const it of items) {
+        const qty = parseInt(it.quantity, 10) || 1;
+        if (qty <= 1) continue;
+
+        // Actualizar la fila existente para que tenga quantity = 1
+        await client.query(
+          `UPDATE order_items SET quantity = 1 WHERE id = $1`,
+          [it.id]
+        );
+
+        // Insertar (qty - 1) copias idénticas, cada una con quantity = 1 y su propio id único
+        for (let i = 1; i < qty; i++) {
+          const newId = `it-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`;
+          await client.query(
+            `INSERT INTO order_items (
+              id, order_id, product_id, product_name, price, quantity,
+              size, is_half_half, half_details, removed_ingredients, extras_json,
+              sugar_preference, is_takeaway, is_delivery, is_new_or_modified,
+              notes, drink_type, category, proteins, is_cut, cut_preference, flavor,
+              is_paid_individually, paid_by_name
+            ) VALUES (
+              $1, $2, $3, $4, $5, 1,
+              $6, $7, $8, $9, $10,
+              $11, $12, $13, $14,
+              $15, $16, $17, $18, $19, $20, $21,
+              $22, $23
+            )`,
+            [
+              newId,
+              it.order_id,
+              it.product_id,
+              it.product_name,
+              it.price,
+              it.size,
+              it.is_half_half,
+              it.half_details,
+              it.removed_ingredients,
+              it.extras_json,
+              it.sugar_preference,
+              it.is_takeaway,
+              it.is_delivery,
+              it.is_new_or_modified,
+              it.notes,
+              it.drink_type,
+              it.category,
+              it.proteins,
+              it.is_cut,
+              it.cut_preference,
+              it.flavor,
+              it.is_paid_individually || false,
+              it.paid_by_name || null
+            ]
+          );
+          expandedCount++;
+        }
+      }
+
+      await client.query('COMMIT');
+      client.release();
+      client = null;
+
+      const updatedOrders = await fetchAllOrders(req.user);
+      const updatedOrder = updatedOrders.find((o) => o.id === id);
+
+      if (expandedCount > 0) {
+        io.emit('orders:sync', updatedOrders);
+        console.log(`👥 [CUENTA SEPARADA] Comanda #${orderRows[0].order_number}: expandidos ${expandedCount} ítem(s) para cobro individual.`);
+      }
+
+      return res.json({ success: true, order: updatedOrder, expandedCount });
+    } catch (err) {
+      if (client) {
+        try { await client.query('ROLLBACK'); } catch (_) {}
+        client.release();
+      }
+      console.error('Error al expandir ítems para división:', err);
+      return res.status(500).json({ error: err.message || 'Error al preparar ítems para división.' });
+    }
+  });
+
   // Adicionar productos a una comanda abierta (Mesero, Caja, Admin)
   router.post('/:id/append-items', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     const { id } = req.params;

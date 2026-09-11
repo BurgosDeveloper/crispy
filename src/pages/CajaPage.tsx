@@ -72,6 +72,7 @@ export const CajaPage: React.FC = () => {
     editOrder,
     deletePaymentEntry,
     reopenOrder,
+    expandOrderItemsForSplit,
     products,
     ingredients,
   } = useApp();
@@ -226,9 +227,23 @@ export const CajaPage: React.FC = () => {
     );
   };
 
-  const handleOpenSplitItemsModal = (order: Order) => {
+  const handleOpenSplitItemsModal = async (order: Order) => {
     setSplitPaymentScope(null);
     setIsEditingSplitPayment(false);
+
+    // Si la orden tiene ítems con cantidad > 1, expandirlos en filas individuales de 1x para cobro por persona
+    const hasMultiQuantity = (order.items || []).some((it) => (Number(it.quantity) || 1) > 1);
+    if (hasMultiQuantity && expandOrderItemsForSplit) {
+      try {
+        const expanded = await expandOrderItemsForSplit(order.id);
+        if (expanded) {
+          setSplitPaymentSelectionOrder(expanded);
+          return;
+        }
+      } catch (err) {
+        console.warn('Aviso: no se pudo expandir ítems en servidor:', err);
+      }
+    }
     setSplitPaymentSelectionOrder(order);
   };
 
@@ -251,9 +266,22 @@ export const CajaPage: React.FC = () => {
     setIsEditingSplitPayment(false);
   };
 
-  const handleEditSplitPaymentSelection = (order: Order) => {
+  const handleEditSplitPaymentSelection = async (order: Order) => {
     setActiveOrderForPay(null);
     setIsEditingSplitPayment(true);
+
+    const hasMultiQuantity = (order.items || []).some((it) => (Number(it.quantity) || 1) > 1);
+    if (hasMultiQuantity && expandOrderItemsForSplit) {
+      try {
+        const expanded = await expandOrderItemsForSplit(order.id);
+        if (expanded) {
+          setSplitPaymentSelectionOrder(expanded);
+          return;
+        }
+      } catch (err) {
+        console.warn('Aviso: no se pudo expandir ítems en edición:', err);
+      }
+    }
     setSplitPaymentSelectionOrder(order);
   };
 
