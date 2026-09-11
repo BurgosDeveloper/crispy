@@ -2052,17 +2052,37 @@ export const CajaPage: React.FC = () => {
                 </ul>
               </div>
 
-              {/* Tarjetas informativas de recaudación actual */}
+              {/* Tarjetas informativas de recaudación y ventas */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-                  <span className="text-[10px] font-black uppercase text-gray-500 block">Efectivo USD en Caja</span>
-                  <span className="text-base font-black text-green-700">${saldoEfectivoUSD.toFixed(2)} USD</span>
+                  <span className="text-[10px] font-black uppercase text-gray-500 block">Venta Facturada Turno</span>
+                  <span className="text-base font-black text-black">${paidOrdersToday.reduce((sum, o) => sum + (o.totalUSD || 0), 0).toFixed(2)} USD</span>
+                  <span className="text-[10px] text-gray-500 font-bold block">{paidOrdersToday.length} comanda(s) cobrada(s)</span>
                 </div>
                 <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-                  <span className="text-[10px] font-black uppercase text-gray-500 block">Efectivo COP en Caja</span>
-                  <span className="text-base font-black text-green-700">{Math.round(saldoEfectivoCOP).toLocaleString()} COP</span>
+                  <span className="text-[10px] font-black uppercase text-gray-500 block">Efectivo Físico en Gaveta</span>
+                  <span className="text-sm font-black text-green-700 block">${saldoEfectivoUSD.toFixed(2)} USD</span>
+                  <span className="text-xs font-black text-green-700 block">{Math.round(saldoEfectivoCOP).toLocaleString()} COP</span>
                 </div>
               </div>
+
+              {/* Indicador de Comandas Pendientes */}
+              {activeComandas.length > 0 ? (
+                <div className="p-3.5 rounded-xl bg-red-50 border-2 border-red-400 text-red-900 space-y-1">
+                  <div className="flex items-center gap-2 font-black text-xs text-red-900">
+                    <span className="text-base">⚠️</span>
+                    <span>ATENCIÓN: HAY {activeComandas.length} COMANDA(S) SIN COBRAR</span>
+                  </div>
+                  <p className="text-[11px] font-semibold leading-relaxed text-red-800">
+                    Existen comandas activas en salón o delivery aún sin cobrar. Si confirmas el cierre ahora, se archivarán sin sumar su dinero e ítems a las ventas facturadas. Te recomendamos cobrarlas o pasarlas a crédito antes del cierre.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center gap-2 text-xs font-bold">
+                  <span className="text-base">✅</span>
+                  <span>Todas las comandas del turno están cobradas al 100% (0 pendientes). Todos los montos e ítems están listos para el arqueo.</span>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold text-gray-700 block mb-1">Notas de Cierre / Observaciones (Opcional):</label>
