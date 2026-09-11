@@ -52,6 +52,7 @@
     "expo:web": "expo start --web",
     "build": "react-scripts build",
     "build:export": "npm run build && node scripts/build-export.js",
+    "build:apk": "node scripts/build-apk.js",
     "start:pos": "node scripts/launch-pos.js",
     "print:test": "node scripts/test-thermal-printer.js",
     "test": "react-scripts test",
