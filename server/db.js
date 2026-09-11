@@ -202,108 +202,134 @@ async function initDb() {
         ('table-8', 8, 'Mesa #8', 6, 'libre', 'Salón Principal')
         ON CONFLICT (number) DO NOTHING;`,
 
-      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, shift) VALUES
-        ('prod-bistro', 'Bistro', 'Hamburguesas', NULL, 7.00, 'Carne de novillo, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne de novillo', 'Salsa de la casa', 'Queso', 'Tocineta', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 1, ARRAY['Carne de novillo'], 'ambos'),
-        ('prod-crispys', 'Crispys', 'Hamburguesas', NULL, 7.00, 'Pollo crispy, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Pollo crispy', 'Salsa de la casa', 'Queso', 'Tocineta', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 1, ARRAY['Pollo crispy'], 'ambos'),
-        ('prod-chicken-grill', 'Chicken Grill', 'Hamburguesas', NULL, 7.00, 'Pechuga de pollo a la plancha, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Pechuga de pollo a la plancha', 'Salsa de la casa', 'Queso', 'Tocineta', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 1, ARRAY['Pechuga de pollo a la plancha'], 'ambos'),
-        ('prod-mr-pork', 'Mr Pork', 'Hamburguesas', NULL, 7.00, 'Chuleta de cerdo ahumada, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Chuleta de cerdo ahumada', 'Salsa de la casa', 'Queso', 'Tocineta', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 1, ARRAY['Chuleta de cerdo ahumada'], 'ambos'),
-        ('prod-street', 'Street', 'Hamburguesas', NULL, 7.00, 'Carne mechada, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne mechada', 'Salsa de la casa', 'Queso', 'Tocineta', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 1, ARRAY['Carne mechada'], 'ambos'),
-        ('prod-nuggets', 'Nuggets', 'Hamburguesas', NULL, 7.00, '6 nuggets de pollo acompañado de papas fritas.', '', NULL, ARRAY['6 Nuggets de pollo', 'Papas fritas', 'Salsa de la casa'], 1, ARRAY[]::text[], 'ambos'),
-        ('prod-super-smash', 'Super Smash', 'Hamburguesas', NULL, 7.00, 'Doble smash de carne, doble tocineta, doble queso, pepinillos y salsa smash.', '', '¡NEW!', ARRAY['Doble smash de carne', 'Doble tocineta', 'Doble queso', 'Pepinillos', 'Salsa smash'], 2, ARRAY['Doble smash de carne'], 'ambos'),
-        ('prod-tasty', 'Tasty', 'Hamburguesas', NULL, 7.00, 'Doble smash de carne, doble queso, tocineta, lechuga, tomate, cebolla y salsa tasty.', '', '¡NEW!', ARRAY['Doble smash de carne', 'Doble queso', 'Tocineta', 'Lechuga', 'Tomate', 'Cebolla', 'Salsa tasty'], 2, ARRAY['Doble smash de carne'], 'ambos'),
-        ('prod-mixtura', 'Mixtura', 'Hamburguesas', NULL, 9.00, 'Carne de novillo, pollo crispy, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne de novillo', 'Pollo crispy', 'Doble queso', 'Doble tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 2, ARRAY['Carne de novillo', 'Pollo crispy'], 'ambos'),
-        ('prod-house', 'House', 'Hamburguesas', NULL, 9.00, 'Pollo crispy, chuleta ahumada, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada', 'Doble queso', 'Doble tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 2, ARRAY['Pollo crispy', 'Chuleta de cerdo ahumada'], 'ambos'),
-        ('prod-3-0', '3.0', 'Hamburguesas', NULL, 10.00, 'Carne novillo, pollo crispy, chuleta ahumada, triple queso y triple tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada', 'Triple queso', 'Triple tocineta', 'Salsa de la casa', 'Papas ralladas', 'Huevo frito', 'Lechuga', 'Tomate', 'Cebolla'], 3, ARRAY['Carne de novillo', 'Pollo crispy', 'Chuleta de cerdo ahumada'], 'ambos'),
-        ('prod-racion-papas', 'Ración de Papas', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['Papas fritas', 'Sal'], 0, ARRAY[]::text[], 'ambos'),
-        ('prod-refresco-350ml', 'Refresco 350ml', 'Bebidas', 'refresco', 1.00, 'Refresco personal en botella de 350ml bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-nestea', 'Nestea', 'Bebidas', 'te', 1.00, 'Té frío Nestea bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-cerveza', 'Cerveza', 'Bebidas', 'cerveza', 1.00, 'Cerveza nacional bien fría.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-refresco-2lt', 'Refresco 2Lt', 'Bebidas', 'refresco', 2.50, 'Refresco familiar de 2 Litros surtido.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-agua-mineral', 'Agua Mineral', 'Bebidas', 'agua', 1.00, 'Agua mineral embotellada bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-granizado', 'Granizado', 'Bebidas', 'jugo', 1.50, 'Bebida granizada natural refrescante.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos'),
-        ('prod-lata', 'Lata', 'Bebidas', 'refresco', 1.50, 'Refresco en lata 355ml bien frío surtido.', '', NULL, NULL, 1, ARRAY[]::text[], 'ambos')
-        ON CONFLICT (id) DO NOTHING;`,
+      // 1. Limpieza segura de productos e ingredientes de muestra antiguos (preservando contabilidad)
+      `DELETE FROM products WHERE id IN ('prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6');`,
+      `DELETE FROM ingredients WHERE id IN ('ing-1', 'ing-2', 'ing-3', 'ing-4', 'ing-5', 'ing-6', 'ing-7', 'ing-8', 'ing-9', 'ing-10', 'ing-11', 'ing-12', 'ing-adicional-racion-papas', 'ing-servicio-papas-fritas');`,
 
-      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, shift) VALUES
-        ('prod-racion-papas', 'Ración de Papas', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['Papas fritas', 'Sal'], 0, ARRAY[]::text[], 'ambos')
-        ON CONFLICT (id) DO UPDATE SET name = 'Ración de Papas', price = 2.00, category = 'Hamburguesas', protein_count = 0, default_proteins = ARRAY[]::text[];`,
-      `DELETE FROM ingredients WHERE id IN ('ing-adicional-racion-papas', 'ing-servicio-papas-fritas');`,
+      // 2. Deduplicación inteligente: si existen productos duplicados con otro ID pero mismo nombre que los oficiales,
+      // reasignar los order_items históricos al ID canónico (protegiendo las ventas) y eliminar el producto duplicado.
+      `DO $$
+      DECLARE
+        dup RECORD;
+      BEGIN
+        FOR dup IN
+          SELECT p_dup.id AS dup_id, p_canon.id AS canon_id
+          FROM products p_dup
+          JOIN products p_canon ON (
+            UPPER(TRIM(p_dup.name)) = UPPER(TRIM(p_canon.name))
+            OR (LOWER(TRIM(p_dup.name)) LIKE '%350%' AND LOWER(TRIM(p_canon.name)) = 'refresco 350ml')
+            OR ((LOWER(TRIM(p_dup.name)) LIKE '%2lt%' OR LOWER(TRIM(p_dup.name)) LIKE '%2 lt%' OR LOWER(TRIM(p_dup.name)) LIKE '%2 litro%') AND LOWER(TRIM(p_canon.name)) = 'refresco 2lt')
+            OR (LOWER(TRIM(p_dup.name)) = 'nestea' AND p_canon.id = 'prod-nestea-drink')
+            OR (LOWER(TRIM(p_dup.name)) = 'lipton' AND p_canon.id = 'prod-nestea')
+          )
+          WHERE p_dup.id != p_canon.id
+            AND p_canon.id IN (
+              'prod-bistro', 'prod-crispys', 'prod-chicken-grill', 'prod-mr-pork',
+              'prod-street', 'prod-nuggets', 'prod-super-smash', 'prod-tasty',
+              'prod-mixtura', 'prod-house', 'prod-3-0', 'prod-racion-papas',
+              'prod-refresco-350ml', 'prod-refresco-2lt', 'prod-lata',
+              'prod-nestea-drink', 'prod-nestea', 'prod-agua-mineral',
+              'prod-cerveza', 'prod-granizado'
+            )
+        LOOP
+          UPDATE order_items SET product_id = dup.canon_id WHERE product_id = dup.dup_id;
+          DELETE FROM products WHERE id = dup.dup_id;
+        END LOOP;
+      END $$;`,
 
+      // 3. UPSERT oficial de Catálogo de Productos (Hamburguesas y Bebidas)
+      // Si ya existen, actualiza sus ingredientes base, proteínas, sabores y precios sin alterar ventas ni pedidos.
+      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, flavors, shift) VALUES
+        ('prod-bistro', 'BISTRO', 'Hamburguesas', NULL, 7.00, 'Carne de novillo, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CARNE DE NOVILLO', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['CARNE DE NOVILLO'], NULL, 'ambos'),
+        ('prod-crispys', 'CRISPYS', 'Hamburguesas', NULL, 7.00, 'Pollo crispy, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['POLLO CRISPY', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['POLLO CRISPY'], NULL, 'ambos'),
+        ('prod-chicken-grill', 'CHICKEN GRILL', 'Hamburguesas', NULL, 7.00, 'Pechuga de pollo a la plancha, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['PECHUGA DE POLLO A LA PLANCHA', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['PECHUGA DE POLLO A LA PLANCHA'], NULL, 'ambos'),
+        ('prod-mr-pork', 'MR PORK', 'Hamburguesas', NULL, 7.00, 'Chuleta de cerdo ahumada, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CHULETA DE CERDO AHUMADA', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['CHULETA DE CERDO AHUMADA'], NULL, 'ambos'),
+        ('prod-street', 'STREET', 'Hamburguesas', NULL, 7.00, 'Carne mechada, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CARNE MECHADA', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['CARNE MECHADA'], NULL, 'ambos'),
+        ('prod-nuggets', 'NUGGETS', 'Hamburguesas', NULL, 7.00, '6 nuggets de pollo acompañado de papas fritas.', '', NULL, ARRAY['6 NUGGETS DE POLLO', 'PAPAS FRITAS', 'SALSA DE LA CASA'], 1, ARRAY[]::text[], NULL, 'ambos'),
+        ('prod-super-smash', 'SUPER SMASH', 'Hamburguesas', NULL, 7.00, 'Doble smash de carne, doble tocineta, doble queso, pepinillos y salsa smash.', '', '¡NEW!', ARRAY['DOBLE SMASH DE CARNE', 'DOBLE TOCINETA', 'DOBLE QUESO', 'PEPINILLOS', 'SALSA SMASH'], 2, ARRAY['DOBLE SMASH DE CARNE'], NULL, 'ambos'),
+        ('prod-tasty', 'TASTY', 'Hamburguesas', NULL, 7.00, 'Doble smash de carne, doble queso, tocineta, lechuga, tomate, cebolla y salsa tasty.', '', '¡NEW!', ARRAY['DOBLE SMASH DE CARNE', 'DOBLE QUESO', 'TOCINETA', 'LECHUGA', 'TOMATE', 'CEBOLLA', 'SALSA TASTY'], 2, ARRAY['DOBLE SMASH DE CARNE'], NULL, 'ambos'),
+        ('prod-mixtura', 'MIXTURA', 'Hamburguesas', NULL, 9.00, 'Carne de novillo, pollo crispy, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY', 'DOBLE QUESO', 'DOBLE TOCINETA', 'SALSA DE LA CASA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 2, ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY'], NULL, 'ambos'),
+        ('prod-house', 'HOUSE', 'Hamburguesas', NULL, 9.00, 'Pollo crispy, chuleta ahumada, doble queso, doble tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['POLLO CRISPY', 'CHULETA DE CERDO AHUMADA', 'DOBLE QUESO', 'DOBLE TOCINETA', 'SALSA DE LA CASA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 2, ARRAY['POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'], NULL, 'ambos'),
+        ('prod-3-0', '3.0', 'Hamburguesas', NULL, 10.00, 'Carne novillo, pollo crispy, chuleta ahumada, triple queso y triple tocineta, salsa de la casa, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY', 'CHULETA DE CERDO AHUMADA', 'TRIPLE QUESO', 'TRIPLE TOCINETA', 'SALSA DE LA CASA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 3, ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'], NULL, 'ambos'),
+        ('prod-racion-papas', 'RACIÓN DE PAPAS', 'Hamburguesas', NULL, 2.00, 'Porción individual de papas fritas doradas y crujientes.', '', NULL, ARRAY['PAPAS FRITAS', 'SAL'], 0, ARRAY[]::text[], NULL, 'ambos'),
+        ('prod-refresco-350ml', 'REFRESCO 350ML', 'Bebidas', 'refresco', 1.00, 'Refresco personal en botella de 350ml bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'NARANJA', 'UVA', 'TORONJA', 'CHINOTO', 'FRESCOLITA'], 'ambos'),
+        ('prod-nestea', 'LIPTON', 'Bebidas', 'te', 1.00, 'Té frío Lipton bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['Limón', 'Durazno'], 'ambos'),
+        ('prod-nestea-drink', 'NESTEA', 'Bebidas', 'te', 1.00, 'Té frío Nestea bien frío.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['Limón', 'Durazno'], 'ambos'),
+        ('prod-cerveza', 'CERVEZA', 'Bebidas', 'cerveza', 1.00, 'Cerveza nacional bien fría.', '', NULL, NULL, 1, ARRAY[]::text[], NULL, 'ambos'),
+        ('prod-refresco-2lt', 'REFRESCO 2LT', 'Bebidas', 'refresco', 2.50, 'Refresco familiar de 2 Litros surtido.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'CHINOTO', '7UP', 'FRESCOLITA', 'TORONJA', 'NARANJA', 'UVA', 'PIÑA', 'GOLDEN MANZANA', 'GOLDEN PIÑA', 'GOLDEN COLITA', 'PEPSI ORIGINAL', 'PEPSI ZERO'], 'ambos'),
+        ('prod-agua-mineral', 'AGUA MINERAL', 'Bebidas', 'agua', 1.00, 'Agua mineral embotellada bien fría.', '', NULL, NULL, 1, ARRAY[]::text[], NULL, 'ambos'),
+        ('prod-granizado', 'GRANIZADO', 'Bebidas', 'granizado', 1.50, 'Bebida granizada natural refrescante.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['Fresa', 'Parchita'], 'ambos'),
+        ('prod-lata', 'LATA', 'Bebidas', 'refresco', 1.50, 'Refresco en lata 355ml bien frío surtido.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['PIÑA', 'PEPSI ORIGINAL', 'PEPSI ZERO', 'GOLDEN COLITA', 'MANZANA', '7UP', 'COCA COLA ORIGINAL', 'COCACOLA ZERO'], 'ambos')
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        category = EXCLUDED.category,
+        drink_type = EXCLUDED.drink_type,
+        price = EXCLUDED.price,
+        description = EXCLUDED.description,
+        base_ingredients = EXCLUDED.base_ingredients,
+        protein_count = EXCLUDED.protein_count,
+        default_proteins = EXCLUDED.default_proteins,
+        flavors = COALESCE(EXCLUDED.flavors, products.flavors);`,
+
+      // 4. Preservar y normalizar productos adicionales creados en producción (no los borra, respeta sus categorías)
+      `UPDATE products SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,
+      `UPDATE products SET category = 'Hamburguesas' WHERE category IS NULL OR category = '';`,
+      `UPDATE products SET protein_count = 1 WHERE protein_count IS NULL AND category = 'Hamburguesas';`,
+      `UPDATE products SET protein_count = 0 WHERE protein_count IS NULL AND category != 'Hamburguesas';`,
+
+      // 5. UPSERT oficial de Ingredientes, Proteínas, Adicionales y Salsas
       `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, category, available, shift) VALUES
-        ('ing-adicional-tocineta', 'Tocineta', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-        ('ing-adicional-queso-cheddar', 'Queso Cheddar', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-        ('ing-adicional-proteina', 'Proteína', 'adicional', 3.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
-        ('ing-gratis-jalapenos', 'Jalapeños Picantes (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
-        ('ing-gratis-cebolla-caramelizada', 'Cebolla Caramelizada (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
-        ('ing-gratis-sweet-relish', 'Sweet Relish (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
-        ('ing-gratis-maiz', 'Maíz (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
-        ('ing-gratis-pepinillos', 'Pepinillos (Gratis)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
-        ('ing-base-novillo', 'Carne de novillo', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-pollo-crispy', 'Pollo crispy', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-pollo-plancha', 'Pechuga de pollo a la plancha', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-chuleta', 'Chuleta de cerdo ahumada', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-mechada', 'Carne mechada', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-doble-smash', 'Doble smash de carne', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-salsa-casa', 'Salsa de la casa', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-salsa-smash', 'Salsa smash', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-salsa-tasty', 'Salsa tasty', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-queso', 'Queso', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-doble-queso', 'Doble queso', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-triple-queso', 'Triple queso', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-tocineta', 'Tocineta', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-doble-tocineta', 'Doble tocineta', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-triple-tocineta', 'Triple tocineta', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-papas-ralladas', 'Papas ralladas', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-huevo-frito', 'Huevo frito', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-lechuga', 'Lechuga', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-tomate', 'Tomate', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-cebolla', 'Cebolla', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-        ('ing-base-pepinillos', 'Pepinillos', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos')
-        ON CONFLICT (id) DO NOTHING;`,
+        ('ing-adicional-tocineta', 'TOCINETA', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
+        ('ing-adicional-queso-cheddar', 'QUESO CHEDDAR', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
+        ('ing-adicional-proteina', 'PROTEÍNA', 'adicional', 3.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
+        ('ing-gratis-jalapenos', 'JALAPEÑOS PICANTES (GRATIS)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
+        ('ing-gratis-cebolla-caramelizada', 'CEBOLLA CARAMELIZADA (GRATIS)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
+        ('ing-gratis-sweet-relish', 'SWEET RELISH (GRATIS)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
+        ('ing-gratis-maiz', 'MAÍZ (GRATIS)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
+        ('ing-gratis-pepinillos', 'PEPINILLOS (GRATIS)', 'gratis', 0.00, FALSE, TRUE, 'Gratis', TRUE, 'ambos'),
+        ('ing-base-novillo', 'CARNE DE NOVILLO', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-pollo-crispy', 'POLLO CRISPY', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-pollo-plancha', 'PECHUGA DE POLLO A LA PLANCHA', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-chuleta', 'CHULETA DE CERDO AHUMADA', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-mechada', 'CARNE MECHADA', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-doble-smash', 'DOBLE SMASH DE CARNE', 'proteina', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-salsa-casa', 'SALSA DE LA CASA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-salsa-smash', 'SALSA SMASH', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-salsa-tasty', 'SALSA TASTY', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-queso', 'QUESO', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-doble-queso', 'DOBLE QUESO', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-triple-queso', 'TRIPLE QUESO', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-tocineta', 'TOCINETA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-doble-tocineta', 'DOBLE TOCINETA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-triple-tocineta', 'TRIPLE TOCINETA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-papas-ralladas', 'PAPAS RALLADAS', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-huevo-frito', 'HUEVO FRITO', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-lechuga', 'LECHUGA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-tomate', 'TOMATE', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-cebolla', 'CEBOLLA', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-base-pepinillos', 'PEPINILLOS', 'base', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
+        ('ing-salsa-casa', 'SALSA DE LA CASA', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-smash', 'SALSA SMASH', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-tasty', 'SALSA TASTY', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-ajo', 'SALSA DE AJO', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-bbq', 'SALSA BBQ', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
+        ('ing-salsa-tartara', 'SALSA TÁRTARA', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos')
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        ingredient_type = EXCLUDED.ingredient_type,
+        price_usd = EXCLUDED.price_usd,
+        is_base = EXCLUDED.is_base,
+        is_extra = EXCLUDED.is_extra,
+        category = EXCLUDED.category,
+        available = EXCLUDED.available;`,
 
-      // Backfill dinámico de datos para BD existentes
+      // 6. Normalización de ingredientes adicionales
+      `UPDATE ingredients SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,
       `UPDATE ingredients SET ingredient_type = 'proteina' WHERE id IN ('ing-base-novillo', 'ing-base-pollo-crispy', 'ing-base-pollo-plancha', 'ing-base-chuleta', 'ing-base-mechada', 'ing-base-doble-smash');`,
       `UPDATE ingredients SET ingredient_type = 'gratis', price_usd = 0.00 WHERE id IN ('ing-gratis-jalapenos', 'ing-gratis-cebolla-caramelizada', 'ing-gratis-sweet-relish', 'ing-gratis-maiz', 'ing-gratis-pepinillos') OR category = 'Gratis';`,
-      `UPDATE ingredients SET ingredient_type = 'adicional' WHERE id IN ('ing-adicional-tocineta', 'ing-adicional-queso-cheddar', 'ing-adicional-proteina', 'ing-adicional-racion-papas', 'ing-servicio-papas-fritas') OR category = 'Adicionales';`,
+      `UPDATE ingredients SET ingredient_type = 'adicional' WHERE id IN ('ing-adicional-tocineta', 'ing-adicional-queso-cheddar', 'ing-adicional-proteina') OR category = 'Adicionales';`,
       `UPDATE ingredients SET ingredient_type = 'base', price_usd = 0.00 WHERE (category = 'Ingredientes Base' OR is_base = TRUE) AND id NOT IN ('ing-base-novillo', 'ing-base-pollo-crispy', 'ing-base-pollo-plancha', 'ing-base-chuleta', 'ing-base-mechada', 'ing-base-doble-smash');`,
-
-      `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, is_base_for_pizza, is_extra_for_pizza, category, available, shift) VALUES
-        ('ing-salsa-casa', 'Salsa de la Casa', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
-        ('ing-salsa-smash', 'Salsa Smash', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
-        ('ing-salsa-tasty', 'Salsa Tasty', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
-        ('ing-salsa-ajo', 'Salsa de Ajo', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
-        ('ing-salsa-bbq', 'Salsa BBQ', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
-        ('ing-salsa-tartara', 'Salsa Tártara', 'salsa', 0.00, FALSE, TRUE, FALSE, TRUE, 'Salsas', TRUE, 'ambos')
-        ON CONFLICT (id) DO NOTHING;`,
       `UPDATE ingredients SET ingredient_type = 'salsa', category = 'Salsas' WHERE id LIKE 'ing-salsa-%' OR category = 'Salsas';`,
-
-      `UPDATE products SET protein_count = 3, default_proteins = ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-3-0' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['CARNE DE NOVILLO', 'POLLO CRISPY'] WHERE id = 'prod-mixtura' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['POLLO CRISPY', 'CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-house' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 2, default_proteins = ARRAY['DOBLE SMASH DE CARNE'] WHERE id IN ('prod-super-smash', 'prod-tasty') AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CARNE DE NOVILLO'] WHERE id = 'prod-bistro' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['POLLO CRISPY'] WHERE id = 'prod-crispys' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['PECHUGA DE POLLO A LA PLANCHA'] WHERE id = 'prod-chicken-grill' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CHULETA DE CERDO AHUMADA'] WHERE id = 'prod-mr-pork' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY['CARNE MECHADA'] WHERE id = 'prod-street' AND (default_proteins IS NULL OR array_length(default_proteins, 1) IS NULL OR array_length(default_proteins, 1) = 0);`,
-      `UPDATE products SET protein_count = 1, default_proteins = ARRAY[]::text[] WHERE (id = 'prod-nuggets' OR default_proteins IS NULL);`,
-
-      // Auto-migración a MAYÚSCULAS para todos los productos (hamburguesas, bebidas, salsas, etc.) e ingredientes (adicionales, proteínas, base)
-      `UPDATE products SET name = UPPER(name);`,
-      `UPDATE ingredients SET name = UPPER(name);`,
-      `UPDATE products SET default_proteins = (
-        SELECT array_agg(UPPER(p) ORDER BY ord) FROM unnest(default_proteins) WITH ORDINALITY AS t(p, ord)
-      ) WHERE default_proteins IS NOT NULL AND array_length(default_proteins, 1) > 0;`,
-      `UPDATE products SET base_ingredients = (
-        SELECT array_agg(UPPER(b) ORDER BY ord) FROM unnest(base_ingredients) WITH ORDINALITY AS t(b, ord)
-      ) WHERE base_ingredients IS NOT NULL AND array_length(base_ingredients, 1) > 0;`,
-      `UPDATE products SET flavors = ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'CHINOTO', '7UP', 'FRESCOLITA', 'TORONJA', 'NARANJA', 'UVA', 'PIÑA', 'GOLDEN MANZANA', 'GOLDEN PIÑA', 'GOLDEN COLITA', 'PEPSI ORIGINAL', 'PEPSI ZERO'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%2lt%' OR LOWER(name) LIKE '%2 lt%' OR LOWER(name) LIKE '%2 litro%' OR LOWER(name) LIKE '%2l%';`,
-      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te' WHERE LOWER(name) LIKE '%lipton%';`,
-      `UPDATE products SET flavors = ARRAY['Fresa', 'Parchita'], drink_type = 'granizado' WHERE LOWER(name) LIKE '%granizado%';`,
-      `UPDATE products SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te' WHERE LOWER(name) LIKE '%nestea%';`,
-      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, protein_count, default_proteins, flavors, shift) VALUES ('prod-nestea-drink', 'NESTEA', 'Bebidas', 'te', 1.00, 'Té frío Nestea bien frío.', '', NULL, 0, ARRAY[]::text[], ARRAY['Limón', 'Durazno'], 'ambos') ON CONFLICT (id) DO UPDATE SET flavors = ARRAY['Limón', 'Durazno'], drink_type = 'te';`,
-      `UPDATE products SET flavors = ARRAY['PIÑA', 'PEPSI ORIGINAL', 'PEPSI ZERO', 'GOLDEN COLITA', 'MANZANA', '7UP', 'COCA COLA ORIGINAL', 'COCACOLA ZERO'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%lata%' AND LOWER(name) NOT LIKE '%350%';`,
-      `UPDATE products SET flavors = ARRAY['COCACOLA ORIGINAL', 'COCACOLA ZERO', 'NARANJA', 'UVA', 'TORONJA', 'CHINOTO', 'FRESCOLITA'], drink_type = 'refresco' WHERE LOWER(name) LIKE '%350%';`,
     ];
 
     for (const q of migrationQueries) {
