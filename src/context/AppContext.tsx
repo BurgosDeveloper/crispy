@@ -99,7 +99,7 @@ interface AppContextType {
       selectedItemIds?: string[];
     }
   ) => Promise<Order>;
-  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna', deliveryFeeUSD?: number) => Promise<void>;
+  appendOrderItems: (orderId: string, addedItems: OrderItem[], removedItemIds?: string[], targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna', deliveryFeeUSD?: number, customerName?: string, kitchenNotes?: string) => Promise<void>;
 
   aperturarCajaChica: (usdCash: number, copCash: number) => Promise<void>;
   addCajaTransaction: (trans: { type: 'ingreso' | 'egreso'; amountUSD: number; amountCOP: number; amountBs: number; paymentMethod: string; description: string }) => Promise<void>;
@@ -707,12 +707,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addedItems: OrderItem[],
     removedItemIds: string[] = [],
     targetPrinter: 'cocina' | 'caja' | 'ambas' | 'ninguna' = 'cocina',
-    deliveryFeeUSD?: number
+    deliveryFeeUSD?: number,
+    customerName?: string,
+    kitchenNotes?: string
   ) => {
     const res = await apiFetch(`${backendUrl}/api/orders/${orderId}/append-items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addedItems, removedItemIds, targetPrinter, deliveryFeeUSD }),
+      body: JSON.stringify({ addedItems, removedItemIds, targetPrinter, deliveryFeeUSD, customerName, kitchenNotes }),
     });
     const response = await requireApiSuccess(res, 'No se pudo adicionar productos a la comanda.');
     if (response?.order) {

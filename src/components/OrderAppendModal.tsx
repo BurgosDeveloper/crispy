@@ -4,8 +4,8 @@ import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
 import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
+import { DeliveryConfigPanel } from '../modules/mesero/DeliveryConfigPanel';
 import { AdminPinModal } from './AdminPinModal';
-import { DeliveryFeeSelector } from './DeliveryFeeSelector';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
 import { isCustomizableProduct } from '../utils/productClassifier';
@@ -48,6 +48,9 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
   // Estado para bebida seleccionada (sabores / jugos)
   const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order?.deliveryFeeUSD || 0);
+  const [customerName, setCustomerName] = useState<string>(order?.customerName || '');
+  const [kitchenNotes, setKitchenNotes] = useState<string>(order?.kitchenNotes || '');
+  const [showDeliveryConfig, setShowDeliveryConfig] = useState<boolean>(false);
 
   // Modal de PIN para eliminar ítems ya existentes
   const [pinModalState, setPinModalState] = useState<{
@@ -77,8 +80,11 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSelectedBurger(null);
       setSelectedDrink(null);
       setDeliveryFeeUSD(order?.deliveryFeeUSD || 0);
+      setCustomerName(order?.customerName || '');
+      setKitchenNotes(order?.kitchenNotes || '');
+      setShowDeliveryConfig(order?.type === 'delivery');
     }
-  }, [isOpen, order?.id, order?.deliveryFeeUSD]);
+  }, [isOpen, order?.id, order?.deliveryFeeUSD, order?.type, order?.customerName, order?.kitchenNotes]);
 
   if (!isOpen || !order) return null;
 
@@ -165,6 +171,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     quantity: number;
     sugarPreference?: string;
     isTakeaway: boolean;
+    isDelivery?: boolean;
     notes?: string;
     flavor?: string;
   }) => {
@@ -182,12 +189,15 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
       flavor: config.flavor,
-      isTakeaway: config.isTakeaway || order.type === 'pickup',
-      isDelivery: order.type === 'delivery',
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
       notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: true,
     };
     setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
+    if (config.isDelivery && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
     setSuccessToast(`¡${formattedName} agregado!`);
     setTimeout(() => setSuccessToast(''), 2500);
   };
@@ -228,8 +238,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
           proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
           removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
           extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: config.isTakeaway || order.type === 'pickup',
-          isDelivery: order.type === 'delivery',
+          isTakeaway: Boolean(config.isTakeaway),
+          isDelivery: Boolean(config.isDelivery),
           isCut: config.isCut,
           cutPreference: config.cutPreference,
           notes: getCleanItemNote(config.notes) || undefined,
@@ -239,6 +249,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       }
       return current;
     });
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
     setSelectedBurger(null);
     setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
     setTimeout(() => setSuccessToast(''), 2500);
@@ -253,11 +267,47 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
         isTakeaway: mode === 'llevar',
         isDelivery: mode === 'delivery',
       };
+
+      const stillHasDelivery =
+        updated.some((i) => i.isDelivery) ||
+        (order.items || []).some((it) => it.isDelivery && !removedItemIds.includes(it.id));
+
+      if (mode === 'delivery') {
+        if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+        setShowDeliveryConfig(true);
+      } else if (!stillHasDelivery && order.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
+
       return updated;
     });
-    if (mode === 'delivery' && deliveryFeeUSD === 0) {
-      setDeliveryFeeUSD(1.5);
+  };
+
+  const handleSetAllDelivery = (isDelivery: boolean) => {
+    setItemsToAdd((prev) =>
+      prev.map((item) => ({
+        ...item,
+        isDelivery,
+        isTakeaway: isDelivery ? false : item.isTakeaway,
+      }))
+    );
+    if (isDelivery) {
+      if (deliveryFeeUSD <= 0) setDeliveryFeeUSD(1.0);
+      setShowDeliveryConfig(true);
+    } else {
+      const existingHasDelivery = (order.items || []).some(
+        (it) => it.isDelivery && !removedItemIds.includes(it.id)
+      );
+      if (!existingHasDelivery && order.type !== 'delivery') {
+        setDeliveryFeeUSD(0);
+        setShowDeliveryConfig(false);
+      }
     }
+  };
+
+  const handleClearAllDelivery = () => {
+    handleSetAllDelivery(false);
   };
 
   // Modificar cantidades de ítems por adicionar
@@ -334,7 +384,15 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     setIsSubmitting(true);
     setError('');
     try {
-      await appendOrderItems(order.id, itemsToAdd, removedItemIds, targetPrinter, effectiveDeliveryFee);
+      await appendOrderItems(
+        order.id,
+        itemsToAdd,
+        removedItemIds,
+        targetPrinter,
+        effectiveDeliveryFee,
+        customerName,
+        kitchenNotes
+      );
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Error al adicionar productos a la comanda.');
@@ -408,8 +466,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
         {/* CUERPO PRINCIPAL: 2 COLUMNAS (IZQUIERDA: CATÁLOGO + INLINE BUILDER 65% | DERECHA: CANASTA Y RESUMEN 35%) */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
           
-          {/* COLUMNA IZQUIERDA: CATÁLOGO Y PERSONALIZADOR INLINE DE HAMBURGUESAS */}
-          <div className={`flex-1 md:w-[65%] ${selectedBurger ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+          {/* COLUMNA IZQUIERDA: CATÁLOGO, PERSONALIZADOR INLINE Y CONFIGURADOR DE DELIVERY */}
+          <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
             
             {/* Contenedor del Catálogo de Productos (Oculto mientras se personaliza para dar máxima altura) */}
             {selectedBurger ? (
@@ -428,7 +486,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                     handleConfirmBurgerAdd(config);
                     setSelectedBurger(null);
                   }}
-                  defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
+                  defaultTakeaway={order.type === 'pickup'}
+                  defaultDelivery={order.type === 'delivery'}
                   exchangeRates={exchangeRates}
                 />
               </div>
@@ -444,8 +503,30 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                     handleConfirmDrinkAdd(config);
                     setSelectedDrink(null);
                   }}
-                  defaultTakeaway={order.type === 'pickup' || order.type === 'delivery'}
+                  defaultTakeaway={order.type === 'pickup'}
+                  defaultDelivery={order.type === 'delivery'}
                   exchangeRates={exchangeRates}
+                />
+              </div>
+            ) : showDeliveryConfig && isDeliveryOrder ? (
+              /* SECCIÓN INLINE DE CONFIGURACIÓN DE DELIVERY */
+              <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <DeliveryConfigPanel
+                  customerName={customerName}
+                  onCustomerNameChange={setCustomerName}
+                  kitchenNotes={kitchenNotes}
+                  onKitchenNotesChange={setKitchenNotes}
+                  deliveryFeeUSD={deliveryFeeUSD}
+                  onDeliveryFeeChange={setDeliveryFeeUSD}
+                  cartItems={itemsToAdd}
+                  onSetItemPackaging={(id, mode) => {
+                    const idx = itemsToAdd.findIndex((it) => it.id === id);
+                    if (idx !== -1) setAddedItemPackaging(idx, mode);
+                  }}
+                  onSetAllDelivery={handleSetAllDelivery}
+                  exchangeRates={exchangeRates}
+                  onClose={() => setShowDeliveryConfig(false)}
+                  onClearAllDelivery={handleClearAllDelivery}
                 />
               </div>
             ) : (
@@ -469,6 +550,39 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
           <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
             
             <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
+              {/* Banner interactivo de Delivery si la comanda incluye delivery */}
+              {isDeliveryOrder && (
+                <div className="p-2.5 rounded-2xl bg-blue-50 border-2 border-blue-400 shadow-xs flex items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-2xl shrink-0 p-1 bg-white rounded-xl border border-blue-200">🛵</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-black text-blue-950 uppercase">DELIVERY ACTIVO</span>
+                        <span className="text-[11px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                          +${effectiveDeliveryFee.toFixed(2)} USD
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-blue-800 truncate block mt-0.5">
+                        {order.customerName ? order.customerName : 'Cliente de la comanda'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDeliveryConfig((prev) => !prev)}
+                    className={`px-3 py-2 rounded-xl font-black text-xs transition-all border cursor-pointer shadow-xs flex items-center gap-1 shrink-0 ${
+                      showDeliveryConfig
+                        ? 'bg-white border-blue-400 text-blue-900 hover:bg-blue-100'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 active:scale-95'
+                    }`}
+                    title={showDeliveryConfig ? 'Minimizar sección para ver el menú' : 'Abrir sección de configuración de delivery en el panel izquierdo'}
+                  >
+                    <span>{showDeliveryConfig ? '➖ Minimizar' : '✏️ Configurar'}</span>
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between pb-1.5 border-b border-gray-200 shrink-0">
                 <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
                   <IoRestaurantOutline className="text-yellow-600 text-base" />
@@ -550,6 +664,30 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                       </span>
                     )}
                   </div>
+
+                  {itemsToAdd.length > 0 && (
+                    <div className="flex items-center justify-between gap-1.5 pb-0.5 pt-0.5">
+                      <span className="text-[10px] font-bold text-gray-500">Marcar todo el pedido nuevo:</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllDelivery(true)}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                          title="Marcar todos los ítems agregados como Delivery"
+                        >
+                          🛵 Todos Delivery
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearAllDelivery}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer"
+                          title="Marcar todos los ítems agregados como Salón"
+                        >
+                          🍽️ Todos Salón
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {itemsToAdd.length === 0 ? (
                     <div className="p-4 rounded-2xl border-2 border-dashed border-gray-300 bg-white text-center text-xs sm:text-sm font-bold text-gray-400 space-y-1">
@@ -724,17 +862,6 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
               </div>
             </div>
 
-            {/* Selector de costo de delivery si la comanda es o incluye delivery */}
-            {isDeliveryOrder && (
-              <div className="bg-white p-2.5 rounded-2xl border border-gray-200 shadow-xs shrink-0 mt-2">
-                <DeliveryFeeSelector
-                  valueUSD={deliveryFeeUSD}
-                  onChange={setDeliveryFeeUSD}
-                  exchangeRates={exchangeRates}
-                />
-              </div>
-            )}
-
             {/* TOTALES DE LA ADICIÓN Y BOTONES DE ACCIÓN */}
             <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-xs space-y-2.5 shrink-0 mt-2">
               <div className="flex items-baseline justify-between font-bold text-xs sm:text-sm text-gray-600">
@@ -742,10 +869,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                 <span>+ Adición: <strong className="text-yellow-700 font-black">+${addedSubtotalUSD.toFixed(2)}</strong></span>
               </div>
 
-              {isDeliveryOrder && (
+              {isDeliveryOrder && effectiveDeliveryFee > 0 && (
                 <div className="flex items-baseline justify-between font-bold text-xs sm:text-sm text-gray-600">
                   <span>Costo Delivery:</span>
-                  <span className="text-black font-black">+${effectiveDeliveryFee.toFixed(2)} USD</span>
+                  <span className="text-blue-700 font-black">+${effectiveDeliveryFee.toFixed(2)} USD</span>
                 </div>
               )}
 

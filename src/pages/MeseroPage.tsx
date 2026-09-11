@@ -243,7 +243,8 @@ export const MeseroPage: React.FC = () => {
           proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
           removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
           extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: config.isTakeaway,
+          isTakeaway: Boolean(config.isTakeaway),
+          isDelivery: Boolean(config.isDelivery),
           isCut: config.isCut,
           cutPreference: config.cutPreference,
           notes: getCleanItemNote(config.notes) || undefined,
@@ -253,6 +254,10 @@ export const MeseroPage: React.FC = () => {
       }
       return current;
     });
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
   };
 
   // Confirm Drink Add
@@ -262,6 +267,7 @@ export const MeseroPage: React.FC = () => {
     sugarPreference?: string;
     flavor?: string;
     isTakeaway: boolean;
+    isDelivery?: boolean;
     notes?: string;
   }) => {
     const formattedName = config.flavor
@@ -278,11 +284,16 @@ export const MeseroPage: React.FC = () => {
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
       flavor: config.flavor,
-      isTakeaway: config.isTakeaway,
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
       notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: false,
     };
     setCartItems((prev) => mergeCartItem(prev, newItem));
+
+    if (config.isDelivery && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
   };
 
   // Cart quantity adjustment
@@ -835,7 +846,8 @@ export const MeseroPage: React.FC = () => {
                       handleConfirmBurgerAdd(config);
                       setSelectedBurger(null);
                     }}
-                    defaultTakeaway={activeOrderTarget.type === 'pickup' || activeOrderTarget.type === 'delivery'}
+                    defaultTakeaway={activeOrderTarget.type === 'pickup'}
+                    defaultDelivery={activeOrderTarget.type === 'delivery'}
                     exchangeRates={exchangeRates}
                   />
                 </div>
@@ -851,7 +863,8 @@ export const MeseroPage: React.FC = () => {
                       handleConfirmDrinkAdd(config);
                       setSelectedDrink(null);
                     }}
-                    defaultTakeaway={activeOrderTarget.type === 'pickup' || activeOrderTarget.type === 'delivery'}
+                    defaultTakeaway={activeOrderTarget.type === 'pickup'}
+                    defaultDelivery={activeOrderTarget.type === 'delivery'}
                     exchangeRates={exchangeRates}
                   />
                 </div>

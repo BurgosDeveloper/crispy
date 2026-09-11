@@ -85,6 +85,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
   const areCartItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
     if (a.productId !== b.productId) return false;
     if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
     if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
     if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
     if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
@@ -178,7 +179,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
           proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
           removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
           extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: config.isTakeaway,
+          isTakeaway: Boolean(config.isTakeaway),
+          isDelivery: Boolean(config.isDelivery),
           isCut: config.isCut,
           cutPreference: config.cutPreference,
           notes: getCleanItemNote(config.notes) || undefined,
@@ -188,6 +190,10 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
       }
       return current;
     });
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
   };
 
   // Confirmar Bebida seleccionada
@@ -196,6 +202,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     quantity: number;
     sugarPreference?: string;
     isTakeaway: boolean;
+    isDelivery?: boolean;
     notes?: string;
     flavor?: string;
   }) => {
@@ -213,11 +220,16 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
       drinkType: config.drink.drinkType,
       sugarPreference: config.sugarPreference,
       flavor: config.flavor,
-      isTakeaway: config.isTakeaway,
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
       notes: getCleanItemNote(config.notes) || undefined,
       isNewOrModified: false,
     };
     setCartItems((prev) => mergeCartItem(prev, newItem));
+
+    if (config.isDelivery && deliveryFeeUSD <= 0) {
+      setDeliveryFeeUSD(1.0);
+    }
   };
 
   const updateCartItemQuantity = (itemId: string, delta: number) => {
@@ -398,7 +410,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                   handleConfirmBurgerAdd(config);
                   setSelectedBurger(null);
                 }}
-                defaultTakeaway={target.type === 'pickup' || target.type === 'delivery'}
+                defaultTakeaway={target.type === 'pickup'}
+                defaultDelivery={target.type === 'delivery'}
                 exchangeRates={exchangeRates}
               />
             </div>
@@ -413,7 +426,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                   handleConfirmDrinkAdd(config);
                   setSelectedDrink(null);
                 }}
-                defaultTakeaway={target.type === 'pickup' || target.type === 'delivery'}
+                defaultTakeaway={target.type === 'pickup'}
+                defaultDelivery={target.type === 'delivery'}
                 exchangeRates={exchangeRates}
               />
             </div>

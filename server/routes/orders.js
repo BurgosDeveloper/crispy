@@ -916,7 +916,7 @@ module.exports = function(io) {
   // Adicionar productos a una comanda abierta (Mesero, Caja, Admin)
   router.post('/:id/append-items', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     const { id } = req.params;
-    const { addedItems = [], removedItemIds = [], targetPrinter = 'cocina' } = req.body;
+    const { addedItems = [], removedItemIds = [], targetPrinter = 'cocina', customerName, kitchenNotes } = req.body;
 
     if (!Array.isArray(addedItems) && !Array.isArray(removedItemIds)) {
       return res.status(400).json({ error: 'Debes proporcionar los ítems a adicionar o remover.' });
@@ -1022,9 +1022,22 @@ module.exports = function(io) {
         nextStatus = 'en_preparacion';
       }
 
+      const updateFields = ['total_usd = $1', 'status = $2', 'delivery_fee_usd = $3', 'updated_at = CURRENT_TIMESTAMP'];
+      const updateValues = [newTotalUSD, nextStatus, deliveryFee, id];
+      let paramIdx = 5;
+
+      if (customerName && customerName.trim()) {
+        updateFields.push(`customer_name = $${paramIdx++}`);
+        updateValues.push(customerName.trim());
+      }
+      if (kitchenNotes !== undefined && kitchenNotes !== null) {
+        updateFields.push(`kitchen_notes = $${paramIdx++}`);
+        updateValues.push(kitchenNotes.trim());
+      }
+
       await client.query(
-        `UPDATE orders SET total_usd = $1, status = $2, delivery_fee_usd = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
-        [newTotalUSD, nextStatus, deliveryFee, id]
+        `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $4`,
+        updateValues
       );
 
       // Registrar auditoría de edición en order_edits

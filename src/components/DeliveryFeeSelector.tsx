@@ -29,13 +29,41 @@ export const DeliveryFeeSelector: React.FC<DeliveryFeeSelectorProps> = ({
   const copRate = exchangeRates?.COP || 3950;
   const bsRate = exchangeRates?.Bs || 36.5;
 
+  // Estado local para permitir escritura fluida de decimales (ej: 4, 4. 4,5 etc.)
+  const [customText, setCustomText] = React.useState<string>(() =>
+    currentVal > 0 ? String(currentVal) : ''
+  );
+
+  // Sincronizar si cambia externamente
+  React.useEffect(() => {
+    const parsed = parseFloat(customText.replace(',', '.'));
+    if (isNaN(parsed) && currentVal === 0) return;
+    if (parsed !== currentVal) {
+      setCustomText(currentVal > 0 ? String(currentVal) : '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentVal]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    if (isNaN(val) || val < 0) {
+    const raw = e.target.value;
+    // Permitir dígitos, puntos y comas
+    if (!/^[\d.,]*$/.test(raw)) return;
+    setCustomText(raw);
+
+    const normalized = raw.replace(',', '.');
+    if (normalized === '' || normalized === '.' || normalized === ',') {
       onChange(0);
-    } else {
+      return;
+    }
+    const val = parseFloat(normalized);
+    if (!isNaN(val) && val >= 0) {
       onChange(Number(val.toFixed(2)));
     }
+  };
+
+  const handleSelectSuggested = (fee: number) => {
+    setCustomText(String(fee));
+    onChange(fee);
   };
 
   return (
@@ -68,7 +96,7 @@ export const DeliveryFeeSelector: React.FC<DeliveryFeeSelectorProps> = ({
             <button
               key={fee}
               type="button"
-              onClick={() => onChange(fee)}
+              onClick={() => handleSelectSuggested(fee)}
               className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-yellow-400 border-yellow-500 text-black shadow-xs scale-[1.03]'
@@ -84,18 +112,17 @@ export const DeliveryFeeSelector: React.FC<DeliveryFeeSelectorProps> = ({
         <div className="relative flex items-center">
           <span className="absolute left-2.5 text-xs font-black text-gray-400 pointer-events-none">$</span>
           <input
-            type="number"
-            step="0.25"
-            min="0"
+            type="text"
+            inputMode="decimal"
             placeholder="Otro..."
-            value={currentVal > 0 && !suggestedFees.includes(currentVal) ? currentVal : ''}
+            value={customText}
             onChange={handleInputChange}
             className={`w-24 pl-6 pr-2 py-1 text-xs font-black rounded-xl border outline-none transition-all ${
               currentVal > 0 && !suggestedFees.includes(currentVal)
                 ? 'bg-yellow-100/60 border-yellow-500 text-black font-black ring-1 ring-yellow-400'
                 : 'bg-white border-gray-300 text-gray-800 placeholder-gray-400 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400'
             }`}
-            title="Ingrese un monto manual personalizado si no está en las sugerencias"
+            title="Ingrese un monto manual personalizado si no está en las sugerencias (admite coma o punto)"
           />
         </div>
       </div>

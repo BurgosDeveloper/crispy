@@ -13,10 +13,12 @@ interface DrinkSelectorModalProps {
     quantity: number;
     sugarPreference?: string;
     isTakeaway: boolean;
+    isDelivery?: boolean;
     notes?: string;
     flavor?: string;
   }) => void;
   defaultTakeaway?: boolean;
+  defaultDelivery?: boolean;
   exchangeRates?: { COP: number; Bs: number };
   inline?: boolean;
 }
@@ -29,12 +31,14 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
   onClose,
   onConfirm,
   defaultTakeaway = false,
+  defaultDelivery = false,
   exchangeRates = { COP: 3950, Bs: 36.5 },
   inline = false,
 }) => {
   const [quantity, setQuantity] = useState<number>(1);
   const [sugarPreference, setSugarPreference] = useState<string>('Con azúcar');
-  const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway);
+  const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway && !defaultDelivery);
+  const [isDelivery, setIsDelivery] = useState<boolean>(defaultDelivery);
   const [notes, setNotes] = useState<string>('');
   const [selectedFlavor, setSelectedFlavor] = useState<string>('');
 
@@ -42,11 +46,12 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
     if (drink) {
       setQuantity(1);
       setSugarPreference('Con azúcar');
-      setIsTakeaway(defaultTakeaway);
+      setIsTakeaway(defaultTakeaway && !defaultDelivery);
+      setIsDelivery(defaultDelivery);
       setNotes('');
       setSelectedFlavor(drink.flavors && drink.flavors.length > 0 ? drink.flavors[0] : '');
     }
-  }, [drink, defaultTakeaway]);
+  }, [drink, defaultTakeaway, defaultDelivery]);
 
   if (!isOpen || !drink) return null;
   const copRate = exchangeRates?.COP || 3950;
@@ -67,6 +72,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
       quantity,
       sugarPreference: isJugo ? sugarPreference : undefined,
       isTakeaway,
+      isDelivery,
       notes: notes.trim() || undefined,
       flavor: isFlavorRequired ? selectedFlavor : undefined,
     });
@@ -134,15 +140,51 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-black text-gray-800 select-none bg-white px-3 py-1.5 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors shadow-2xs">
-            <input
-              type="checkbox"
-              checked={isTakeaway}
-              onChange={(e) => setIsTakeaway(e.target.checked)}
-              className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-400 cursor-pointer"
-            />
-            <span>📦 Para Llevar</span>
-          </label>
+          {/* Destino de la Bebida: Salón / Llevar / Delivery */}
+          <div className="flex items-center border border-gray-300 rounded-xl bg-white p-1 shadow-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setIsTakeaway(false);
+                setIsDelivery(false);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                !isTakeaway && !isDelivery
+                  ? 'bg-yellow-400 text-black shadow-xs'
+                  : 'text-gray-600 hover:text-black'
+              }`}
+            >
+              🍽️ SALÓN
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsTakeaway(true);
+                setIsDelivery(false);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                isTakeaway && !isDelivery
+                  ? 'bg-amber-400 text-black shadow-xs'
+                  : 'text-gray-600 hover:text-black'
+              }`}
+            >
+              🛍️ LLEVAR
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsTakeaway(false);
+                setIsDelivery(true);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                isDelivery
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-gray-600 hover:text-black'
+              }`}
+            >
+              🛵 DELIVERY
+            </button>
+          </div>
         </section>
 
         {/* Selector de Sabor / Subtipo */}

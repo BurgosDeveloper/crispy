@@ -12,7 +12,6 @@ import {
   IoCloseCircle,
   IoChevronDown,
   IoChevronUp,
-  IoBagOutline,
   IoCopyOutline,
   IoRefreshOutline,
 } from 'react-icons/io5';
@@ -116,6 +115,7 @@ const createInitialUnitConfig = (
   unitIndex: number,
   burger: Product,
   defaultTakeaway: boolean,
+  defaultDelivery: boolean = false,
   dbProteins: { id: string; name: string; icon: string }[] = AVAILABLE_BURGER_PROTEINS
 ): BurgerUnitConfig => ({
   unitIndex,
@@ -123,7 +123,8 @@ const createInitialUnitConfig = (
   removedIngredients: [],
   selectedFreeToppings: [],
   selectedPaidExtras: [],
-  isTakeaway: defaultTakeaway,
+  isTakeaway: defaultTakeaway && !defaultDelivery,
+  isDelivery: defaultDelivery,
   isCut: false,
   cutPreference: 'Entera',
   notes: '',
@@ -131,7 +132,8 @@ const createInitialUnitConfig = (
 });
 
 function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
-  if (a.isTakeaway !== b.isTakeaway) return false;
+  if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+  if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
   if (a.isCut !== b.isCut) return false;
   if (a.cutPreference !== b.cutPreference) return false;
   if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
@@ -162,6 +164,7 @@ export interface BurgerOrderConfirmationItem {
   removedIngredients: string[];
   extras: { name: string; price: number }[];
   isTakeaway: boolean;
+  isDelivery?: boolean;
   isCut: boolean;
   cutPreference: 'Picada' | 'Entera';
   notes?: string;
@@ -176,6 +179,7 @@ interface BurgerBuilderModalProps {
   onClose: () => void;
   onConfirm: (config: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]) => void;
   defaultTakeaway?: boolean;
+  defaultDelivery?: boolean;
   exchangeRates?: { COP: number; Bs: number };
   inline?: boolean;
 }
@@ -188,6 +192,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   onClose,
   onConfirm,
   defaultTakeaway = false,
+  defaultDelivery = false,
   exchangeRates = { COP: 3950, Bs: 36.5 },
   inline = false,
 }) => {
@@ -213,13 +218,13 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
   useEffect(() => {
     if (burger) {
-      setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, effectiveProteins)]);
+      setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, defaultDelivery, effectiveProteins)]);
       setActiveUnitIndex(0);
       setShowProteinas(false);
       setShowAdicionales(false);
       setCopyToast('');
     }
-  }, [burger, defaultTakeaway, effectiveProteins]);
+  }, [burger, defaultTakeaway, defaultDelivery, effectiveProteins]);
 
   // Lista ESTRICTA de los únicos 5 toppings gratis (Instrucción explícita del usuario)
   const freeToppingsList = useMemo(() => STRICT_FREE_TOPPINGS, []);
@@ -302,7 +307,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   // Resetear unidad activa a valores iniciales
   const handleResetCurrentUnit = () => {
     if (!burger) return;
-    const fresh = createInitialUnitConfig(activeUnitIndex, burger, defaultTakeaway, effectiveProteins);
+    const fresh = createInitialUnitConfig(activeUnitIndex, burger, defaultTakeaway, defaultDelivery, effectiveProteins);
     updateCurrentUnit(() => fresh);
     setCopyToast(`Hamburguesa #${activeUnitIndex + 1} restablecida a su receta base.`);
     setTimeout(() => setCopyToast(''), 2000);
@@ -442,7 +447,8 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
         proteins: u.proteins.length > 0 ? u.proteins : undefined,
         removedIngredients: u.removedIngredients,
         extras: combinedExtras,
-        isTakeaway: u.isTakeaway,
+        isTakeaway: Boolean(u.isTakeaway),
+        isDelivery: Boolean(u.isDelivery),
         isCut: u.isCut,
         cutPreference: u.cutPreference,
         notes: userNote || undefined,
@@ -541,21 +547,60 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
           {/* Opciones Rápidas: Para Llevar y Picada / Entera de la unidad activa */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Para Llevar */}
-            <button
-              type="button"
-              onClick={() =>
-                updateCurrentUnit((prev) => ({ ...prev, isTakeaway: !prev.isTakeaway }))
-              }
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 border transition-all cursor-pointer shadow-xs ${
-                currentUnit.isTakeaway
-                  ? 'bg-amber-400 text-black border-amber-500 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              <IoBagOutline className="text-base" />
-              <span>{currentUnit.isTakeaway ? '📦 PARA LLEVAR' : '🍽️ EN SALÓN'}</span>
-            </button>
+            {/* Destino de la Hamburguesa: Salón / Llevar / Delivery */}
+            <div className="flex items-center border border-gray-300 rounded-xl bg-white p-1 shadow-xs">
+              <button
+                type="button"
+                onClick={() =>
+                  updateCurrentUnit((prev) => ({
+                    ...prev,
+                    isTakeaway: false,
+                    isDelivery: false,
+                  }))
+                }
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                  !currentUnit.isTakeaway && !currentUnit.isDelivery
+                    ? 'bg-yellow-400 text-black shadow-xs'
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                🍽️ SALÓN
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  updateCurrentUnit((prev) => ({
+                    ...prev,
+                    isTakeaway: true,
+                    isDelivery: false,
+                  }))
+                }
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                  currentUnit.isTakeaway && !currentUnit.isDelivery
+                    ? 'bg-amber-400 text-black shadow-xs'
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                🛍️ LLEVAR
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  updateCurrentUnit((prev) => ({
+                    ...prev,
+                    isTakeaway: false,
+                    isDelivery: true,
+                  }))
+                }
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                  currentUnit.isDelivery
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                🛵 DELIVERY
+              </button>
+            </div>
 
             {/* Picada vs Entera */}
             <div className="flex items-center border border-gray-300 rounded-xl bg-white p-1 shadow-xs">

@@ -226,6 +226,7 @@ export interface BurgerUnitConfig {
   selectedFreeToppings: string[];
   selectedPaidExtras: { name: string; price: number }[];
   isTakeaway: boolean;
+  isDelivery?: boolean;
   isCut: boolean;
   cutPreference: 'Picada' | 'Entera';
   notes: string;
