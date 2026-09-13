@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Order, OrderItem, Product, Ingredient } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
@@ -86,20 +86,42 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     }
   }, [isOpen, order?.id, order?.deliveryFeeUSD, order?.type, order?.customerName, order?.kitchenNotes]);
 
-  if (!isOpen || !order) return null;
-
   // Filtrar productos por turno si aplica
-  const activeProducts = products
-    .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const activeProducts = useMemo(() => {
+    return products
+      .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [products, userSession?.shift]);
 
-  const availableExtras = ingredients
-    .filter((i) => (i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const availableExtras = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
 
-  const availableSalsas = ingredients
-    .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const availableFreeToppings = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.ingredientType === 'gratis' || i.category === 'Gratis') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
+
+  const availableSalsas = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
+
+  const availableProteins = useMemo(() => {
+    return ingredients
+      .filter(
+        (i) =>
+          (i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes') &&
+          (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
+
+  if (!isOpen || !order) return null;
 
   const areAppendItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
     if (a.productId !== b.productId) return false;
@@ -476,9 +498,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                 <BurgerBuilderModal
                   burger={selectedBurger}
                   availableExtras={availableExtras}
-                  availableProteins={ingredients.filter(
-                    (i) => i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes'
-                  )}
+                  availableProteins={availableProteins}
+                  availableFreeToppings={availableFreeToppings}
                   isOpen={true}
                   inline={true}
                   onClose={() => setSelectedBurger(null)}

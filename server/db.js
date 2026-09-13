@@ -264,12 +264,12 @@ async function initDb() {
         name = EXCLUDED.name,
         category = EXCLUDED.category,
         drink_type = EXCLUDED.drink_type,
-        price = EXCLUDED.price,
-        description = EXCLUDED.description,
+        price = COALESCE(products.price, EXCLUDED.price),
+        description = COALESCE(products.description, EXCLUDED.description),
         base_ingredients = EXCLUDED.base_ingredients,
         protein_count = EXCLUDED.protein_count,
         default_proteins = EXCLUDED.default_proteins,
-        flavors = COALESCE(EXCLUDED.flavors, products.flavors);`,
+        flavors = COALESCE(products.flavors, EXCLUDED.flavors);`,
 
       // 4. Preservar y normalizar productos adicionales creados en producción (no los borra, respeta sus categorías)
       `UPDATE products SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,
@@ -317,11 +317,11 @@ async function initDb() {
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         ingredient_type = EXCLUDED.ingredient_type,
-        price_usd = EXCLUDED.price_usd,
+        price_usd = COALESCE(ingredients.price_usd, EXCLUDED.price_usd),
         is_base = EXCLUDED.is_base,
         is_extra = EXCLUDED.is_extra,
         category = EXCLUDED.category,
-        available = EXCLUDED.available;`,
+        available = COALESCE(ingredients.available, EXCLUDED.available);`,
 
       // 6. Normalización de ingredientes adicionales
       `UPDATE ingredients SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,

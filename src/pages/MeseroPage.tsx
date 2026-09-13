@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Product, OrderItem, Order, Ingredient } from '../data/mockData';
@@ -110,25 +110,39 @@ export const MeseroPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const activeProducts = products
-    .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const activeProducts = useMemo(() => {
+    return products
+      .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [products, userSession?.shift]);
 
-  const availableExtras = ingredients
-    .filter((i) => (i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const availableExtras = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
 
-  const availableSalsas = ingredients
-    .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const availableFreeToppings = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.ingredientType === 'gratis' || i.category === 'Gratis') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
 
-  const availableProteins = ingredients
-    .filter(
-      (i) =>
-        (i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes') &&
-        (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
-    )
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const availableSalsas = useMemo(() => {
+    return ingredients
+      .filter((i) => (i.ingredientType === 'salsa' || i.category === 'Salsas') && (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
+
+  const availableProteins = useMemo(() => {
+    return ingredients
+      .filter(
+        (i) =>
+          (i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes') &&
+          (!i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
 
   // Open order creation
   const handleOpenOrder = (type: 'mesa' | 'delivery' | 'pickup', tableNumber?: number, title?: string) => {
@@ -838,6 +852,7 @@ export const MeseroPage: React.FC = () => {
                     burger={selectedBurger}
                     availableExtras={availableExtras}
                     availableProteins={availableProteins}
+                    availableFreeToppings={availableFreeToppings}
                     isOpen={true}
                     inline={true}
                     onClose={() => setSelectedBurger(null)}
@@ -1243,6 +1258,7 @@ export const MeseroPage: React.FC = () => {
           burger={selectedBurger}
           availableExtras={availableExtras}
           availableProteins={availableProteins}
+          availableFreeToppings={availableFreeToppings}
           isOpen={!!selectedBurger}
           onClose={() => setSelectedBurger(null)}
           onConfirm={handleConfirmBurgerAdd}

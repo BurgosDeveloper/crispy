@@ -253,6 +253,24 @@ export class ReportService {
     return `Desde ${this.reportDate(data.dateRange.from)} hasta ${this.reportDate(data.dateRange.to)}`;
   }
 
+  // Normaliza y unifica el nombre del producto base para reportes (agrupando todos los sabores de una bebida bajo su producto base)
+  public getReportBaseProductName(it: any): string {
+    let raw = (it.productName || it.name || 'Producto').trim();
+    raw = raw.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '').trim();
+
+    if (it.flavor) {
+      const escaped = String(it.flavor).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      raw = raw.replace(new RegExp(`\\s*\\(${escaped}\\)\\s*$`, 'i'), '').trim();
+    }
+
+    const cat = (it.category || '').toLowerCase();
+    const isDrink = cat.includes('bebida') || cat.includes('refresco') || cat.includes('jugo') || !!it.drinkType || !!it.flavor;
+    if (isDrink) {
+      raw = raw.replace(/\s*\([^)]+\)\s*$/g, '').trim();
+    }
+    return raw;
+  }
+
   // 1. Reporte de Hamburguesas e Ítems Vendidos
   generateProductsSoldReport(orders: Order[], rates: ExchangeRates) {
     const paidOrders = orders.filter((o) => o.paymentStatus === 'pagado' || o.paymentStatus === 'credito');
@@ -262,7 +280,7 @@ export class ReportService {
       // 1. Productos y Adicionales
       o.items.forEach((it) => {
         const catLower = (it.category || '').toLowerCase();
-        const cleanName = (it.productName || 'Producto').replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
+        const cleanName = this.getReportBaseProductName(it);
         const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
         const displayName = cleanName;
         const itQty = it.quantity || 1;
@@ -602,7 +620,7 @@ export class ReportService {
     const tally: Record<string, { category: string; name: string; quantity: number; totalUSD: number }> = {};
     data.items.forEach((item) => {
       const catLower = (item.category || '').toLowerCase();
-      const cleanName = (item.productName || 'Producto').replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '').trim();
+      const cleanName = this.getReportBaseProductName(item);
       const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || cleanName.toLowerCase().includes('burger') || cleanName.toLowerCase().includes('crispy');
       const category = isBurger ? 'Hamburguesas' : (item.category || 'Sin categoría');
       const displayName = cleanName;
@@ -852,8 +870,7 @@ export class ReportService {
 
     cashItems.forEach((it: any) => {
       const itQty = Number(it.quantity) || 1;
-      const rawName = it.productName || it.name || 'Producto';
-      const cleanName = rawName.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '').trim();
+      const cleanName = this.getReportBaseProductName(it);
 
       const extrasList: any[] = [];
       if (Array.isArray(it.extras)) {

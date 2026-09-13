@@ -175,6 +175,7 @@ interface BurgerBuilderModalProps {
   burger: Product | null;
   availableExtras: Ingredient[];
   availableProteins?: Ingredient[];
+  availableFreeToppings?: Ingredient[];
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (config: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]) => void;
@@ -188,6 +189,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   burger,
   availableExtras,
   availableProteins,
+  availableFreeToppings,
   isOpen,
   onClose,
   onConfirm,
@@ -214,29 +216,74 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       }));
     }
     return AVAILABLE_BURGER_PROTEINS;
-  }, [availableProteins]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableProteins ? availableProteins.map((p) => `${p.id}:${p.name}`).join('|') : '']);
+
+  // Ref para controlar que la inicialización de unidades solo ocurra al abrir el modal o cambiar de hamburguesa
+  // Esto previene que re-renders del padre o eventos Socket.IO deseleccionen ingredientes
+  const activeBurgerIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    if (burger) {
-      setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, defaultDelivery, effectiveProteins)]);
-      setActiveUnitIndex(0);
-      setShowProteinas(false);
-      setShowAdicionales(false);
-      setCopyToast('');
+    if (isOpen && burger) {
+      if (activeBurgerIdRef.current !== burger.id) {
+        activeBurgerIdRef.current = burger.id;
+        setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, defaultDelivery, effectiveProteins)]);
+        setActiveUnitIndex(0);
+        setShowProteinas(false);
+        setShowAdicionales(false);
+        setCopyToast('');
+      }
+    } else if (!isOpen) {
+      activeBurgerIdRef.current = null;
     }
-  }, [burger, defaultTakeaway, defaultDelivery, effectiveProteins]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, burger?.id]);
 
-  // Lista ESTRICTA de los únicos 5 toppings gratis (Instrucción explícita del usuario)
-  const freeToppingsList = useMemo(() => STRICT_FREE_TOPPINGS, []);
+  // Lista dinámica de Toppings Gratis (leídos desde la BD vía availableFreeToppings o filtrados de availableExtras, con fallback seguro)
+  const freeToppingsList = useMemo(() => {
+    let list: Ingredient[] = [];
+    if (availableFreeToppings && availableFreeToppings.length > 0) {
+      list = availableFreeToppings;
+    } else if (availableExtras && availableExtras.length > 0) {
+      list = availableExtras.filter(
+        (i) => i.ingredientType === 'gratis' || i.category?.toLowerCase() === 'gratis'
+      );
+    }
 
-  // Lista de Adicionales (incluyendo $0.00, excluyendo los 5 toppings gratis estrictos)
+    if (list.length > 0) {
+      return list.map((ing) => ({
+        id: ing.id,
+        // Limpiar sufijo "(GRATIS)" para la etiqueta visual de los botones
+        name: ing.name.replace(/\s*\(GRATIS\)\s*/gi, '').trim(),
+        rawName: ing.name,
+      }));
+    }
+
+    return STRICT_FREE_TOPPINGS.map((t) => ({ ...t, rawName: t.name }));
+  }, [availableFreeToppings, availableExtras]);
+
+  // Lista de Adicionales Pagos (excluyendo cualquier adicional gratis de la BD para evitar duplicados)
   const paidExtrasList = useMemo(() => {
-    const freeNames = STRICT_FREE_TOPPINGS.map((t) => t.name.toLowerCase());
+    const freeNames = freeToppingsList.map((t) => t.name.toLowerCase().trim());
+    const freeRawNames = freeToppingsList.map((t) => (t.rawName || t.name).toLowerCase().trim());
+    const freeIds = freeToppingsList.map((t) => t.id.toLowerCase());
+
     return availableExtras.filter((extra) => {
+      const extraId = (extra.id || '').toLowerCase();
+      const extraName = (extra.name || '').toLowerCase().trim();
+      const cleanExtraName = extraName.replace(/\s*\(gratis\)\s*/gi, '').trim();
       const price = getExtraPrice(extra);
-      return price >= 0 && !freeNames.includes(extra.name.toLowerCase().trim());
+
+      // Excluir si es tipo gratis o categoría gratis
+      if (extra.ingredientType === 'gratis' || extra.category?.toLowerCase() === 'gratis') {
+        return false;
+      }
+      if (freeIds.includes(extraId)) return false;
+      if (freeNames.includes(cleanExtraName) || freeRawNames.includes(extraName)) return false;
+
+      return price >= 0;
     });
-  }, [availableExtras]);
+  }, [availableExtras, freeToppingsList]);
 
   // Proteínas predeterminadas de la receta original
   const defaultRecipeProteins = useMemo(() => {
@@ -730,7 +777,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           </section>
         )}
 
-        {/* 3. ÚNICOS 5 ADICIONALES GRATIS OFICIALES */}
+        {/* 3. ADICIONALES Y TOPPINGS GRATIS DE LA BASE DE DATOS */}
         <section className="bg-amber-50/60 p-3.5 sm:p-4 rounded-2xl border border-yellow-300 shadow-xs space-y-2.5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-xs sm:text-sm font-black text-yellow-950 uppercase tracking-wide flex items-center gap-1.5">
@@ -744,7 +791,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {freeToppingsList.map((top) => {
               const isSelected = currentUnit.selectedFreeToppings.includes(top.name);
               return (

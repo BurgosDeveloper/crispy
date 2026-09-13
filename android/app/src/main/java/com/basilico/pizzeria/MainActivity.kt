@@ -41,7 +41,7 @@ class MainActivity : Activity() {
 
     private val PREFS_NAME = "CrispyPosPrefs"
     private val KEY_SERVER_IP = "server_ip"
-    private val DEFAULT_SERVER_IP = "192.168.1.6:3001"
+    private val DEFAULT_SERVER_IP = "192.168.10.47:3001"
 
     private var backPressedTime: Long = 0
 
@@ -370,7 +370,7 @@ class MainActivity : Activity() {
         val currentIp = getSavedServerIp()
         val input = EditText(this).apply {
             setText(currentIp)
-            setHint("Ej: 192.168.1.6:3001 o 192.168.1.6")
+            setHint("Ej: 192.168.10.47:3001 o 192.168.10.47")
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setPadding(40, 30, 40, 30)
             setTextColor(Color.WHITE)
@@ -397,7 +397,7 @@ class MainActivity : Activity() {
                     loadMeseroUrl()
                 }
             }
-            .setNeutralButton("Restablecer a 192.168.1.6") { _, _ ->
+            .setNeutralButton("Restablecer a 192.168.10.47") { _, _ ->
                 prefs.edit().putString(KEY_SERVER_IP, DEFAULT_SERVER_IP).apply()
                 Toast.makeText(this, "Restablecido a: $DEFAULT_SERVER_IP", Toast.LENGTH_SHORT).show()
                 errorLayout.visibility = View.GONE

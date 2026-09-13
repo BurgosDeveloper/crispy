@@ -169,9 +169,13 @@ module.exports = function(io) {
 
       console.log(`✅ [COMANDA REGISTRADA OK] ${createdOrder.orderNumber} enviada a WebSocket`);
       if (requiresKitchen && targetPrinter !== 'ninguna') {
-        void printKitchenTicket(createdOrder, targetPrinter || 'cocina')
+        void printKitchenTicket(createdOrder, targetPrinter || 'cocina', io)
           .then((result) => {
-            if (result.printed) console.log(`🖨️ [COMANDA IMPRESA] ${createdOrder.orderNumber} en ${targetPrinter || 'cocina'} (${result.copies} copia${result.copies === 1 ? '' : 's'})`);
+            if (result.fallback) {
+              console.log(`🚨 [RESPALDO EN CAJA] Comanda ${createdOrder.orderNumber} impresa en CAJA con alerta para cocina`);
+            } else if (result.printed) {
+              console.log(`🖨️ [COMANDA IMPRESA] ${createdOrder.orderNumber} en ${targetPrinter || 'cocina'} (${result.copies} copia${result.copies === 1 ? '' : 's'})`);
+            }
           })
           .catch((printError) => {
             console.error(`⚠️ [IMPRESIÓN PENDIENTE] ${createdOrder.orderNumber}: ${printError.message}`);
@@ -1174,8 +1178,12 @@ module.exports = function(io) {
       // Impresión térmica selectiva según destino
       if (kitchenItemsAdded.length > 0 && updatedOrder && targetPrinter !== 'ninguna') {
         try {
-          await printKitchenAdditionTicket(updatedOrder, addedItems, targetPrinter);
-          console.log(`🖨️ [TICKET ADICIÓN] Impreso exitosamente para comanda #${order.order_number} en destino: ${targetPrinter}`);
+          const addResult = await printKitchenAdditionTicket(updatedOrder, addedItems, targetPrinter, io);
+          if (addResult?.fallback) {
+            console.log(`🚨 [RESPALDO EN CAJA] Ticket adición #${order.order_number} impreso en CAJA con alerta para cocina`);
+          } else if (addResult?.printed) {
+            console.log(`🖨️ [TICKET ADICIÓN] Impreso exitosamente para comanda #${order.order_number} en destino: ${targetPrinter}`);
+          }
         } catch (err) {
           console.warn(`⚠️ [IMPRESORA TÉRMICA] No se pudo imprimir ticket de adición: ${err.message}`);
         }
@@ -1241,14 +1249,17 @@ module.exports = function(io) {
         }))
       };
 
-      const printResult = await printKitchenTicket(fullOrder, targetPrinter);
+      const printResult = await printKitchenTicket(fullOrder, targetPrinter, io);
       if (!printResult || printResult.printed === false) {
         if (printResult?.reason === 'no_kitchen_items') {
           return res.status(400).json({ error: 'Esta comanda no contiene ítems que requieran preparación en cocina.' });
         }
-        return res.status(502).json({ error: 'No se pudo conectar con la impresora de cocina/caja.' });
+        return res.status(502).json({ error: 'No se pudo conectar con la impresora de cocina ni con la de caja.' });
       }
-      return res.json({ success: true, message: 'Comanda de cocina reimpresa exitosamente.' });
+      const message = printResult.fallback
+        ? 'Aviso: La impresora de cocina no respondió. La comanda se imprimió en CAJA como respaldo.'
+        : 'Comanda de cocina reimpresa exitosamente.';
+      return res.json({ success: true, message, fallback: !!printResult.fallback });
     } catch (err) {
       console.error('Error al reimprimir comanda:', err);
       return res.status(500).json({ error: 'Error al procesar la reimpresión de comanda.' });

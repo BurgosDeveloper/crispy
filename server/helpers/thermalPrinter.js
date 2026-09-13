@@ -448,9 +448,10 @@ function itemDetails(item, order = {}) {
   for (const ext of rawExtras) {
     const extName = typeof ext === 'string' ? ext : (ext.name || '');
     const extPrice = typeof ext === 'object' ? Number(ext.price) || 0 : 0;
-    const abbrev = abbreviateFreeTopping(extName);
-    if (abbrev && extPrice === 0) {
-      if (!freeToppings.includes(abbrev)) freeToppings.push(abbrev);
+    if (extPrice === 0 && extName) {
+      const abbrev = abbreviateFreeTopping(extName);
+      const tag = abbrev || extName.replace(/\s*\(GRATIS\)\s*/gi, '').trim().toUpperCase();
+      if (!freeToppings.includes(tag)) freeToppings.push(tag);
     } else if (extName) {
       paidExtras.push(extName);
     }
@@ -587,6 +588,21 @@ function addReportHeader(lines, title, data, width = LINE_WIDTH, formatSetup = P
   lines.push(...wrapText(`TASAS: 1 USD = ${Number(data?.exchangeRates?.COP) || 3950} COP | ${Number(data?.exchangeRates?.Bs) || 36.5} Bs`, width));
 }
 
+function getReportBaseProductName(item = {}) {
+  let name = (item.productName || item.name || 'Item').trim();
+  name = name.replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '').trim();
+  if (item.flavor) {
+    const escaped = String(item.flavor).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    name = name.replace(new RegExp(`\\s*\\(${escaped}\\)\\s*$`, 'i'), '').trim();
+  }
+  const cat = (item.category || '').toLowerCase();
+  const isDrink = cat.includes('bebida') || cat.includes('refresco') || cat.includes('jugo') || !!item.drinkType || !!item.flavor;
+  if (isDrink) {
+    name = name.replace(/\s*\([^)]+\)\s*$/g, '').trim();
+  }
+  return name;
+}
+
 function buildReportTicket(reportType, data) {
   const titles = {
     contable: 'REPORTE CONTABLE',
@@ -613,9 +629,7 @@ function buildReportTicket(reportType, data) {
     for (const item of data.items || []) {
       const catLower = (item.category || '').toLowerCase();
       const isBurger = catLower.includes('burger') || catLower.includes('hamburguesa') || (item.productName || '').toLowerCase().includes('burger') || (item.productName || '').toLowerCase().includes('crispy');
-      const fullName = (item.productName || item.name || 'Item')
-        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
-        .trim();
+      const fullName = getReportBaseProductName(item);
       const itQty = Number(item.quantity) || 1;
 
       // Extraer adicionales pagos
@@ -1109,7 +1123,7 @@ function consolidateKitchenItems(items, order) {
   });
 }
 
-function buildKitchenTicket(order) {
+function buildKitchenTicket(order, isFallback = false) {
   const allItems = order.items || [];
   const orderType = (order.type || '').toLowerCase();
   const isPickupOrDelivery = orderType === 'delivery' || orderType === 'pickup';
@@ -1122,11 +1136,30 @@ function buildKitchenTicket(order) {
   const lines = [
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
+  ];
+
+  if (isFallback) {
+    lines.push(
+      '\x1Ba\x01',
+      '\x1BE\x01',
+      kitchenDivider('='),
+      kitchenCentered('*** ALERTA ***'),
+      kitchenCentered('FALLO EN COCINA'),
+      kitchenCentered('IMPRESO EN CAJA'),
+      kitchenCentered('(POR CABLE)'),
+      kitchenCentered('ENTREGAR A COCINA!'),
+      kitchenDivider('='),
+      '\x1BE\x00',
+      '\x1Ba\x00'
+    );
+  }
+
+  lines.push(
     '\x1Ba\x01',
     `COMANDA: #${printableText(order.orderNumber)}`,
     '\x1Ba\x00',
     `HORA: ${formatKitchenTime(order.createdAt)}`,
-  ];
+  );
 
   if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
@@ -1169,7 +1202,7 @@ function buildKitchenTicket(order) {
   return Buffer.from(lines.join('\n'), 'ascii');
 }
 
-function buildKitchenAdditionTicket(order, addedItems) {
+function buildKitchenAdditionTicket(order, addedItems, isFallback = false) {
   const allItems = addedItems || [];
   const orderType = (order.type || '').toLowerCase();
   const isPickupOrDelivery = orderType === 'delivery' || orderType === 'pickup';
@@ -1182,12 +1215,31 @@ function buildKitchenAdditionTicket(order, addedItems) {
   const lines = [
     '\x1B@',
     KITCHEN_FORMAT_SETUP,
+  ];
+
+  if (isFallback) {
+    lines.push(
+      '\x1Ba\x01',
+      '\x1BE\x01',
+      kitchenDivider('='),
+      kitchenCentered('*** ALERTA ***'),
+      kitchenCentered('FALLO EN COCINA'),
+      kitchenCentered('IMPRESO EN CAJA'),
+      kitchenCentered('(POR CABLE)'),
+      kitchenCentered('ENTREGAR A COCINA!'),
+      kitchenDivider('='),
+      '\x1BE\x00',
+      '\x1Ba\x00'
+    );
+  }
+
+  lines.push(
     '\x1Ba\x01',
     'ADICION COCINA',
     `COMANDA: #${printableText(order.orderNumber)}`,
     '\x1Ba\x00',
     `HORA: ${formatKitchenTime(new Date())}`,
-  ];
+  );
 
   if (orderType === 'mesa' && order.tableNumber) {
     lines.push(`SERVICIO: MESA #${order.tableNumber}`);
@@ -1429,20 +1481,101 @@ async function printTestTicket(targetPrinter = 'caja') {
   return { success: true, results };
 }
 
-async function printKitchenTicket(order, targetPrinter = 'cocina') {
-  const payload = buildKitchenTicket(order);
-  if (!payload) {
-    return { printed: false, reason: 'no_kitchen_items' };
+async function sendKitchenTicketWithFallback(payloadNormal, payloadFallback, targetPrinter = 'cocina', order = {}, io = null) {
+  const configs = loadDualPrinterConfig();
+  const shouldPrintKitchen = targetPrinter === 'cocina' || targetPrinter === 'ambas' || targetPrinter === 'auto';
+  const shouldPrintCajaExplicit = targetPrinter === 'caja' || targetPrinter === 'ambas';
+
+  let kitchenSuccess = false;
+  let kitchenError = null;
+
+  // 1. Intento primario en impresora de cocina (LAN / Wi-Fi)
+  if (shouldPrintKitchen && configs.cocina.enabled) {
+    try {
+      if (configs.cocina.connectionType === 'lan' && (!configs.cocina.host || !Number.isInteger(configs.cocina.port))) {
+        throw new Error('Impresora de cocina sin IP o puerto válido configurado.');
+      }
+      for (let copy = 0; copy < configs.cocina.copies; copy++) {
+        await sendRawTicket(payloadNormal, configs.cocina);
+      }
+      kitchenSuccess = true;
+      console.log(`🖨️ [COCINA OK] Comanda #${order.orderNumber || ''} impresa en cocina (${configs.cocina.copies} copia(s))`);
+    } catch (err) {
+      kitchenError = err;
+      console.warn(`⚠️ [COCINA FALLÓ] Comanda #${order.orderNumber || ''} no pudo imprimirse en cocina: ${err.message}. Activando respaldo inmediato en CAJA...`);
+    }
   }
-  return sendRawTicketToTarget(payload, targetPrinter, 'cocina');
+
+  // 2. Si cocina falló (por conectividad/timeout/desconexión) y el destino incluía cocina:
+  // RESPALDO INMEDIATO EN IMPRESORA DE CAJA (CON CABLE) CON AVISO PARA COCINA
+  let fallbackSuccess = false;
+  let fallbackError = null;
+  if (!kitchenSuccess && shouldPrintKitchen) {
+    if (configs.caja.enabled) {
+      try {
+        for (let copy = 0; copy < configs.caja.copies; copy++) {
+          await sendRawTicket(payloadFallback, configs.caja);
+        }
+        fallbackSuccess = true;
+        console.log(`🚨 [RESPALDO CAJA OK] Comanda #${order.orderNumber || ''} impresa en impresora de CAJA por fallo de cocina. Alerta visible incluida.`);
+        // Cancelación y purga de cola: Al marcar fallbackSuccess como true, NO se programa ningún reintento hacia cocina.
+        // Se emite alerta por WebSocket para cajera y mesonero.
+        if (io) {
+          io.emit('order:kitchen_fallback', {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            reason: `Fallo de conexión en cocina (${kitchenError ? kitchenError.message : 'desconectada'}). Imprimiendo respaldo en caja.`,
+          });
+        }
+      } catch (err) {
+        fallbackError = err;
+        console.error(`❌ [FALLBACK CAJA FALLÓ] No se pudo imprimir respaldo en caja: ${err.message}`);
+      }
+    } else {
+      console.warn(`⚠️ [CAJA DESHABILITADA] No se pudo imprimir respaldo en caja porque está deshabilitada.`);
+    }
+  }
+
+  // 3. Si el usuario solicitó explícitamente imprimir en 'ambas' o 'caja' y no se hizo fallback previo
+  let cajaSuccess = false;
+  if (shouldPrintCajaExplicit && !fallbackSuccess && configs.caja.enabled) {
+    try {
+      for (let copy = 0; copy < configs.caja.copies; copy++) {
+        await sendRawTicket(payloadNormal, configs.caja);
+      }
+      cajaSuccess = true;
+    } catch (err) {
+      console.warn(`⚠️ [CAJA EXPLÍCITO ERROR]: ${err.message}`);
+    }
+  }
+
+  const printedAny = kitchenSuccess || fallbackSuccess || cajaSuccess;
+  return {
+    printed: printedAny,
+    fallback: fallbackSuccess,
+    kitchenPrinted: kitchenSuccess,
+    cajaPrinted: fallbackSuccess || cajaSuccess,
+    copies: configs.cocina.copies || 1,
+    reason: !printedAny ? (kitchenError ? kitchenError.message : fallbackError ? fallbackError.message : 'no_printer_available') : undefined,
+  };
 }
 
-async function printKitchenAdditionTicket(order, addedItems, targetPrinter = 'cocina') {
-  const payload = buildKitchenAdditionTicket(order, addedItems);
-  if (!payload) {
+async function printKitchenTicket(order, targetPrinter = 'cocina', io = null) {
+  const payloadNormal = buildKitchenTicket(order, false);
+  if (!payloadNormal) {
     return { printed: false, reason: 'no_kitchen_items' };
   }
-  return sendRawTicketToTarget(payload, targetPrinter, 'cocina');
+  const payloadFallback = buildKitchenTicket(order, true);
+  return sendKitchenTicketWithFallback(payloadNormal, payloadFallback, targetPrinter, order, io);
+}
+
+async function printKitchenAdditionTicket(order, addedItems, targetPrinter = 'cocina', io = null) {
+  const payloadNormal = buildKitchenAdditionTicket(order, addedItems, false);
+  if (!payloadNormal) {
+    return { printed: false, reason: 'no_kitchen_items' };
+  }
+  const payloadFallback = buildKitchenAdditionTicket(order, addedItems, true);
+  return sendKitchenTicketWithFallback(payloadNormal, payloadFallback, targetPrinter, order, io);
 }
 
 function buildReceiptTicket(order, rates = {}) {

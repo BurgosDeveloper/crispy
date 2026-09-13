@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product, OrderItem, Ingredient } from '../../data/mockData';
 import { ProductTextCatalog } from './ProductTextCatalog';
@@ -60,26 +60,42 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
 
-  // Filtrado de catálogo por turno
-  const activeProducts = products
-    .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  // Filtrado de catálogo por turno memoizado para evitar re-renders y reseteos
+  const activeProducts = useMemo(() => {
+    return products
+      .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [products, userSession?.shift]);
 
-  const activeIngredients = ingredients
-    .filter((i) => !i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const activeIngredients = useMemo(() => {
+    return ingredients
+      .filter((i) => !i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
 
-  const availableExtras = activeIngredients.filter(
-    (i) => i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings'
-  );
+  const availableExtras = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings'
+    );
+  }, [activeIngredients]);
 
-  const availableProteins = activeIngredients.filter(
-    (i) => i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes'
-  );
+  const availableFreeToppings = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.ingredientType === 'gratis' || i.category === 'Gratis'
+    );
+  }, [activeIngredients]);
 
-  const availableSalsas = activeIngredients.filter(
-    (i) => i.category === 'Salsas' || i.ingredientType === 'salsa'
-  );
+  const availableProteins = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes'
+    );
+  }, [activeIngredients]);
+
+  const availableSalsas = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.category === 'Salsas' || i.ingredientType === 'salsa'
+    );
+  }, [activeIngredients]);
 
   // Helper para comparar ítems idénticos en carrito
   const areCartItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
@@ -403,6 +419,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 burger={selectedBurger}
                 availableExtras={availableExtras}
                 availableProteins={availableProteins}
+                availableFreeToppings={availableFreeToppings}
                 isOpen={true}
                 inline={true}
                 onClose={() => setSelectedBurger(null)}
