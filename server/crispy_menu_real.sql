@@ -8,11 +8,7 @@
 
 BEGIN;
 
--- 1. Limpieza de catálogo anterior (preservando integridad de comandas históricas)
-DELETE FROM products;
-DELETE FROM ingredients;
-
--- 2. INSERCIÓN DE PRODUCTOS (Hamburguesas, Platos y Bebidas)
+-- 1. INSERCIÓN DE PRODUCTOS (Hamburguesas, Platos y Bebidas - solo si no existen)
 INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, shift) VALUES
 -- --- HAMBURGUESAS Y PLATOS ---
 (
@@ -244,9 +240,10 @@ INSERT INTO products (id, name, category, drink_type, price, description, image,
   NULL,
   NULL,
   'ambos'
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
--- 3. INSERCIÓN DE INGREDIENTES, ADICIONALES Y TOPPINGS GRATIS
+-- 2. INSERCIÓN DE INGREDIENTES, ADICIONALES Y TOPPINGS GRATIS (solo si no existen)
 INSERT INTO ingredients (id, name, price_usd, is_base, is_extra, category, available, shift) VALUES
 -- --- ADICIONALES PAGOS ---
 ('ing-adicional-tocineta', 'Tocineta', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
@@ -281,6 +278,7 @@ INSERT INTO ingredients (id, name, price_usd, is_base, is_extra, category, avail
 ('ing-base-lechuga', 'Lechuga', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
 ('ing-base-tomate', 'Tomate', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
 ('ing-base-cebolla', 'Cebolla', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos'),
-('ing-base-pepinillos', 'Pepinillos', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos');
+('ing-base-pepinillos', 'Pepinillos', 0.00, TRUE, FALSE, 'Ingredientes Base', TRUE, 'ambos')
+ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

@@ -613,20 +613,12 @@ module.exports = function(io) {
       await query(`UPDATE order_payments SET order_id = $1 WHERE order_id = ANY($2::text[])`, [targetOrderId, sourceOrderIds]);
       await query(`UPDATE order_items SET order_id = $1 WHERE order_id = ANY($2::text[])`, [targetOrderId, sourceOrderIds]);
 
-      const { rows: allTargetItems } = await query(`SELECT price, quantity, extras_json FROM order_items WHERE order_id = $1`, [targetOrderId]);
+      const { rows: allTargetItems } = await query(`SELECT price, quantity FROM order_items WHERE order_id = $1`, [targetOrderId]);
       let newTotalUSD = 0;
       for (const it of allTargetItems) {
-        let itemPrice = parseFloat(it.price || 0);
-        let extras = [];
-        try {
-          extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json || '[]') : (it.extras_json || []);
-        } catch(e) {}
-        if (Array.isArray(extras)) {
-          for (const ex of extras) {
-            itemPrice += parseFloat(ex.price || 0);
-          }
-        }
-        newTotalUSD += itemPrice * (parseInt(it.quantity) || 1);
+        const itemPrice = parseFloat(it.price || 0);
+        const qty = parseInt(it.quantity) || 1;
+        newTotalUSD += itemPrice * qty;
       }
 
       const totalDeliveryFeeUSD = allInvolved.reduce((sum, o) => sum + (parseFloat(o.deliveryFeeUSD || o.delivery_fee_usd) || 0), 0);
@@ -795,17 +787,12 @@ module.exports = function(io) {
 
       // Obtener subtotal real de los ítems actuales
       const { rows: itemsRows } = await client.query(
-        'SELECT price, quantity, extras_json FROM order_items WHERE order_id = $1',
+        'SELECT price, quantity FROM order_items WHERE order_id = $1',
         [id]
       );
       let itemsSubtotal = 0;
       for (const it of itemsRows) {
-        let p = Number(it.price) || 0;
-        let extras = [];
-        try { extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json || '[]') : (it.extras_json || []); } catch (_) {}
-        if (Array.isArray(extras)) {
-          for (const ex of extras) { p += Number(ex.price) || 0; }
-        }
+        const p = Number(it.price) || 0;
         itemsSubtotal += p * (Number(it.quantity) || 1);
       }
       itemsSubtotal = Number(itemsSubtotal.toFixed(2));
@@ -953,6 +940,13 @@ module.exports = function(io) {
           [it.id]
         );
 
+        const extrasJsonVal = typeof it.extras_json === 'string'
+          ? it.extras_json
+          : (it.extras_json ? JSON.stringify(it.extras_json) : null);
+        const halfDetailsVal = typeof it.half_details === 'string'
+          ? it.half_details
+          : (it.half_details ? JSON.stringify(it.half_details) : null);
+
         // Insertar (qty - 1) copias idénticas, cada una con quantity = 1 y su propio id único
         for (let i = 1; i < qty; i++) {
           const newId = `it-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`;
@@ -978,9 +972,9 @@ module.exports = function(io) {
               it.price,
               it.size,
               it.is_half_half,
-              it.half_details,
+              halfDetailsVal,
               it.removed_ingredients,
-              it.extras_json,
+              extrasJsonVal,
               it.sugar_preference,
               it.is_takeaway,
               it.is_delivery,
@@ -1103,19 +1097,13 @@ module.exports = function(io) {
 
       // Recalcular total_usd de la orden sumando items actuales (incluyendo extras)
       const { rows: currentItems } = await client.query(
-        `SELECT price, quantity, extras_json FROM order_items WHERE order_id = $1`,
+        `SELECT price, quantity FROM order_items WHERE order_id = $1`,
         [id]
       );
 
       let itemsTotalUSD = 0;
       for (const it of currentItems) {
-        let itemPrice = Number(it.price) || 0;
-        // Sumar precios de extras (adicionales pagos)
-        let extras = [];
-        try { extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json || '[]') : (it.extras_json || []); } catch(e) {}
-        if (Array.isArray(extras)) {
-          for (const ex of extras) { itemPrice += parseFloat(ex.price || 0); }
-        }
+        const itemPrice = Number(it.price) || 0;
         const qty = Number(it.quantity) || 1;
         itemsTotalUSD += itemPrice * qty;
       }

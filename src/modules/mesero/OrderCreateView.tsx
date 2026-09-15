@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Product, OrderItem, Ingredient } from '../../data/mockData';
 import { ProductTextCatalog } from './ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from './BurgerBuilderModal';
-import { DrinkSelectorModal } from './DrinkSelectorModal';
+import { DrinkSelectorModal, DrinkOrderConfirmationItem } from './DrinkSelectorModal';
 import { DeliveryConfigPanel } from './DeliveryConfigPanel';
 import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../../utils/burgerProteins';
 import { isCustomizableProduct } from '../../utils/productClassifier';
@@ -15,6 +15,7 @@ import {
   IoWarningOutline,
   IoPrintOutline,
   IoArrowBack,
+  IoPencilOutline,
 } from 'react-icons/io5';
 
 export interface OrderTarget {
@@ -59,6 +60,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
   // Modales de Productos
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
+  const [editingCartItem, setEditingCartItem] = useState<OrderItem | null>(null);
 
   // Filtrado de catálogo por turno memoizado para evitar re-renders y reseteos
   const activeProducts = useMemo(() => {
@@ -177,73 +179,133 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     setCartItems((prev) => mergeCartItem(prev, newItem));
   };
 
-  // Confirmar Hamburguesa personalizada
+  // Editar ítem del carrito antes de enviar a cocina
+  const handleEditCartItem = (item: OrderItem) => {
+    const isDrink = (item.category || '').toLowerCase().includes('bebida') ||
+                    (item.category || '').toLowerCase().includes('refresco') ||
+                    (item.category || '').toLowerCase().includes('jugo') ||
+                    Boolean(item.drinkType) ||
+                    Boolean(item.flavor);
+
+    const paidExtrasCost = (item.extras || []).reduce((s, e) => s + (Number(e.price) || 0), 0);
+    const estimatedBasePrice = Math.max(0, (item.price || 0) - paidExtrasCost);
+
+    const prod = products.find((p) => 
+      p.id === item.productId || 
+      p.name.toUpperCase() === item.productName.toUpperCase() ||
+      item.productName.toUpperCase().startsWith(p.name.toUpperCase())
+    ) || {
+      id: item.productId,
+      name: item.productName,
+      price: estimatedBasePrice,
+      category: item.category || (isDrink ? 'Bebidas' : 'Hamburguesas'),
+      baseIngredients: [],
+    } as Product;
+
+    setEditingCartItem(item);
+    if (isDrink) {
+      setSelectedDrink(prod);
+      setSelectedBurger(null);
+    } else {
+      setSelectedBurger(prod);
+      setSelectedDrink(null);
+    }
+  };
+
+  // Confirmar Hamburguesa personalizada (nueva o editada)
   const handleConfirmBurgerAdd = (
     configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
   ) => {
     const list = Array.isArray(configOrList) ? configOrList : [configOrList];
-    setCartItems((prev) => {
-      let current = [...prev];
-      for (const config of list) {
-        const item: OrderItem = {
-          id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          productId: config.burger.id,
-          productName: config.burger.name,
-          price: config.finalPrice,
-          quantity: config.quantity,
-          category: config.burger.category,
-          proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
-          removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
-          extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: Boolean(config.isTakeaway),
-          isDelivery: Boolean(config.isDelivery),
-          isCut: config.isCut,
-          cutPreference: config.cutPreference,
-          notes: getCleanItemNote(config.notes) || undefined,
-          isNewOrModified: false,
-        };
-        current = mergeCartItem(current, item);
-      }
-      return current;
-    });
+    const generatedItems: OrderItem[] = list.map((config) => ({
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: config.burger.id,
+      productName: config.burger.name,
+      price: config.finalPrice,
+      quantity: config.quantity,
+      category: config.burger.category || 'Hamburguesas',
+      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+      removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
+      extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
+      isCut: config.isCut,
+      cutPreference: config.cutPreference,
+      notes: getCleanItemNote(config.notes) || undefined,
+      isNewOrModified: false,
+    }));
+
+    if (editingCartItem) {
+      setCartItems((prev) => {
+        const idx = prev.findIndex((it) => it.id === editingCartItem.id);
+        if (idx === -1) return [...prev, ...generatedItems];
+        const updated = [...prev];
+        updated.splice(idx, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingCartItem(null);
+    } else {
+      setCartItems((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeCartItem(current, item);
+        }
+        return current;
+      });
+    }
 
     if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
   };
 
-  // Confirmar Bebida seleccionada
-  const handleConfirmDrinkAdd = (config: {
-    drink: Product;
-    quantity: number;
-    sugarPreference?: string;
-    isTakeaway: boolean;
-    isDelivery?: boolean;
-    notes?: string;
-    flavor?: string;
-  }) => {
-    const formattedName = config.flavor
-      ? `${config.drink.name} (${config.flavor})`
-      : config.drink.name;
+  // Confirmar Bebida seleccionada (nueva o editada)
+  const handleConfirmDrinkAdd = (
+    configOrList: DrinkOrderConfirmationItem | DrinkOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const generatedItems: OrderItem[] = list.map((config) => {
+      const formattedName = config.flavor
+        ? `${config.drink.name} (${config.flavor})`
+        : config.drink.name;
 
-    const newItem: OrderItem = {
-      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      productId: config.drink.id,
-      productName: formattedName,
-      price: config.drink.price,
-      quantity: config.quantity,
-      category: config.drink.category,
-      drinkType: config.drink.drinkType,
-      sugarPreference: config.sugarPreference,
-      flavor: config.flavor,
-      isTakeaway: Boolean(config.isTakeaway),
-      isDelivery: Boolean(config.isDelivery),
-      notes: getCleanItemNote(config.notes) || undefined,
-      isNewOrModified: false,
-    };
-    setCartItems((prev) => mergeCartItem(prev, newItem));
+      return {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: config.drink.id,
+        productName: formattedName,
+        price: config.drink.price,
+        quantity: config.quantity,
+        category: config.drink.category,
+        drinkType: config.drink.drinkType,
+        sugarPreference: config.sugarPreference,
+        flavor: config.flavor,
+        isTakeaway: Boolean(config.isTakeaway),
+        isDelivery: Boolean(config.isDelivery),
+        notes: getCleanItemNote(config.notes) || undefined,
+        isNewOrModified: false,
+      };
+    });
 
-    if (config.isDelivery && deliveryFeeUSD <= 0) {
+    if (editingCartItem) {
+      setCartItems((prev) => {
+        const idx = prev.findIndex((it) => it.id === editingCartItem.id);
+        if (idx === -1) return [...prev, ...generatedItems];
+        const updated = [...prev];
+        updated.splice(idx, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingCartItem(null);
+    } else {
+      setCartItems((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeCartItem(current, item);
+        }
+        return current;
+      });
+    }
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
   };
@@ -422,14 +484,19 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 availableFreeToppings={availableFreeToppings}
                 isOpen={true}
                 inline={true}
-                onClose={() => setSelectedBurger(null)}
+                onClose={() => {
+                  setSelectedBurger(null);
+                  setEditingCartItem(null);
+                }}
                 onConfirm={(config) => {
                   handleConfirmBurgerAdd(config);
                   setSelectedBurger(null);
+                  setEditingCartItem(null);
                 }}
                 defaultTakeaway={target.type === 'pickup'}
                 defaultDelivery={target.type === 'delivery'}
                 exchangeRates={exchangeRates}
+                initialEditItem={editingCartItem}
               />
             </div>
           ) : selectedDrink ? (
@@ -438,10 +505,15 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                 drink={selectedDrink}
                 isOpen={true}
                 inline={true}
-                onClose={() => setSelectedDrink(null)}
+                initialEditItem={editingCartItem}
+                onClose={() => {
+                  setSelectedDrink(null);
+                  setEditingCartItem(null);
+                }}
                 onConfirm={(config) => {
                   handleConfirmDrinkAdd(config);
                   setSelectedDrink(null);
+                  setEditingCartItem(null);
                 }}
                 defaultTakeaway={target.type === 'pickup'}
                 defaultDelivery={target.type === 'delivery'}
@@ -706,14 +778,27 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => removeCartItem(item.id)}
-                        className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
-                        title="Eliminar este ítem"
-                      >
-                        <IoTrashOutline className="text-base" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {item.category !== 'Salsas' && (
+                          <button
+                            type="button"
+                            onClick={() => handleEditCartItem(item)}
+                            className="px-2.5 py-1 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 font-black text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs active:scale-95"
+                            title="Editar personalización de este ítem"
+                          >
+                            <IoPencilOutline className="text-sm" />
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeCartItem(item.id)}
+                          className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
+                          title="Eliminar este ítem"
+                        >
+                          <IoTrashOutline className="text-base" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

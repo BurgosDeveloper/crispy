@@ -102,9 +102,9 @@ module.exports = function (io) {
       let itemRows = [];
       if (orderIds.length > 0) {
         const { rows } = await query(
-          `SELECT oi.*, o.order_number, COALESCE(p.category, 'Sin categoría') AS category FROM order_items oi
+          `SELECT oi.*, o.order_number, COALESCE(NULLIF(oi.category, ''), p.category, 'Sin categoría') AS category FROM order_items oi
            JOIN orders o ON o.id = oi.order_id
-           LEFT JOIN products p ON p.id = oi.product_id
+           LEFT JOIN products p ON (p.id = oi.product_id OR LOWER(p.name) = LOWER(oi.product_name))
            WHERE oi.order_id = ANY($1::text[])`,
           [orderIds]
         );
@@ -251,6 +251,7 @@ module.exports = function (io) {
           quantity: it.quantity || 1,
           category: it.category || 'Sin categoría',
           drinkType: it.drink_type,
+          flavor: it.flavor || undefined,
           sugarPreference: it.sugar_preference || undefined,
           isTakeaway: !!it.is_takeaway,
           notes: it.notes || '',

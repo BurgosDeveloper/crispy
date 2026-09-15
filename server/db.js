@@ -181,12 +181,9 @@ async function initDb() {
       `INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('noche', 3950.00, 36.50, 'Compatibilidad') ON CONFLICT (shift) DO NOTHING;`,
       `INSERT INTO system_settings (key, value) VALUES ('admin_pin', '1234') ON CONFLICT (key) DO NOTHING;`,
 
-      `DELETE FROM users WHERE (username = 'carlos' AND id != 'u-admin') OR (username = 'cajeroa' AND id != 'u-caja');`,
-      `UPDATE users SET username = 'carlos', password = 'carloscrispys', name = 'Carlos', role = 'admin' WHERE id = 'u-admin' OR username = 'admin';`,
-      `INSERT INTO users (id, username, password, role, name, shift) VALUES ('u-admin', 'carlos', 'carloscrispys', 'admin', 'Carlos', 'ambos') ON CONFLICT (username) DO UPDATE SET password = 'carloscrispys', role = 'admin', name = 'Carlos';`,
-      `UPDATE users SET username = 'cajeroa', password = 'cajero', name = 'Cajero Principal', role = 'caja' WHERE id = 'u-caja' OR username = 'caja';`,
-      `INSERT INTO users (id, username, password, role, name, shift) VALUES ('u-caja', 'cajeroa', 'cajero', 'caja', 'Cajero Principal', 'ambos') ON CONFLICT (username) DO UPDATE SET password = 'cajero', role = 'caja', name = 'Cajero Principal';`,
       `INSERT INTO users (id, username, password, role, name, shift) VALUES
+        ('u-admin', 'carlos', 'carloscrispys', 'admin', 'Carlos', 'ambos'),
+        ('u-caja', 'cajeroa', 'cajero', 'caja', 'Cajero Principal', 'ambos'),
         ('u-mesero', 'mesero', 'mesero', 'mesero', 'Mesero Principal', 'ambos'),
         ('u-cocina', 'cocina', 'cocina', 'cocina', 'Jefe de Cocina', 'ambos')
         ON CONFLICT (username) DO NOTHING;`,
@@ -201,45 +198,19 @@ async function initDb() {
         ('table-7', 7, 'Mesa #7', 2, 'libre', 'Salón Principal'),
         ('table-8', 8, 'Mesa #8', 6, 'libre', 'Salón Principal')
         ON CONFLICT (number) DO NOTHING;`,
+    ];
 
-      // 1. Limpieza segura de productos e ingredientes de muestra antiguos (preservando contabilidad)
-      `DELETE FROM products WHERE id IN ('prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6');`,
-      `DELETE FROM ingredients WHERE id IN ('ing-1', 'ing-2', 'ing-3', 'ing-4', 'ing-5', 'ing-6', 'ing-7', 'ing-8', 'ing-9', 'ing-10', 'ing-11', 'ing-12', 'ing-adicional-racion-papas', 'ing-servicio-papas-fritas');`,
+    for (const q of migrationQueries) {
+      try { await client.query(q); } catch (e) { console.warn('Aviso migración PG:', e.message); }
+    }
 
-      // 2. Deduplicación inteligente: si existen productos duplicados con otro ID pero mismo nombre que los oficiales,
-      // reasignar los order_items históricos al ID canónico (protegiendo las ventas) y eliminar el producto duplicado.
-      `DO $$
-      DECLARE
-        dup RECORD;
-      BEGIN
-        FOR dup IN
-          SELECT p_dup.id AS dup_id, p_canon.id AS canon_id
-          FROM products p_dup
-          JOIN products p_canon ON (
-            UPPER(TRIM(p_dup.name)) = UPPER(TRIM(p_canon.name))
-            OR (LOWER(TRIM(p_dup.name)) LIKE '%350%' AND LOWER(TRIM(p_canon.name)) = 'refresco 350ml')
-            OR ((LOWER(TRIM(p_dup.name)) LIKE '%2lt%' OR LOWER(TRIM(p_dup.name)) LIKE '%2 lt%' OR LOWER(TRIM(p_dup.name)) LIKE '%2 litro%') AND LOWER(TRIM(p_canon.name)) = 'refresco 2lt')
-            OR (LOWER(TRIM(p_dup.name)) = 'nestea' AND p_canon.id = 'prod-nestea-drink')
-            OR (LOWER(TRIM(p_dup.name)) = 'lipton' AND p_canon.id = 'prod-nestea')
-          )
-          WHERE p_dup.id != p_canon.id
-            AND p_canon.id IN (
-              'prod-bistro', 'prod-crispys', 'prod-chicken-grill', 'prod-mr-pork',
-              'prod-street', 'prod-nuggets', 'prod-super-smash', 'prod-tasty',
-              'prod-mixtura', 'prod-house', 'prod-3-0', 'prod-racion-papas',
-              'prod-refresco-350ml', 'prod-refresco-2lt', 'prod-lata',
-              'prod-nestea-drink', 'prod-nestea', 'prod-agua-mineral',
-              'prod-cerveza', 'prod-granizado'
-            )
-        LOOP
-          UPDATE order_items SET product_id = dup.canon_id WHERE product_id = dup.dup_id;
-          DELETE FROM products WHERE id = dup.dup_id;
-        END LOOP;
-      END $$;`,
+    // Verificación de existencia de catálogo para NO sobreescribir datos en bases existentes
+    const prodCountRes = await client.query('SELECT COUNT(*) FROM products');
+    const productCount = parseInt(prodCountRes.rows[0].count, 10);
 
-      // 3. UPSERT oficial de Catálogo de Productos (Hamburguesas y Bebidas)
-      // Si ya existen, actualiza sus ingredientes base, proteínas, sabores y precios sin alterar ventas ni pedidos.
-      `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, flavors, shift) VALUES
+    if (productCount === 0) {
+      console.log('ℹ️ Base de datos virgen sin productos. Inicializando catálogo por defecto de Crispy Burger...');
+      const initialProductsQuery = `INSERT INTO products (id, name, category, drink_type, price, description, image, badge, base_ingredients, protein_count, default_proteins, flavors, shift) VALUES
         ('prod-bistro', 'BISTRO', 'Hamburguesas', NULL, 7.00, 'Carne de novillo, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['CARNE DE NOVILLO', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['CARNE DE NOVILLO'], NULL, 'ambos'),
         ('prod-crispys', 'CRISPYS', 'Hamburguesas', NULL, 7.00, 'Pollo crispy, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['POLLO CRISPY', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['POLLO CRISPY'], NULL, 'ambos'),
         ('prod-chicken-grill', 'CHICKEN GRILL', 'Hamburguesas', NULL, 7.00, 'Pechuga de pollo a la plancha, salsa de la casa, queso, tocineta, papas ralladas, huevo frito, lechuga, tomate y cebolla.', '', NULL, ARRAY['PECHUGA DE POLLO A LA PLANCHA', 'SALSA DE LA CASA', 'QUESO', 'TOCINETA', 'PAPAS RALLADAS', 'HUEVO FRITO', 'LECHUGA', 'TOMATE', 'CEBOLLA'], 1, ARRAY['PECHUGA DE POLLO A LA PLANCHA'], NULL, 'ambos'),
@@ -260,25 +231,22 @@ async function initDb() {
         ('prod-agua-mineral', 'AGUA MINERAL', 'Bebidas', 'agua', 1.00, 'Agua mineral embotellada bien fría.', '', NULL, NULL, 1, ARRAY[]::text[], NULL, 'ambos'),
         ('prod-granizado', 'GRANIZADO', 'Bebidas', 'granizado', 1.50, 'Bebida granizada natural refrescante.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['Fresa', 'Parchita'], 'ambos'),
         ('prod-lata', 'LATA', 'Bebidas', 'refresco', 1.50, 'Refresco en lata 355ml bien frío surtido.', '', NULL, NULL, 1, ARRAY[]::text[], ARRAY['PIÑA', 'PEPSI ORIGINAL', 'PEPSI ZERO', 'GOLDEN COLITA', 'MANZANA', '7UP', 'COCA COLA ORIGINAL', 'COCACOLA ZERO'], 'ambos')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        category = EXCLUDED.category,
-        drink_type = EXCLUDED.drink_type,
-        price = COALESCE(products.price, EXCLUDED.price),
-        description = COALESCE(products.description, EXCLUDED.description),
-        base_ingredients = EXCLUDED.base_ingredients,
-        protein_count = EXCLUDED.protein_count,
-        default_proteins = EXCLUDED.default_proteins,
-        flavors = COALESCE(products.flavors, EXCLUDED.flavors);`,
+        ON CONFLICT (id) DO NOTHING;`;
+      try {
+        await client.query(initialProductsQuery);
+      } catch (err) {
+        console.warn('Aviso al insertar catálogo inicial de productos:', err.message);
+      }
+    } else {
+      console.log(`ℹ️ Catálogo existente detectado (${productCount} productos). Se conserva intacta la data actual (nombres, precios y configuraciones).`);
+    }
 
-      // 4. Preservar y normalizar productos adicionales creados en producción (no los borra, respeta sus categorías)
-      `UPDATE products SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,
-      `UPDATE products SET category = 'Hamburguesas' WHERE category IS NULL OR category = '';`,
-      `UPDATE products SET protein_count = 1 WHERE protein_count IS NULL AND category = 'Hamburguesas';`,
-      `UPDATE products SET protein_count = 0 WHERE protein_count IS NULL AND category != 'Hamburguesas';`,
+    const ingCountRes = await client.query('SELECT COUNT(*) FROM ingredients');
+    const ingCount = parseInt(ingCountRes.rows[0].count, 10);
 
-      // 5. UPSERT oficial de Ingredientes, Proteínas, Adicionales y Salsas
-      `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, category, available, shift) VALUES
+    if (ingCount === 0) {
+      console.log('ℹ️ Base de datos virgen sin ingredientes. Inicializando ingredientes por defecto...');
+      const initialIngQuery = `INSERT INTO ingredients (id, name, ingredient_type, price_usd, is_base, is_extra, category, available, shift) VALUES
         ('ing-adicional-tocineta', 'TOCINETA', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
         ('ing-adicional-queso-cheddar', 'QUESO CHEDDAR', 'adicional', 1.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
         ('ing-adicional-proteina', 'PROTEÍNA', 'adicional', 3.00, FALSE, TRUE, 'Adicionales', TRUE, 'ambos'),
@@ -314,26 +282,14 @@ async function initDb() {
         ('ing-salsa-ajo', 'SALSA DE AJO', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
         ('ing-salsa-bbq', 'SALSA BBQ', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos'),
         ('ing-salsa-tartara', 'SALSA TÁRTARA', 'salsa', 0.00, FALSE, TRUE, 'Salsas', TRUE, 'ambos')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        ingredient_type = EXCLUDED.ingredient_type,
-        price_usd = COALESCE(ingredients.price_usd, EXCLUDED.price_usd),
-        is_base = EXCLUDED.is_base,
-        is_extra = EXCLUDED.is_extra,
-        category = EXCLUDED.category,
-        available = COALESCE(ingredients.available, EXCLUDED.available);`,
-
-      // 6. Normalización de ingredientes adicionales
-      `UPDATE ingredients SET name = UPPER(TRIM(name)) WHERE name IS NOT NULL;`,
-      `UPDATE ingredients SET ingredient_type = 'proteina' WHERE id IN ('ing-base-novillo', 'ing-base-pollo-crispy', 'ing-base-pollo-plancha', 'ing-base-chuleta', 'ing-base-mechada', 'ing-base-doble-smash');`,
-      `UPDATE ingredients SET ingredient_type = 'gratis', price_usd = 0.00 WHERE id IN ('ing-gratis-jalapenos', 'ing-gratis-cebolla-caramelizada', 'ing-gratis-sweet-relish', 'ing-gratis-maiz', 'ing-gratis-pepinillos') OR category = 'Gratis';`,
-      `UPDATE ingredients SET ingredient_type = 'adicional' WHERE id IN ('ing-adicional-tocineta', 'ing-adicional-queso-cheddar', 'ing-adicional-proteina') OR category = 'Adicionales';`,
-      `UPDATE ingredients SET ingredient_type = 'base', price_usd = 0.00 WHERE (category = 'Ingredientes Base' OR is_base = TRUE) AND id NOT IN ('ing-base-novillo', 'ing-base-pollo-crispy', 'ing-base-pollo-plancha', 'ing-base-chuleta', 'ing-base-mechada', 'ing-base-doble-smash');`,
-      `UPDATE ingredients SET ingredient_type = 'salsa', category = 'Salsas' WHERE id LIKE 'ing-salsa-%' OR category = 'Salsas';`,
-    ];
-
-    for (const q of migrationQueries) {
-      try { await client.query(q); } catch (e) { console.warn('Aviso migración PG:', e.message); }
+        ON CONFLICT (id) DO NOTHING;`;
+      try {
+        await client.query(initialIngQuery);
+      } catch (err) {
+        console.warn('Aviso al insertar catálogo inicial de ingredientes:', err.message);
+      }
+    } else {
+      console.log(`ℹ️ Ingredientes existentes detectados (${ingCount} ingredientes). Se conserva intacta la data actual (precios, nombres y categorías).`);
     }
 
     client.release();

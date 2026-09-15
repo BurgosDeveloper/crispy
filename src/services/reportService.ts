@@ -264,11 +264,11 @@ export class ReportService {
     }
 
     const cat = (it.category || '').toLowerCase();
-    const isDrink = cat.includes('bebida') || cat.includes('refresco') || cat.includes('jugo') || !!it.drinkType || !!it.flavor;
+    const isDrink = cat.includes('bebida') || cat.includes('drink') || cat.includes('refresco') || cat.includes('jugo') || cat.includes('licor') || cat.includes('cerveza') || cat.includes('agua') || !!it.drinkType || !!it.flavor;
     if (isDrink) {
       raw = raw.replace(/\s*\([^)]+\)\s*$/g, '').trim();
     }
-    return raw;
+    return raw || (it.productName || it.name || 'Producto').trim();
   }
 
   // 1. Reporte de Hamburguesas e Ítems Vendidos
@@ -863,10 +863,12 @@ export class ReportService {
       }
     });
 
-    // Extracción de Adicionales Pagos, Toppings Gratis y Productos Base
+    // Extracción de Adicionales Pagos, Toppings Gratis y Productos Base categorizados
     const paidExtrasMap = new Map<string, { name: string; quantity: number; subtotalUSD: number; unitPrice: number }>();
     let freeToppingsCount = 0;
-    const productMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+    const foodMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+    const drinkMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
+    const othersProductMap = new Map<string, { name: string; quantity: number; subtotalUSD: number }>();
 
     cashItems.forEach((it: any) => {
       const itQty = Number(it.quantity) || 1;
@@ -903,10 +905,54 @@ export class ReportService {
       const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
       const baseSubtotal = baseUnitPrice * itQty;
 
-      const prevProd = productMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
+      const catLower = (it.category || '').toLowerCase().trim();
+      const rawLower = (it.productName || it.name || '').toLowerCase().trim();
+      const isDrink =
+        catLower.includes('bebida') ||
+        catLower.includes('drink') ||
+        catLower.includes('refresco') ||
+        catLower.includes('jugo') ||
+        catLower.includes('licor') ||
+        catLower.includes('cerveza') ||
+        catLower.includes('agua') ||
+        catLower.includes('trago') ||
+        catLower.includes('coctel') ||
+        catLower.includes('cóctel') ||
+        catLower.includes('vino') ||
+        catLower.includes('café') ||
+        catLower.includes('cafe') ||
+        catLower.includes('malta') ||
+        Boolean(it.drinkType) ||
+        Boolean(it.flavor) ||
+        rawLower.includes('refresco') ||
+        rawLower.includes('jugo') ||
+        rawLower.includes('agua') ||
+        rawLower.includes('cerveza') ||
+        rawLower.includes('nestea') ||
+        rawLower.includes('granizado') ||
+        rawLower.includes('soda') ||
+        rawLower.includes('malta') ||
+        rawLower.includes('licor') ||
+        rawLower.includes('ron') ||
+        rawLower.includes('vodka') ||
+        rawLower.includes('whisky') ||
+        rawLower.includes('mojito') ||
+        rawLower.includes('té') ||
+        rawLower.includes('te ') ||
+        rawLower.endsWith(' te');
+
+      const isOther =
+        catLower.includes('delivery') ||
+        catLower.includes('servicio') ||
+        catLower.includes('otro') ||
+        rawLower.includes('delivery') ||
+        rawLower.includes('servicio');
+
+      const targetMap = isDrink ? drinkMap : isOther ? othersProductMap : foodMap;
+      const prevProd = targetMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
       prevProd.quantity += itQty;
       prevProd.subtotalUSD += baseSubtotal;
-      productMap.set(cleanName, prevProd);
+      targetMap.set(cleanName, prevProd);
     });
 
     const totalVentaFacturadaUSD = billedTotals.usd + (billedTotals.cop / copRateGlobal) + (billedTotals.bs / bsRateGlobal);
@@ -956,65 +1002,75 @@ export class ReportService {
       `;
     }).join('');
 
-    // Construcción de la Lista Única Unificada de Ítems Facturados
-    const unifiedItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = [];
+    // Construcción estructurada en 4 Secciones: COMIDAS, BEBIDAS, ADICIONALES, OTROS
+    // 1. COMIDAS (Hamburguesas, Platos, Raciones, etc.)
+    const comidasItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = Array.from(foodMap.values())
+      .filter((p) => p.quantity > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    // 1. Deliverys por tarifa
-    const sortedFees = Array.from(deliveryTierMap.keys()).sort((a, b) => a - b);
-    sortedFees.forEach((fee) => {
-      const count = deliveryTierMap.get(fee) || 0;
-      if (fee > 0 && count > 0) {
-        unifiedItems.push({
-          name: `Delivery ($${fee.toFixed(2)})`,
-          quantity: count,
-          subtotalUSD: fee * count,
-        });
-      }
-    });
+    // 2. BEBIDAS (Refrescos, Jugos, Granizados, Cervezas, Té, Aguas)
+    const bebidasItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = Array.from(drinkMap.values())
+      .filter((p) => p.quantity > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    // 2. Adicionales Pagos (ADD <Nombre>)
+    // 3. ADICIONALES (Adicionales Pagos y Toppings Gratis)
+    const adicionalesItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = [];
     const sortedExtras = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     sortedExtras.forEach((extra) => {
       if (extra.quantity > 0) {
-        unifiedItems.push({
+        adicionalesItems.push({
           name: extra.name,
           quantity: extra.quantity,
           subtotalUSD: extra.subtotalUSD,
         });
       }
     });
-
-    // 3. Toppings Gratis (conteo acumulado sin costo)
     if (freeToppingsCount > 0) {
-      unifiedItems.push({
+      adicionalesItems.push({
         name: 'Toppings Gratis',
         quantity: freeToppingsCount,
         subtotalUSD: 0,
       });
     }
 
-    // 4. Hamburguesas y Productos de Menú (a precio base)
-    const sortedProds = Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    sortedProds.forEach((prod) => {
-      if (prod.quantity > 0) {
-        unifiedItems.push({
-          name: prod.name,
-          quantity: prod.quantity,
-          subtotalUSD: prod.subtotalUSD,
+    // 4. OTROS (Deliverys por tarifa y conceptos varios)
+    const otrosItems: Array<{ name: string; quantity: number; subtotalUSD: number }> = [];
+    const sortedFees = Array.from(deliveryTierMap.keys()).sort((a, b) => a - b);
+    sortedFees.forEach((fee) => {
+      const count = deliveryTierMap.get(fee) || 0;
+      if (fee > 0 && count > 0) {
+        otrosItems.push({
+          name: `Delivery ($${fee.toFixed(2)})`,
+          quantity: count,
+          subtotalUSD: fee * count,
         });
       }
     });
+    Array.from(othersProductMap.values())
+      .filter((p) => p.quantity > 0)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => otrosItems.push(p));
 
+    const unifiedItems = [...comidasItems, ...bebidasItems, ...adicionalesItems, ...otrosItems];
     const totalItemsUSD = unifiedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
-    const totalItemsUnits = unifiedItems.reduce((sum, it) => sum + it.quantity, 0);
 
-    const itemRows = unifiedItems.map((item) => `
-      <tr>
-        <td><strong>${this.escapeHtml(item.name)}</strong></td>
-        <td style="text-align:center;">${item.quantity}</td>
-        <td style="text-align:right; font-weight:700;">$${item.subtotalUSD.toFixed(2)}</td>
-      </tr>
-    `).join('');
+    const renderCategoryRows = (items: Array<{ name: string; quantity: number; subtotalUSD: number }>, emptyMsg: string) => {
+      if (items.length === 0) {
+        return `<tr><td colspan="3" style="text-align:center; color:#9ca3af; padding:5px;">${emptyMsg}</td></tr>`;
+      }
+      return items.map((item) => `
+        <tr>
+          <td><strong>${this.escapeHtml(item.name)}</strong></td>
+          <td style="text-align:center;">${item.quantity}</td>
+          <td style="text-align:right; font-weight:700;">$${item.subtotalUSD.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    };
+
+    const comidasRows = renderCategoryRows(comidasItems, 'Sin comidas facturadas en el intervalo.');
+    const bebidasRows = renderCategoryRows(bebidasItems, 'Sin bebidas facturadas en el intervalo.');
+    const adicionalesRows = renderCategoryRows(adicionalesItems, 'Sin adicionales facturados en el intervalo.');
+    const otrosRows = renderCategoryRows(otrosItems, 'Sin otros conceptos facturados en el intervalo.');
 
     // Historial por Método de Pago (Moneda y Monto Facturado) - Excluye Efectivo USD, Efectivo COP y Crédito (este último ya detallado en Sección 4)
     const historyByMethod = Array.from(methodTotals.keys())
@@ -1167,28 +1223,80 @@ export class ReportService {
       <div class="section-title">SECCIÓN 5 — HISTORIAL POR MÉTODO DE PAGO</div>
       ${historyByMethod || '<p style="font-size:10px; color:#6b7280; text-align:center;">Sin pagos en el intervalo.</p>'}
 
-      <div class="section-title">SECCIÓN 6 — ÍTEMS FACTURADOS</div>
+      <div class="section-title">SECCIÓN 6 — ÍTEMS FACTURADOS POR CATEGORÍA</div>
+
+      <!-- 6.1 COMIDAS -->
+      <div style="font-size:10px; font-weight:900; margin:10px 0 3px; padding:3px 8px; background:#fef3c7; color:#92400e; border-left:3px solid #f59e0b;">
+        6.1 COMIDAS (Hamburguesas, Raciones y Acompañantes)
+      </div>
       <table>
         <thead>
           <tr>
-            <th>Ítem / Concepto</th>
-            <th style="text-align:center;">Cant.</th>
-            <th style="text-align:right;">Subtotal USD</th>
+            <th>Producto</th>
+            <th style="text-align:center; width:60px;">Cant.</th>
+            <th style="text-align:right; width:110px;">Total USD</th>
           </tr>
         </thead>
         <tbody>
-          ${itemRows || '<tr><td colspan="3" style="text-align:center;">Sin ítems facturados.</td></tr>'}
+          ${comidasRows}
         </tbody>
-        ${unifiedItems.length > 0 ? `
-        <tfoot>
-          <tr style="background:#f0fdf4; border-top:2px solid #059669; font-weight:900;">
-            <td style="color:#065f46; font-size:11px;">TOTAL PRODUCTOS FACTURADOS:</td>
-            <td style="text-align:center; color:#065f46;">${totalItemsUnits}</td>
-            <td style="text-align:right; color:#047857; font-size:12px;">$${totalItemsUSD.toFixed(2)} USD</td>
-          </tr>
-        </tfoot>
-        ` : ''}
       </table>
+
+      <!-- 6.2 BEBIDAS -->
+      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#e0f2fe; color:#075985; border-left:3px solid #0284c7;">
+        6.2 BEBIDAS (Refrescos, Jugos, Cervezas, Granizados, Aguas)
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto (Unificado)</th>
+            <th style="text-align:center; width:60px;">Cant.</th>
+            <th style="text-align:right; width:110px;">Total USD</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${bebidasRows}
+        </tbody>
+      </table>
+
+      <!-- 6.3 ADICIONALES -->
+      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#f3e8ff; color:#6b21a8; border-left:3px solid #9333ea;">
+        6.3 ADICIONALES (Adicionales Pagos y Toppings Gratis)
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th style="text-align:center; width:60px;">Cant.</th>
+            <th style="text-align:right; width:110px;">Total USD</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${adicionalesRows}
+        </tbody>
+      </table>
+
+      <!-- 6.4 OTROS -->
+      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#f1f5f9; color:#334155; border-left:3px solid #64748b;">
+        6.4 OTROS (Servicios de Delivery y Otros Conceptos)
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th style="text-align:center; width:60px;">Cant.</th>
+            <th style="text-align:right; width:110px;">Total USD</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${otrosRows}
+        </tbody>
+      </table>
+
+      <div class="total-box" style="margin-top:14px; background:#ecfdf5; border-color:#059669;">
+        <div class="total-label" style="color:#065f46; font-size:11px;">TOTAL GENERAL FACTURADO EN ÍTEMS:</div>
+        <div class="total-val" style="color:#047857; font-size:13px;">$${totalItemsUSD.toFixed(2)} USD</div>
+      </div>
     `;
 
     this.openPrintWindow('Reporte_Contable_Intervalo', content);

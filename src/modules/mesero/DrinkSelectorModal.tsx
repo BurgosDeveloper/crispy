@@ -1,26 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Product } from '../../data/mockData';
+import { Product, OrderItem } from '../../data/mockData';
 import { roundCOP } from '../../utils/currencyRounding';
-import { IoClose, IoAdd, IoRemove, IoCheckmark } from 'react-icons/io5';
+import {
+  IoClose,
+  IoAdd,
+  IoRemove,
+  IoCheckmark,
+  IoCopyOutline,
+  IoRefreshOutline,
+} from 'react-icons/io5';
+
+export interface DrinkUnitConfig {
+  unitIndex: number;
+  flavor?: string;
+  sugarPreference?: string;
+  isTakeaway: boolean;
+  isDelivery: boolean;
+  notes?: string;
+}
+
+export interface DrinkOrderConfirmationItem {
+  drink: Product;
+  quantity: number;
+  sugarPreference?: string;
+  isTakeaway: boolean;
+  isDelivery?: boolean;
+  notes?: string;
+  flavor?: string;
+}
 
 interface DrinkSelectorModalProps {
   drink: Product | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (config: {
-    drink: Product;
-    quantity: number;
-    sugarPreference?: string;
-    isTakeaway: boolean;
-    isDelivery?: boolean;
-    notes?: string;
-    flavor?: string;
-  }) => void;
+  onConfirm: (config: DrinkOrderConfirmationItem | DrinkOrderConfirmationItem[]) => void;
   defaultTakeaway?: boolean;
   defaultDelivery?: boolean;
   exchangeRates?: { COP: number; Bs: number };
   inline?: boolean;
+  initialEditItem?: OrderItem | null;
 }
 
 const SUGAR_OPTIONS = ['Con azúcar', 'Sin azúcar', 'Poca azúcar'];
@@ -34,48 +53,141 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
   defaultDelivery = false,
   exchangeRates = { COP: 3950, Bs: 36.5 },
   inline = false,
+  initialEditItem = null,
 }) => {
-  const [quantity, setQuantity] = useState<number>(1);
-  const [sugarPreference, setSugarPreference] = useState<string>('Con azúcar');
-  const [isTakeaway, setIsTakeaway] = useState<boolean>(defaultTakeaway && !defaultDelivery);
-  const [isDelivery, setIsDelivery] = useState<boolean>(defaultDelivery);
-  const [notes, setNotes] = useState<string>('');
-  const [selectedFlavor, setSelectedFlavor] = useState<string>('');
+  const isGranizado = drink ? (/granizado/i.test(drink.name) || drink.drinkType === 'granizado') : false;
+  const isJugo = drink ? ((drink.drinkType === 'jugo' || /jugo/i.test(drink.name)) && !isGranizado) : false;
+
+  const createInitialUnit = (index: number, pDrink: Product): DrinkUnitConfig => ({
+    unitIndex: index,
+    flavor: pDrink.flavors && pDrink.flavors.length > 0 ? pDrink.flavors[0] : undefined,
+    sugarPreference: 'Con azúcar',
+    isTakeaway: defaultTakeaway && !defaultDelivery,
+    isDelivery: defaultDelivery,
+    notes: '',
+  });
+
+  const [units, setUnits] = useState<DrinkUnitConfig[]>([]);
+  const [activeUnitIndex, setActiveUnitIndex] = useState<number>(0);
+  const [copyToast, setCopyToast] = useState<string>('');
+
+  const activeDrinkKeyRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    if (drink) {
-      setQuantity(1);
-      setSugarPreference('Con azúcar');
-      setIsTakeaway(defaultTakeaway && !defaultDelivery);
-      setIsDelivery(defaultDelivery);
-      setNotes('');
-      setSelectedFlavor(drink.flavors && drink.flavors.length > 0 ? drink.flavors[0] : '');
+    if (isOpen && drink) {
+      const key = initialEditItem ? `edit-${initialEditItem.id}` : `create-${drink.id}`;
+      if (activeDrinkKeyRef.current !== key) {
+        activeDrinkKeyRef.current = key;
+        if (initialEditItem) {
+          const qty = Math.max(1, initialEditItem.quantity || 1);
+          const editUnits: DrinkUnitConfig[] = [];
+          for (let i = 0; i < qty; i++) {
+            editUnits.push({
+              unitIndex: i,
+              flavor: initialEditItem.flavor || (drink.flavors && drink.flavors.length > 0 ? drink.flavors[0] : undefined),
+              sugarPreference: initialEditItem.sugarPreference || 'Con azúcar',
+              isTakeaway: Boolean(initialEditItem.isTakeaway),
+              isDelivery: Boolean(initialEditItem.isDelivery),
+              notes: initialEditItem.notes || '',
+            });
+          }
+          setUnits(editUnits);
+        } else {
+          setUnits([createInitialUnit(0, drink)]);
+        }
+        setActiveUnitIndex(0);
+        setCopyToast('');
+      }
+    } else if (!isOpen) {
+      activeDrinkKeyRef.current = null;
     }
-  }, [drink, defaultTakeaway, defaultDelivery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, drink?.id, initialEditItem?.id, defaultTakeaway, defaultDelivery]);
 
-  if (!isOpen || !drink) return null;
+  if (!isOpen || !drink || units.length === 0) return null;
+
+  const currentUnit = units[activeUnitIndex] || units[0] || createInitialUnit(0, drink);
+
+  const updateCurrentUnit = (updater: (prev: DrinkUnitConfig) => DrinkUnitConfig) => {
+    setUnits((prev) =>
+      prev.map((u, idx) => (idx === activeUnitIndex ? updater(u) : u))
+    );
+  };
+
+  const handleIncreaseQuantity = () => {
+    setUnits((prev) => {
+      const nextIdx = prev.length;
+      const source = prev[activeUnitIndex] || prev[0];
+      const newUnit: DrinkUnitConfig = {
+        ...source,
+        unitIndex: nextIdx,
+      };
+      return [...prev, newUnit];
+    });
+    setActiveUnitIndex(units.length);
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (units.length <= 1) return;
+    setUnits((prev) => prev.slice(0, prev.length - 1));
+    if (activeUnitIndex >= units.length - 1) {
+      setActiveUnitIndex(Math.max(0, units.length - 2));
+    }
+  };
+
+  const handleCopyActiveToAll = () => {
+    const active = units[activeUnitIndex];
+    if (!active) return;
+    setUnits((prev) =>
+      prev.map((u, idx) =>
+        idx === activeUnitIndex
+          ? u
+          : {
+              ...active,
+              unitIndex: idx,
+            }
+      )
+    );
+    setCopyToast(`¡Opciones de #${activeUnitIndex + 1} (${active.flavor || 'Bebida'}) copiadas a las ${units.length} bebidas!`);
+    setTimeout(() => setCopyToast(''), 2500);
+  };
+
+  const handleResetCurrentUnit = () => {
+    if (!drink) return;
+    const fresh = createInitialUnit(activeUnitIndex, drink);
+    updateCurrentUnit(() => fresh);
+    setCopyToast(`Bebida #${activeUnitIndex + 1} restablecida a sus opciones base.`);
+    setTimeout(() => setCopyToast(''), 2000);
+  };
+
   const copRate = exchangeRates?.COP || 3950;
   const bsRate = exchangeRates?.Bs || 36.5;
-
-  // Granizados NO son jugos ajustables de azúcar, son solo sabores
-  const isGranizado = /granizado/i.test(drink.name) || drink.drinkType === 'granizado';
-  const isJugo = (drink.drinkType === 'jugo' || /jugo/i.test(drink.name)) && !isGranizado;
-
-  const totalPrice = drink.price * quantity;
+  const totalPrice = drink.price * units.length;
   const isFlavorRequired = Boolean(drink.flavors && drink.flavors.length > 0);
-  const isAddDisabled = isFlavorRequired && !selectedFlavor;
+  const isAddDisabled = isFlavorRequired && units.some((u) => !u.flavor);
 
   const handleSave = () => {
     if (isAddDisabled) return;
-    onConfirm({
-      drink,
-      quantity,
-      sugarPreference: isJugo ? sugarPreference : undefined,
-      isTakeaway,
-      isDelivery,
-      notes: notes.trim() || undefined,
-      flavor: isFlavorRequired ? selectedFlavor : undefined,
-    });
+    const groups = new Map<string, DrinkOrderConfirmationItem>();
+    for (const u of units) {
+      const key = `${u.flavor || ''}|${u.sugarPreference || ''}|${u.isTakeaway}|${u.isDelivery}|${u.notes || ''}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        groups.set(key, {
+          drink,
+          quantity: 1,
+          flavor: isFlavorRequired ? u.flavor : undefined,
+          sugarPreference: isJugo ? u.sugarPreference : undefined,
+          isTakeaway: u.isTakeaway,
+          isDelivery: u.isDelivery,
+          notes: u.notes?.trim() || undefined,
+        });
+      }
+    }
+    const itemsToEmit = Array.from(groups.values());
+    onConfirm(itemsToEmit.length === 1 ? itemsToEmit[0] : itemsToEmit);
     onClose();
   };
 
@@ -89,12 +201,22 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
           </span>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className={`${inline ? 'text-lg sm:text-xl font-black text-gray-950 tracking-wide' : 'text-base sm:text-lg font-black text-gray-950'}`}>
-                {drink.name.toUpperCase()}
+              <h2 className={`${inline ? 'text-lg sm:text-xl font-black text-gray-950 tracking-wide' : 'text-base sm:text-lg font-black text-gray-950'} flex items-center gap-1.5`}>
+                {initialEditItem && (
+                  <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-md font-black tracking-wider uppercase">
+                    ✏️ Editando
+                  </span>
+                )}
+                <span>{drink.name.toUpperCase()}</span>
               </h2>
               <span className="bg-yellow-400 text-black text-xs px-2.5 py-0.5 rounded-xl font-black shadow-xs border border-yellow-500">
                 ${drink.price.toFixed(2)} USD
               </span>
+              {units.length > 1 && (
+                <span className="bg-stone-900 text-white text-xs px-2 py-0.5 rounded-xl font-black">
+                  {units.length} UNIDADES
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-xs font-bold text-gray-700 flex-wrap">
               <span>🇨🇴 {roundCOP(drink.price * copRate).toLocaleString()} COP</span>
@@ -117,39 +239,44 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
 
       {/* 2. Body Scrollable */}
       <main className={`flex-1 min-h-0 overflow-y-auto ${inline ? 'p-3 sm:p-4 space-y-3' : 'p-4 sm:p-5 space-y-4'}`}>
-        {/* Cantidad y Para Llevar */}
+        {/* Cantidad y Destino (Salón / Llevar / Delivery) */}
         <section className="bg-stone-50 p-3 rounded-2xl border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">Cantidad:</span>
+            <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">Cantidad Total:</span>
             <div className="flex items-center border-2 border-yellow-400 rounded-xl bg-white shadow-xs overflow-hidden">
               <button
                 type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                onClick={handleDecreaseQuantity}
                 className="px-3.5 py-1.5 hover:bg-yellow-100 text-gray-900 font-black text-sm cursor-pointer transition-colors"
+                title="Disminuir unidades"
               >
                 <IoRemove />
               </button>
-              <span className="px-3.5 text-sm sm:text-base font-black text-black">{quantity}</span>
+              <span className="px-3.5 text-sm sm:text-base font-black text-black min-w-[2rem] text-center">{units.length}</span>
               <button
                 type="button"
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={handleIncreaseQuantity}
                 className="px-3.5 py-1.5 hover:bg-yellow-100 text-gray-900 font-black text-sm cursor-pointer transition-colors"
+                title="Agregar otra unidad para personalizar"
               >
                 <IoAdd />
               </button>
             </div>
           </div>
 
-          {/* Destino de la Bebida: Salón / Llevar / Delivery */}
+          {/* Destino de la Bebida activa: Salón / Llevar / Delivery */}
           <div className="flex items-center border border-gray-300 rounded-xl bg-white p-1 shadow-xs">
             <button
               type="button"
-              onClick={() => {
-                setIsTakeaway(false);
-                setIsDelivery(false);
-              }}
+              onClick={() =>
+                updateCurrentUnit((prev) => ({
+                  ...prev,
+                  isTakeaway: false,
+                  isDelivery: false,
+                }))
+              }
               className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                !isTakeaway && !isDelivery
+                !currentUnit.isTakeaway && !currentUnit.isDelivery
                   ? 'bg-yellow-400 text-black shadow-xs'
                   : 'text-gray-600 hover:text-black'
               }`}
@@ -158,12 +285,15 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsTakeaway(true);
-                setIsDelivery(false);
-              }}
+              onClick={() =>
+                updateCurrentUnit((prev) => ({
+                  ...prev,
+                  isTakeaway: true,
+                  isDelivery: false,
+                }))
+              }
               className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                isTakeaway && !isDelivery
+                currentUnit.isTakeaway && !currentUnit.isDelivery
                   ? 'bg-amber-400 text-black shadow-xs'
                   : 'text-gray-600 hover:text-black'
               }`}
@@ -172,12 +302,15 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsTakeaway(false);
-                setIsDelivery(true);
-              }}
+              onClick={() =>
+                updateCurrentUnit((prev) => ({
+                  ...prev,
+                  isTakeaway: false,
+                  isDelivery: true,
+                }))
+              }
               className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                isDelivery
+                currentUnit.isDelivery
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-gray-600 hover:text-black'
               }`}
@@ -187,29 +320,96 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
           </div>
         </section>
 
-        {/* Selector de Sabor / Subtipo */}
+        {/* PESTAÑAS MULTI-UNIDAD CUANDO HAY MÁS DE 1 BEBIDA */}
+        {units.length > 1 && (
+          <section className="bg-yellow-50/90 p-3 rounded-2xl border-2 border-yellow-300 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs sm:text-sm font-black text-yellow-950 uppercase tracking-wide flex items-center gap-1.5">
+                <span>🥤</span>
+                <span>PERSONALIZAR UNIDAD ({units.length}):</span>
+              </span>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCopyActiveToAll}
+                  className="px-3 py-1 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black border border-yellow-500 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  title="Copiar sabor y opciones de esta unidad a todas las demás"
+                >
+                  <IoCopyOutline className="text-sm" />
+                  <span>Copiar #{activeUnitIndex + 1} a todas</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetCurrentUnit}
+                  className="px-3 py-1 rounded-xl bg-white hover:bg-stone-100 text-gray-800 text-xs font-bold border border-gray-300 shadow-xs flex items-center gap-1 cursor-pointer transition-all"
+                  title="Restablecer esta unidad al sabor inicial"
+                >
+                  <IoRefreshOutline className="text-sm" />
+                  <span>Reset #{activeUnitIndex + 1}</span>
+                </button>
+              </div>
+            </div>
+
+            {copyToast && (
+              <div className="text-xs font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl animate-in fade-in">
+                {copyToast}
+              </div>
+            )}
+
+            {/* Fila de Botones de Pestaña */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {units.map((u, idx) => {
+                const isActive = idx === activeUnitIndex;
+                const flavorLabel = u.flavor || 'Bebida';
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveUnitIndex(idx)}
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all border-2 flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02] ring-2 ring-yellow-400'
+                        : 'bg-white text-gray-800 border-gray-200 hover:border-yellow-300 hover:bg-yellow-50/50'
+                    }`}
+                  >
+                    <span>🥤 #{idx + 1}</span>
+                    <span className="text-[11px] font-black px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200 truncate max-w-[130px]">
+                      {flavorLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Selector de Sabor / Subtipo de la unidad activa */}
         {drink.flavors && drink.flavors.length > 0 && (
           <section className="bg-stone-50 p-3.5 rounded-2xl border border-gray-200 shadow-xs space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs sm:text-sm font-black text-gray-900 uppercase flex items-center gap-1.5">
                 <span>🍹</span>
-                <span>SELECCIONA EL SABOR (OBLIGATORIO):</span>
+                <span>
+                  {units.length > 1 ? `SABOR PARA LA BEBIDA #${activeUnitIndex + 1}:` : 'SELECCIONA EL SABOR (OBLIGATORIO):'}
+                </span>
               </span>
-              {selectedFlavor && (
+              {currentUnit.flavor && (
                 <span className="text-xs font-black text-yellow-950 bg-yellow-400 px-2.5 py-0.5 rounded-lg border border-yellow-500 shadow-2xs">
-                  ✓ {selectedFlavor}
+                  ✓ {currentUnit.flavor}
                 </span>
               )}
             </div>
 
             <div className={`grid ${drink.flavors.length <= 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'} gap-2`}>
               {drink.flavors.map((flavor) => {
-                const isSelected = selectedFlavor === flavor;
+                const isSelected = currentUnit.flavor === flavor;
                 return (
                   <button
                     key={flavor}
                     type="button"
-                    onClick={() => setSelectedFlavor(flavor)}
+                    onClick={() => updateCurrentUnit((prev) => ({ ...prev, flavor }))}
                     className={`py-3 px-3 text-center rounded-xl font-black text-xs sm:text-sm transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
                       isSelected
                         ? 'bg-yellow-400 text-black border-yellow-500 shadow-md ring-2 ring-yellow-400 scale-[1.01]'
@@ -230,16 +430,16 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
           <section className="bg-stone-50 p-3.5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
             <span className="text-xs sm:text-sm font-black text-gray-900 uppercase flex items-center gap-1.5">
               <span>🥄</span>
-              <span>PREFERENCIA DE AZÚCAR:</span>
+              <span>PREFERENCIA DE AZÚCAR ({units.length > 1 ? `#${activeUnitIndex + 1}` : ''}):</span>
             </span>
             <div className="grid grid-cols-3 gap-2">
               {SUGAR_OPTIONS.map((opt) => {
-                const isSelected = sugarPreference === opt;
+                const isSelected = currentUnit.sugarPreference === opt;
                 return (
                   <button
                     key={opt}
                     type="button"
-                    onClick={() => setSugarPreference(opt)}
+                    onClick={() => updateCurrentUnit((prev) => ({ ...prev, sugarPreference: opt }))}
                     className={`py-2.5 px-2 text-center rounded-xl text-xs sm:text-sm font-black transition-all border cursor-pointer ${
                       isSelected
                         ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs font-black'
@@ -257,12 +457,12 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
         {/* Indicaciones especiales / Notas */}
         <section className="bg-stone-50 p-3.5 rounded-2xl border border-gray-200 shadow-xs space-y-1.5">
           <label className="block text-xs sm:text-sm font-black uppercase text-gray-900 tracking-wider">
-            Indicaciones especiales (opcional):
+            Indicaciones especiales ({units.length > 1 ? `Bebida #${activeUnitIndex + 1}` : 'opcional'}):
           </label>
           <input
             type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            value={currentUnit.notes || ''}
+            onChange={(e) => updateCurrentUnit((prev) => ({ ...prev, notes: e.target.value }))}
             placeholder="Ej: Con bastante hielo, sin pitillo, bien frío..."
             className="w-full px-3.5 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-2xs placeholder-gray-400"
           />
@@ -273,7 +473,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
       <footer className={`bg-white text-gray-900 ${inline ? 'px-4 py-2.5' : 'p-4'} border-t-2 border-yellow-400 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-lg`}>
         <div>
           <span className="text-xs font-black uppercase tracking-wider text-gray-500 block">
-            Total a sumar ({quantity} {quantity === 1 ? 'unidad' : 'unidades'}):
+            Total a sumar ({units.length} {units.length === 1 ? 'unidad' : 'unidades'}):
           </span>
           <div className="flex items-baseline gap-2.5 flex-wrap">
             <span className={`${inline ? 'text-xl sm:text-2xl' : 'text-xl'} font-black text-black`}>
@@ -307,7 +507,7 @@ export const DrinkSelectorModal: React.FC<DrinkSelectorModalProps> = ({
             }`}
           >
             <IoCheckmark className="text-xl" />
-            <span>AGREGAR AL PEDIDO ({quantity})</span>
+            <span>{initialEditItem ? 'GUARDAR CAMBIOS' : `AGREGAR AL PEDIDO (${units.length})`}</span>
           </button>
         </div>
       </footer>

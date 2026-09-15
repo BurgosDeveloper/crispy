@@ -122,13 +122,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   // Calculate sum of currently selected items if in selectable mode
   const selectedTotalUSD = order.items
     .filter((it) => selectedItemIds.includes(it.id))
-    .reduce((sum, it) => {
-      let price = it.price || 0;
-      if (it.extras && Array.isArray(it.extras)) {
-        price += it.extras.reduce((exS, ex) => exS + (ex.price || 0), 0);
-      }
-      return sum + price * (it.quantity || 1);
-    }, 0);
+    .reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
   const cleanOrderNumber = order.orderNumber.toString().replace(/^#+/, '');
 

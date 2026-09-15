@@ -177,7 +177,7 @@ function isKitchenItem(item) {
 
   const category = String(item.category || '').trim().toLowerCase();
   const drinkType = String(item.drinkType || item.drink_type || '').trim().toLowerCase();
-  const rawName = String(item.productName || item.name || '').trim();
+  const rawName = String(item.productName || item.product_name || item.name || '').trim();
   const name = rawName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const nameClean = name.replace(/[^a-z0-9]/g, '');
 
@@ -187,7 +187,7 @@ function isKitchenItem(item) {
     drinkType === 'merengada' ||
     drinkType === 'malteada' ||
     drinkType === 'batido' ||
-    !!item.sugarPreference ||
+    Boolean(item.sugarPreference || item.sugar_preference) ||
     name.includes('jugo') ||
     name.includes('merengada') ||
     name.includes('malteada') ||
@@ -403,7 +403,7 @@ function itemDetails(item, order = {}) {
   }
 
   // 3. Proteínas: Solo si cambiaron respecto a la receta original
-  const prodName = item.productName || item.name || '';
+  const prodName = item.productName || item.product_name || item.name || '';
   if (item.proteins && Array.isArray(item.proteins) && item.proteins.length > 0) {
     if (!areProteinsDefault(prodName, item.proteins, item.defaultProteins || item.default_proteins)) {
       details.push(`PROTEINAS: ${[...item.proteins].sort().join(' + ')}`);
@@ -466,8 +466,9 @@ function itemDetails(item, order = {}) {
   }
 
   // 6. Bebidas / Azúcar
-  if (item.sugarPreference) {
-    details.push(`Azucar: ${item.sugarPreference}`);
+  const sugar = item.sugarPreference || item.sugar_preference;
+  if (sugar) {
+    details.push(`Azucar: ${sugar}`);
   }
 
   // 7. Notas del ítem: ÚNICAMENTE si el usuario escribió una nota real (sin tags artificiales [#1] ni textos vacíos)
@@ -596,11 +597,11 @@ function getReportBaseProductName(item = {}) {
     name = name.replace(new RegExp(`\\s*\\(${escaped}\\)\\s*$`, 'i'), '').trim();
   }
   const cat = (item.category || '').toLowerCase();
-  const isDrink = cat.includes('bebida') || cat.includes('refresco') || cat.includes('jugo') || !!item.drinkType || !!item.flavor;
+  const isDrink = cat.includes('bebida') || cat.includes('drink') || cat.includes('refresco') || cat.includes('jugo') || cat.includes('licor') || cat.includes('cerveza') || cat.includes('agua') || !!item.drinkType || !!item.flavor;
   if (isDrink) {
     name = name.replace(/\s*\([^)]+\)\s*$/g, '').trim();
   }
-  return name;
+  return name || (item.productName || item.name || 'Item').trim();
 }
 
 function buildReportTicket(reportType, data) {
@@ -960,17 +961,16 @@ function buildReportTicket(reportType, data) {
       lines.push(...wrapText(`TOTAL A CREDITO: $${totalCreditUSD.toFixed(2)} USD`, reportWidth));
     }
 
-    // SECCIÓN 6 — ÍTEMS FACTURADOS AL CONTADO (Lista Única Unificada)
+    // SECCIÓN 6 — ÍTEMS FACTURADOS (Estructurado en 4 Secciones)
     const paidExtrasMap = new Map();
     let freeToppingsCount = 0;
-    const productMap = new Map();
+    const foodMap = new Map();
+    const drinkMap = new Map();
+    const otherProductsMap = new Map();
 
     for (const it of cashItems) {
       const itQty = Number(it.quantity) || 1;
-      const rawName = it.productName || it.name || 'Item';
-      const cleanName = rawName
-        .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
-        .trim();
+      const cleanName = getReportBaseProductName(it);
 
       const extrasList = [];
       if (Array.isArray(it.extras)) extrasList.push(...it.extras);
@@ -1001,76 +1001,135 @@ function buildReportTicket(reportType, data) {
       const baseUnitPrice = Math.max(0, rawPrice - paidExtrasUnitCost);
       const baseSubtotal = baseUnitPrice * itQty;
 
-      const prevProd = productMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
+      const catLower = (it.category || '').toLowerCase().trim();
+      const rawLower = (it.productName || it.name || '').toLowerCase().trim();
+      const isDrink =
+        catLower.includes('bebida') ||
+        catLower.includes('drink') ||
+        catLower.includes('refresco') ||
+        catLower.includes('jugo') ||
+        catLower.includes('licor') ||
+        catLower.includes('cerveza') ||
+        catLower.includes('agua') ||
+        catLower.includes('trago') ||
+        catLower.includes('coctel') ||
+        catLower.includes('cóctel') ||
+        catLower.includes('vino') ||
+        catLower.includes('café') ||
+        catLower.includes('cafe') ||
+        catLower.includes('malta') ||
+        Boolean(it.drinkType) ||
+        Boolean(it.flavor) ||
+        rawLower.includes('refresco') ||
+        rawLower.includes('jugo') ||
+        rawLower.includes('agua') ||
+        rawLower.includes('cerveza') ||
+        rawLower.includes('nestea') ||
+        rawLower.includes('granizado') ||
+        rawLower.includes('soda') ||
+        rawLower.includes('malta') ||
+        rawLower.includes('licor') ||
+        rawLower.includes('ron') ||
+        rawLower.includes('vodka') ||
+        rawLower.includes('whisky') ||
+        rawLower.includes('mojito') ||
+        rawLower.includes('té') ||
+        rawLower.includes('te ') ||
+        rawLower.endsWith(' te');
+
+      const isOther =
+        catLower.includes('delivery') ||
+        catLower.includes('servicio') ||
+        catLower.includes('otro') ||
+        rawLower.includes('delivery') ||
+        rawLower.includes('servicio');
+
+      const targetMap = isDrink ? drinkMap : isOther ? otherProductsMap : foodMap;
+      const prevProd = targetMap.get(cleanName) || { name: cleanName, quantity: 0, subtotalUSD: 0 };
       prevProd.quantity += itQty;
       prevProd.subtotalUSD += baseSubtotal;
-      productMap.set(cleanName, prevProd);
+      targetMap.set(cleanName, prevProd);
     }
 
-    const unifiedItems = [];
+    const comidasList = Array.from(foodMap.values()).filter((p) => p.quantity > 0).sort((a, b) => a.name.localeCompare(b.name));
+    const bebidasList = Array.from(drinkMap.values()).filter((p) => p.quantity > 0).sort((a, b) => a.name.localeCompare(b.name));
 
-    // 1. Deliverys por tarifa
+    const adicionalesList = Array.from(paidExtrasMap.values()).filter((e) => e.quantity > 0).sort((a, b) => a.name.localeCompare(b.name));
+    if (freeToppingsCount > 0) {
+      adicionalesList.push({ name: 'Toppings Gratis', quantity: freeToppingsCount, subtotalUSD: 0 });
+    }
+
+    const otrosList = [];
     const sortedFees = Array.from(deliveryMap.keys()).sort((a, b) => a - b);
     for (const fee of sortedFees) {
       const count = deliveryMap.get(fee) || 0;
       if (fee > 0 && count > 0) {
-        unifiedItems.push({
-          name: `Delivery ($${fee.toFixed(2)})`,
-          quantity: count,
-          subtotalUSD: fee * count,
-        });
+        otrosList.push({ name: `Delivery ($${fee.toFixed(2)})`, quantity: count, subtotalUSD: fee * count });
       }
     }
-
-    // 2. Adicionales Pagos (ADD <Nombre>)
-    const sortedExtras = Array.from(paidExtrasMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    for (const extra of sortedExtras) {
-      if (extra.quantity > 0) {
-        unifiedItems.push({
-          name: extra.name,
-          quantity: extra.quantity,
-          subtotalUSD: extra.subtotalUSD,
-        });
-      }
+    for (const prod of otherProductsMap.values()) {
+      if (prod.quantity > 0) otrosList.push(prod);
     }
 
-    // 3. Toppings Gratis (conteo acumulado sin costo)
-    if (freeToppingsCount > 0) {
-      unifiedItems.push({
-        name: 'Toppings Gratis',
-        quantity: freeToppingsCount,
-        subtotalUSD: 0,
-      });
-    }
+    const totalComidasUnits = comidasList.reduce((s, it) => s + it.quantity, 0);
+    const totalComidasUSD = comidasList.reduce((s, it) => s + it.subtotalUSD, 0);
+    const totalBebidasUnits = bebidasList.reduce((s, it) => s + it.quantity, 0);
+    const totalBebidasUSD = bebidasList.reduce((s, it) => s + it.subtotalUSD, 0);
+    const totalAdicionalesUnits = adicionalesList.reduce((s, it) => s + it.quantity, 0);
+    const totalAdicionalesUSD = adicionalesList.reduce((s, it) => s + it.subtotalUSD, 0);
+    const totalOtrosUnits = otrosList.reduce((s, it) => s + it.quantity, 0);
+    const totalOtrosUSD = otrosList.reduce((s, it) => s + it.subtotalUSD, 0);
 
-    // 4. Hamburguesas y Productos de Menú (a precio base)
-    const sortedProds = Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    for (const prod of sortedProds) {
-      if (prod.quantity > 0) {
-        unifiedItems.push({
-          name: prod.name,
-          quantity: prod.quantity,
-          subtotalUSD: prod.subtotalUSD,
-        });
-      }
-    }
+    const grandUnits = totalComidasUnits + totalBebidasUnits + totalAdicionalesUnits + totalOtrosUnits;
+    const grandUSD = totalComidasUSD + totalBebidasUSD + totalAdicionalesUSD + totalOtrosUSD;
 
     addSection(lines, creditOrders.length > 0 ? 'SECCION 5: ITEMS FACTURADOS' : 'SECCION 4: ITEMS FACTURADOS', reportWidth);
-    if (unifiedItems.length === 0) {
-      lines.push('SIN ITEMS FACTURADOS');
+
+    // 1. COMIDAS
+    lines.push('', ...wrapText('[1. COMIDAS]', reportWidth));
+    if (comidasList.length === 0) {
+      lines.push('  SIN COMIDAS');
     } else {
-      const totalItemsUSD = unifiedItems.reduce((sum, it) => sum + it.subtotalUSD, 0);
-
-      for (const it of unifiedItems) {
-        lines.push(...wrapText(`${it.quantity} | ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth));
+      for (const it of comidasList) {
+        lines.push(...wrapText(`  ${it.quantity}x ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth));
       }
-
-      lines.push(divider('-', reportWidth));
-      lines.push('\x1BE\x01');
-      lines.push(...wrapText('TOTAL EN $ PRODUCTOS:', reportWidth));
-      lines.push(...wrapText(`$${totalItemsUSD.toFixed(2)} USD`, reportWidth));
-      lines.push('\x1BE\x00');
     }
+
+    // 2. BEBIDAS
+    lines.push('', ...wrapText('[2. BEBIDAS]', reportWidth));
+    if (bebidasList.length === 0) {
+      lines.push('  SIN BEBIDAS');
+    } else {
+      for (const it of bebidasList) {
+        lines.push(...wrapText(`  ${it.quantity}x ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth));
+      }
+    }
+
+    // 3. ADICIONALES
+    lines.push('', ...wrapText('[3. ADICIONALES]', reportWidth));
+    if (adicionalesList.length === 0) {
+      lines.push('  SIN ADICIONALES');
+    } else {
+      for (const it of adicionalesList) {
+        lines.push(...wrapText(`  ${it.quantity}x ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth));
+      }
+    }
+
+    // 4. OTROS
+    lines.push('', ...wrapText('[4. OTROS / DELIVERY]', reportWidth));
+    if (otrosList.length === 0) {
+      lines.push('  SIN OTROS CONCEPTOS');
+    } else {
+      for (const it of otrosList) {
+        lines.push(...wrapText(`  ${it.quantity}x ${it.name} | $${it.subtotalUSD.toFixed(2)}`, reportWidth));
+      }
+    }
+
+    lines.push(divider('-', reportWidth));
+    lines.push('\x1BE\x01');
+    lines.push(...wrapText(`TOTAL GENERAL FACTURADO EN ITEMS:`, reportWidth));
+    lines.push(...wrapText(`$${grandUSD.toFixed(2)} USD`, reportWidth));
+    lines.push('\x1BE\x00');
   }
 
   lines.push('', divider('=', reportWidth), centered('FIN DEL REPORTE', reportWidth), centered('CRISPY BURGER', reportWidth), PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
@@ -1094,7 +1153,7 @@ function kitchenWrap(value, indent = '') {
 function consolidateKitchenItems(items, order) {
   const consolidated = [];
   for (const item of items) {
-    const cleanName = (item.productName || item.name || 'Producto')
+    const cleanName = (item.productName || item.product_name || item.name || 'Producto')
       .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar)\)/gi, '')
       .trim();
     const details = itemDetails(item, order);
@@ -1619,7 +1678,7 @@ function buildReceiptTicket(order, rates = {}) {
   const receiptItems = (order.items || []).filter((it) => !isSalsaItem(it));
   for (const it of receiptItems) {
     const qty = it.quantity || 1;
-    const cleanName = printableText((it.productName || 'Producto')
+    const cleanName = printableText((it.productName || it.product_name || 'Producto')
       .replace(/\s*\((Grande|Pequeña|Mediana|Familiar|Estándar|Modificada|Modificado)\)/gi, '')
       .trim());
     const unitPrice = Number(it.price) || 0;
@@ -1666,7 +1725,7 @@ function buildReceiptTicket(order, rates = {}) {
       const exPrice = Number(ex.price) || 0;
       if (exPrice > 0) {
         const exName = printableText(ex.name || 'Adicional');
-        lines.push(formatTwoColumns(`  + ADD ${exName}`, `$${(exPrice * qty).toFixed(2)}`));
+        lines.push(`  + ADD ${exName} ($${(exPrice * qty).toFixed(2)})`);
       }
     }
   }

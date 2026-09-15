@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Product, Ingredient, BurgerUnitConfig } from '../../data/mockData';
+import { Product, Ingredient, BurgerUnitConfig, OrderItem } from '../../data/mockData';
 import { getExtraPrice } from '../../utils/burgerPricing';
 import { roundCOP } from '../../utils/currencyRounding';
 import { getCleanItemNote, normalizeProteinName, areProteinsDefault, formatRemovedIngredients, getProteinIcon } from '../../utils/burgerProteins';
@@ -59,10 +59,10 @@ const getInitialProteins = (
     return burger.defaultProteins.map((dp) => {
       const match = dbProteins.find(
         (p) =>
-          p.name.toUpperCase() === dp.toUpperCase() ||
+          p.name.toUpperCase() === String(dp || '').toUpperCase() ||
           normalizeProteinName(p.name) === normalizeProteinName(dp)
       );
-      return match ? match.name : dp.toUpperCase();
+      return match ? match.name : String(dp || '').toUpperCase();
     });
   }
 
@@ -131,6 +131,41 @@ const createInitialUnitConfig = (
   subtotalUSD: burger.price,
 });
 
+const createEditUnitConfig = (
+  unitIndex: number,
+  burger: Product,
+  item: OrderItem,
+  dbProteins: { id: string; name: string; icon: string }[] = AVAILABLE_BURGER_PROTEINS
+): BurgerUnitConfig => {
+  const allExtras = Array.isArray(item.extras) ? item.extras : [];
+  const freeTops = allExtras
+    .filter((e) => Number(e.price) === 0)
+    .map((e) => (e.name || '').replace(/\s*\(GRATIS\)\s*/gi, '').trim())
+    .filter(Boolean);
+  const paidExtras = allExtras
+    .filter((e) => Number(e.price) > 0)
+    .map((e) => ({
+      name: (e.name || '').replace(/^\+?\s*(ADD|EXTRA):?\s*/i, '').trim(),
+      price: Number(e.price),
+    }));
+
+  const paidExtrasTotal = paidExtras.reduce((sum, e) => sum + e.price, 0);
+
+  return {
+    unitIndex,
+    proteins: item.proteins && item.proteins.length > 0 ? item.proteins : getInitialProteins(burger, dbProteins),
+    removedIngredients: item.removedIngredients || [],
+    selectedFreeToppings: freeTops,
+    selectedPaidExtras: paidExtras,
+    isTakeaway: !!item.isTakeaway && !item.isDelivery,
+    isDelivery: !!item.isDelivery,
+    isCut: !!item.isCut || item.cutPreference === 'Picada',
+    cutPreference: item.cutPreference || (item.isCut ? 'Picada' : 'Entera'),
+    notes: getCleanItemNote(item.notes) || '',
+    subtotalUSD: (burger.price || item.price || 0) + paidExtrasTotal,
+  };
+};
+
 function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
   if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
   if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
@@ -160,13 +195,13 @@ function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
 export interface BurgerOrderConfirmationItem {
   burger: Product;
   quantity: number;
-  proteins?: string[];
+  proteins: string[];
   removedIngredients: string[];
-  extras: { name: string; price: number }[];
+  extras: Array<{ name: string; price: number }>;
   isTakeaway: boolean;
   isDelivery?: boolean;
   isCut: boolean;
-  cutPreference: 'Picada' | 'Entera';
+  cutPreference?: 'Entera' | 'Picada';
   notes?: string;
   finalPrice: number;
 }
@@ -183,6 +218,7 @@ interface BurgerBuilderModalProps {
   defaultDelivery?: boolean;
   exchangeRates?: { COP: number; Bs: number };
   inline?: boolean;
+  initialEditItem?: OrderItem | null;
 }
 
 export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
@@ -197,21 +233,20 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   defaultDelivery = false,
   exchangeRates = { COP: 3950, Bs: 36.5 },
   inline = false,
+  initialEditItem,
 }) => {
   const [units, setUnits] = useState<BurgerUnitConfig[]>([]);
   const [activeUnitIndex, setActiveUnitIndex] = useState<number>(0);
-  const [copyToast, setCopyToast] = useState<string>('');
-
-  // Toggles tipo acordeón solo para Proteínas y Adicionales (Personalizar está siempre abierta debajo)
   const [showProteinas, setShowProteinas] = useState<boolean>(false);
   const [showAdicionales, setShowAdicionales] = useState<boolean>(false);
+  const [copyToast, setCopyToast] = useState<string>('');
 
-  // Lista dinámica de proteínas obtenidas desde la base de datos (o fallback predeterminado)
+  // Sincronizar proteínas disponibles dinámicas de la base de datos
   const effectiveProteins = useMemo(() => {
     if (availableProteins && availableProteins.length > 0) {
       return availableProteins.map((ing) => ({
         id: ing.id,
-        name: ing.name.toUpperCase(),
+        name: ing.name,
         icon: getProteinIcon(ing.name),
       }));
     }
@@ -219,15 +254,25 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableProteins ? availableProteins.map((p) => `${p.id}:${p.name}`).join('|') : '']);
 
-  // Ref para controlar que la inicialización de unidades solo ocurra al abrir el modal o cambiar de hamburguesa
+  // Ref para controlar que la inicialización de unidades solo ocurra al abrir el modal o cambiar de hamburguesa/edición
   // Esto previene que re-renders del padre o eventos Socket.IO deseleccionen ingredientes
   const activeBurgerIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen && burger) {
-      if (activeBurgerIdRef.current !== burger.id) {
-        activeBurgerIdRef.current = burger.id;
-        setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, defaultDelivery, effectiveProteins)]);
+      const activeKey = initialEditItem ? `edit-${initialEditItem.id}` : `create-${burger.id}`;
+      if (activeBurgerIdRef.current !== activeKey) {
+        activeBurgerIdRef.current = activeKey;
+        if (initialEditItem) {
+          const qty = Math.max(1, initialEditItem.quantity || 1);
+          const editUnits: BurgerUnitConfig[] = [];
+          for (let i = 0; i < qty; i++) {
+            editUnits.push(createEditUnitConfig(i, burger, initialEditItem, effectiveProteins));
+          }
+          setUnits(editUnits);
+        } else {
+          setUnits([createInitialUnitConfig(0, burger, defaultTakeaway, defaultDelivery, effectiveProteins)]);
+        }
         setActiveUnitIndex(0);
         setShowProteinas(false);
         setShowAdicionales(false);
@@ -237,7 +282,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       activeBurgerIdRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, burger?.id]);
+  }, [isOpen, burger?.id, initialEditItem?.id]);
 
   // Lista dinámica de Toppings Gratis (leídos desde la BD vía availableFreeToppings o filtrados de availableExtras, con fallback seguro)
   const freeToppingsList = useMemo(() => {
@@ -520,8 +565,13 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
           <span className={inline ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"}>🍔</span>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-gray-950 tracking-wide`}>
-                {burger.name.toUpperCase()}
+              <h2 className={`${inline ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-gray-950 tracking-wide flex items-center gap-2`}>
+                {initialEditItem && (
+                  <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-lg font-black tracking-wider uppercase shadow-xs">
+                    ✏️ Editando
+                  </span>
+                )}
+                <span>{burger.name.toUpperCase()}</span>
               </h2>
               <span className="bg-yellow-400 text-black text-xs sm:text-sm px-2.5 py-0.5 rounded-xl font-black shadow-xs border border-yellow-500">
                 {currentUnit.proteins.length === 0
@@ -913,9 +963,11 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                           const isSelected =
                             currentProtein.toUpperCase() === prot.name.toUpperCase() ||
                             normalizeProteinName(currentProtein) === normalizeProteinName(prot.name);
-                          const isOriginal =
-                            defaultProteinForSlot.toUpperCase() === prot.name.toUpperCase() ||
-                            normalizeProteinName(defaultProteinForSlot) === normalizeProteinName(prot.name);
+                          const isOriginal = Boolean(
+                            defaultProteinForSlot &&
+                            (defaultProteinForSlot.toUpperCase() === prot.name.toUpperCase() ||
+                             normalizeProteinName(defaultProteinForSlot) === normalizeProteinName(prot.name))
+                          );
 
                           return (
                             <button
@@ -1100,7 +1152,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
             className="px-6 py-3 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm border-2 border-yellow-500 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
             <IoCheckmark className="text-xl" />
-            <span>AGREGAR AL PEDIDO ({units.length})</span>
+            <span>{initialEditItem ? `GUARDAR CAMBIOS (${units.length})` : `AGREGAR AL PEDIDO (${units.length})`}</span>
           </button>
         </div>
       </footer>

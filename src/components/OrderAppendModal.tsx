@@ -3,7 +3,7 @@ import { Order, OrderItem, Product, Ingredient } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
-import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
+import { DrinkSelectorModal, DrinkOrderConfirmationItem } from '../modules/mesero/DrinkSelectorModal';
 import { DeliveryConfigPanel } from '../modules/mesero/DeliveryConfigPanel';
 import { AdminPinModal } from './AdminPinModal';
 import { roundCOP } from '../utils/currencyRounding';
@@ -18,6 +18,7 @@ import {
   IoCheckmarkCircle,
   IoRestaurantOutline,
   IoPrintOutline,
+  IoPencilOutline,
 } from 'react-icons/io5';
 
 interface OrderAppendModalProps {
@@ -47,6 +48,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   // Estado para bebida seleccionada (sabores / jugos)
   const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
+  const [editingAppendItem, setEditingAppendItem] = useState<{ index: number; item: OrderItem } | null>(null);
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(order?.deliveryFeeUSD || 0);
   const [customerName, setCustomerName] = useState<string>(order?.customerName || '');
   const [kitchenNotes, setKitchenNotes] = useState<string>(order?.kitchenNotes || '');
@@ -79,6 +81,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
       setSelectedCategory('Todas');
       setSelectedBurger(null);
       setSelectedDrink(null);
+      setEditingAppendItem(null);
       setDeliveryFeeUSD(order?.deliveryFeeUSD || 0);
       setCustomerName(order?.customerName || '');
       setKitchenNotes(order?.kitchenNotes || '');
@@ -187,40 +190,56 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     }
   };
 
-  // Confirmar Bebida seleccionada (Sabores / Jugos)
-  const handleConfirmDrinkAdd = (config: {
-    drink: Product;
-    quantity: number;
-    sugarPreference?: string;
-    isTakeaway: boolean;
-    isDelivery?: boolean;
-    notes?: string;
-    flavor?: string;
-  }) => {
-    const formattedName = config.flavor
-      ? `${config.drink.name} (${config.flavor})`
-      : config.drink.name;
+  // Confirmar Bebida seleccionada (Sabores / Jugos / Multi-unidad)
+  const handleConfirmDrinkAdd = (
+    configOrList: DrinkOrderConfirmationItem | DrinkOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const generatedItems: OrderItem[] = list.map((config) => {
+      const formattedName = config.flavor
+        ? `${config.drink.name} (${config.flavor})`
+        : config.drink.name;
 
-    const newItem: OrderItem = {
-      id: `add-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      productId: config.drink.id,
-      productName: formattedName,
-      price: config.drink.price,
-      quantity: config.quantity,
-      category: config.drink.category || 'Bebidas',
-      drinkType: config.drink.drinkType,
-      sugarPreference: config.sugarPreference,
-      flavor: config.flavor,
-      isTakeaway: Boolean(config.isTakeaway),
-      isDelivery: Boolean(config.isDelivery),
-      notes: getCleanItemNote(config.notes) || undefined,
-      isNewOrModified: true,
-    };
-    setItemsToAdd((prev) => mergeAppendItem(prev, newItem));
-    if (config.isDelivery && deliveryFeeUSD <= 0) {
+      return {
+        id: `add-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: config.drink.id,
+        productName: formattedName,
+        price: config.drink.price,
+        quantity: config.quantity,
+        category: config.drink.category || 'Bebidas',
+        drinkType: config.drink.drinkType,
+        sugarPreference: config.sugarPreference,
+        flavor: config.flavor,
+        isTakeaway: Boolean(config.isTakeaway),
+        isDelivery: Boolean(config.isDelivery),
+        notes: getCleanItemNote(config.notes) || undefined,
+        isNewOrModified: true,
+      };
+    });
+
+    if (editingAppendItem !== null) {
+      setItemsToAdd((prev) => {
+        const updated = [...prev];
+        updated.splice(editingAppendItem.index, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingAppendItem(null);
+      setSuccessToast(`¡Bebida editada y actualizada!`);
+    } else {
+      setItemsToAdd((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeAppendItem(current, item);
+        }
+        return current;
+      });
+      setSuccessToast(`¡${list.length} bebida(s) agregada(s)!`);
+    }
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
-    setSuccessToast(`¡${formattedName} agregado!`);
+    setSelectedDrink(null);
     setTimeout(() => setSuccessToast(''), 2500);
   };
 
@@ -242,41 +261,89 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     setTimeout(() => setSuccessToast(''), 2500);
   };
 
-  // Confirmar adición de hamburguesa desde la sección INLINE
+  // Editar ítem nuevo agregado antes de enviar a cocina
+  const handleEditAddedItem = (index: number) => {
+    const item = itemsToAdd[index];
+    if (!item) return;
+    const paidExtrasCost = (item.extras || []).reduce((s, e) => s + (Number(e.price) || 0), 0);
+    const estimatedBasePrice = Math.max(0, (item.price || 0) - paidExtrasCost);
+
+    const prod = products.find((p) => 
+      p.id === item.productId || 
+      p.name.toUpperCase() === item.productName.toUpperCase() ||
+      item.productName.toUpperCase().startsWith(p.name.toUpperCase())
+    ) || {
+      id: item.productId,
+      name: item.productName,
+      price: estimatedBasePrice,
+      category: item.category || 'Hamburguesas',
+      baseIngredients: [],
+    } as Product;
+
+    setEditingAppendItem({ index, item });
+
+    const isDrink =
+      (item.category || '').toLowerCase().includes('bebida') ||
+      (item.category || '').toLowerCase().includes('refresco') ||
+      (item.category || '').toLowerCase().includes('jugo') ||
+      Boolean(item.drinkType) ||
+      Boolean(item.flavor);
+
+    if (isDrink) {
+      setSelectedBurger(null);
+      setSelectedDrink(prod);
+    } else {
+      setSelectedDrink(null);
+      setSelectedBurger(prod);
+    }
+  };
+
+  // Confirmar adición o edición de hamburguesa desde la sección INLINE
   const handleConfirmBurgerAdd = (
     configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
   ) => {
     const list = Array.isArray(configOrList) ? configOrList : [configOrList];
-    setItemsToAdd((prev) => {
-      let current = [...prev];
-      for (const config of list) {
-        const item: OrderItem = {
-          id: `add-bg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          productId: config.burger.id,
-          productName: config.burger.name,
-          price: config.finalPrice,
-          quantity: config.quantity,
-          category: config.burger.category || 'Hamburguesas',
-          proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
-          removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
-          extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: Boolean(config.isTakeaway),
-          isDelivery: Boolean(config.isDelivery),
-          isCut: config.isCut,
-          cutPreference: config.cutPreference,
-          notes: getCleanItemNote(config.notes) || undefined,
-          isNewOrModified: true,
-        };
-        current = mergeAppendItem(current, item);
-      }
-      return current;
-    });
+    const generatedItems: OrderItem[] = list.map((config) => ({
+      id: `add-bg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: config.burger.id,
+      productName: config.burger.name,
+      price: config.finalPrice,
+      quantity: config.quantity,
+      category: config.burger.category || 'Hamburguesas',
+      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+      removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
+      extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
+      isCut: config.isCut,
+      cutPreference: config.cutPreference,
+      notes: getCleanItemNote(config.notes) || undefined,
+      isNewOrModified: true,
+    }));
+
+    if (editingAppendItem !== null) {
+      setItemsToAdd((prev) => {
+        const updated = [...prev];
+        updated.splice(editingAppendItem.index, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingAppendItem(null);
+      setSuccessToast(`¡Ítem editado y actualizado!`);
+    } else {
+      setItemsToAdd((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeAppendItem(current, item);
+        }
+        return current;
+      });
+      setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
+    }
 
     if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
     setSelectedBurger(null);
-    setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
     setTimeout(() => setSuccessToast(''), 2500);
   };
 
@@ -502,7 +569,10 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   availableFreeToppings={availableFreeToppings}
                   isOpen={true}
                   inline={true}
-                  onClose={() => setSelectedBurger(null)}
+                  onClose={() => {
+                    setSelectedBurger(null);
+                    setEditingAppendItem(null);
+                  }}
                   onConfirm={(config) => {
                     handleConfirmBurgerAdd(config);
                     setSelectedBurger(null);
@@ -510,6 +580,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   defaultTakeaway={order.type === 'pickup'}
                   defaultDelivery={order.type === 'delivery'}
                   exchangeRates={exchangeRates}
+                  initialEditItem={editingAppendItem ? editingAppendItem.item : null}
                 />
               </div>
             ) : selectedDrink ? (
@@ -519,10 +590,15 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                   drink={selectedDrink}
                   isOpen={true}
                   inline={true}
-                  onClose={() => setSelectedDrink(null)}
+                  initialEditItem={editingAppendItem ? editingAppendItem.item : null}
+                  onClose={() => {
+                    setSelectedDrink(null);
+                    setEditingAppendItem(null);
+                  }}
                   onConfirm={(config) => {
                     handleConfirmDrinkAdd(config);
                     setSelectedDrink(null);
+                    setEditingAppendItem(null);
                   }}
                   defaultTakeaway={order.type === 'pickup'}
                   defaultDelivery={order.type === 'delivery'}
@@ -853,14 +929,27 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                 </button>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveAddedItem(idx)}
-                                className="p-1.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                title="Eliminar ítem agregado"
-                              >
-                                <IoTrashOutline className="text-base" />
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                {item.category !== 'Salsas' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditAddedItem(idx)}
+                                    className="px-2.5 py-1 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 font-black text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs active:scale-95"
+                                    title="Editar personalización de este ítem"
+                                  >
+                                    <IoPencilOutline className="text-sm" />
+                                    <span>Editar</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAddedItem(idx)}
+                                  className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
+                                  title="Eliminar ítem agregado"
+                                >
+                                  <IoTrashOutline className="text-base" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );

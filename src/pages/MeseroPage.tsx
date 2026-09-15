@@ -5,7 +5,7 @@ import { Product, OrderItem, Order, Ingredient } from '../data/mockData';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
 import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
-import { DrinkSelectorModal } from '../modules/mesero/DrinkSelectorModal';
+import { DrinkSelectorModal, DrinkOrderConfirmationItem } from '../modules/mesero/DrinkSelectorModal';
 import { DeliveryConfigPanel } from '../modules/mesero/DeliveryConfigPanel';
 import { OrderServiceTransferModal } from '../components/OrderServiceTransferModal';
 import { OrderAppendModal } from '../components/OrderAppendModal';
@@ -25,6 +25,7 @@ import {
   IoSwapHorizontal,
   IoWarningOutline,
   IoPrintOutline,
+  IoPencilOutline,
 } from 'react-icons/io5';
 
 export const MeseroPage: React.FC = () => {
@@ -75,6 +76,7 @@ export const MeseroPage: React.FC = () => {
 
   // Cart & Order Form State
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
+  const [editingCartItem, setEditingCartItem] = useState<OrderItem | null>(null);
   const [customerName, setCustomerName] = useState<string>('');
   const [kitchenNotes, setKitchenNotes] = useState<string>('');
   const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(0);
@@ -238,73 +240,135 @@ export const MeseroPage: React.FC = () => {
     setCartItems((prev) => mergeCartItem(prev, newItem));
   };
 
-  // Confirm Burger Add
+  // Editar ítem del carrito antes de enviar a cocina
+  const handleEditCartItem = (item: OrderItem) => {
+    const paidExtrasCost = (item.extras || []).reduce((s, e) => s + (Number(e.price) || 0), 0);
+    const estimatedBasePrice = Math.max(0, (item.price || 0) - paidExtrasCost);
+
+    const prod = products.find((p) => 
+      p.id === item.productId || 
+      p.name.toUpperCase() === item.productName.toUpperCase() ||
+      item.productName.toUpperCase().startsWith(p.name.toUpperCase())
+    ) || {
+      id: item.productId,
+      name: item.productName,
+      price: estimatedBasePrice,
+      category: item.category || 'Hamburguesas',
+      baseIngredients: [],
+    } as Product;
+
+    setEditingCartItem(item);
+
+    const isDrink =
+      (item.category || '').toLowerCase().includes('bebida') ||
+      (item.category || '').toLowerCase().includes('refresco') ||
+      (item.category || '').toLowerCase().includes('jugo') ||
+      Boolean(item.drinkType) ||
+      Boolean(item.flavor);
+
+    if (isDrink) {
+      setSelectedBurger(null);
+      setSelectedDrink(prod);
+    } else {
+      setSelectedDrink(null);
+      setSelectedBurger(prod);
+    }
+  };
+
+  // Confirm Burger Add (Nuevo o Editado)
   const handleConfirmBurgerAdd = (
     configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
   ) => {
     const list = Array.isArray(configOrList) ? configOrList : [configOrList];
-    setCartItems((prev) => {
-      let current = [...prev];
-      for (const config of list) {
-        const item: OrderItem = {
-          id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          productId: config.burger.id,
-          productName: config.burger.name,
-          price: config.finalPrice,
-          quantity: config.quantity,
-          category: config.burger.category,
-          proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
-          removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
-          extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
-          isTakeaway: Boolean(config.isTakeaway),
-          isDelivery: Boolean(config.isDelivery),
-          isCut: config.isCut,
-          cutPreference: config.cutPreference,
-          notes: getCleanItemNote(config.notes) || undefined,
-          isNewOrModified: false,
-        };
-        current = mergeCartItem(current, item);
-      }
-      return current;
-    });
+    const generatedItems: OrderItem[] = list.map((config) => ({
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: config.burger.id,
+      productName: config.burger.name,
+      price: config.finalPrice,
+      quantity: config.quantity,
+      category: config.burger.category,
+      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+      removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
+      extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
+      isTakeaway: Boolean(config.isTakeaway),
+      isDelivery: Boolean(config.isDelivery),
+      isCut: config.isCut,
+      cutPreference: config.cutPreference,
+      notes: getCleanItemNote(config.notes) || undefined,
+      isNewOrModified: false,
+    }));
+
+    if (editingCartItem) {
+      setCartItems((prev) => {
+        const idx = prev.findIndex((it) => it.id === editingCartItem.id);
+        if (idx === -1) return [...prev, ...generatedItems];
+        const updated = [...prev];
+        updated.splice(idx, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingCartItem(null);
+    } else {
+      setCartItems((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeCartItem(current, item);
+        }
+        return current;
+      });
+    }
 
     if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
   };
 
-  // Confirm Drink Add
-  const handleConfirmDrinkAdd = (config: {
-    drink: Product;
-    quantity: number;
-    sugarPreference?: string;
-    flavor?: string;
-    isTakeaway: boolean;
-    isDelivery?: boolean;
-    notes?: string;
-  }) => {
-    const formattedName = config.flavor
-      ? `${config.drink.name} (${config.flavor})`
-      : config.drink.name;
+  // Confirm Drink Add (Nuevo o Editado, soporta multi-unidad)
+  const handleConfirmDrinkAdd = (
+    configOrList: DrinkOrderConfirmationItem | DrinkOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const generatedItems: OrderItem[] = list.map((config) => {
+      const formattedName = config.flavor
+        ? `${config.drink.name} (${config.flavor})`
+        : config.drink.name;
 
-    const newItem: OrderItem = {
-      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      productId: config.drink.id,
-      productName: formattedName,
-      price: config.drink.price,
-      quantity: config.quantity,
-      category: config.drink.category,
-      drinkType: config.drink.drinkType,
-      sugarPreference: config.sugarPreference,
-      flavor: config.flavor,
-      isTakeaway: Boolean(config.isTakeaway),
-      isDelivery: Boolean(config.isDelivery),
-      notes: getCleanItemNote(config.notes) || undefined,
-      isNewOrModified: false,
-    };
-    setCartItems((prev) => mergeCartItem(prev, newItem));
+      return {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: config.drink.id,
+        productName: formattedName,
+        price: config.drink.price,
+        quantity: config.quantity,
+        category: config.drink.category,
+        drinkType: config.drink.drinkType,
+        sugarPreference: config.sugarPreference,
+        flavor: config.flavor,
+        isTakeaway: Boolean(config.isTakeaway),
+        isDelivery: Boolean(config.isDelivery),
+        notes: getCleanItemNote(config.notes) || undefined,
+        isNewOrModified: false,
+      };
+    });
 
-    if (config.isDelivery && deliveryFeeUSD <= 0) {
+    if (editingCartItem) {
+      setCartItems((prev) => {
+        const idx = prev.findIndex((it) => it.id === editingCartItem.id);
+        if (idx === -1) return [...prev, ...generatedItems];
+        const updated = [...prev];
+        updated.splice(idx, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingCartItem(null);
+    } else {
+      setCartItems((prev) => {
+        let current = [...prev];
+        for (const item of generatedItems) {
+          current = mergeCartItem(current, item);
+        }
+        return current;
+      });
+    }
+
+    if (list.some((c) => c.isDelivery) && deliveryFeeUSD <= 0) {
       setDeliveryFeeUSD(1.0);
     }
   };
@@ -428,6 +492,7 @@ export const MeseroPage: React.FC = () => {
       setCustomerName('');
       setKitchenNotes('');
       setDeliveryFeeUSD(0);
+      setEditingCartItem(null);
       setShowDeliveryConfig(false);
     } catch (err: any) {
       setOrderError(err?.message || 'Error al enviar la comanda a cocina y caja.');
@@ -824,6 +889,7 @@ export const MeseroPage: React.FC = () => {
                 setActiveOrderTarget(null);
                 setSelectedBurger(null);
                 setSelectedDrink(null);
+                setEditingCartItem(null);
                 setShowDeliveryConfig(false);
               }}
               className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors flex items-center gap-1.5 font-black text-xs cursor-pointer border border-gray-200"
@@ -855,7 +921,10 @@ export const MeseroPage: React.FC = () => {
                     availableFreeToppings={availableFreeToppings}
                     isOpen={true}
                     inline={true}
-                    onClose={() => setSelectedBurger(null)}
+                    onClose={() => {
+                      setSelectedBurger(null);
+                      setEditingCartItem(null);
+                    }}
                     onConfirm={(config) => {
                       handleConfirmBurgerAdd(config);
                       setSelectedBurger(null);
@@ -863,6 +932,7 @@ export const MeseroPage: React.FC = () => {
                     defaultTakeaway={activeOrderTarget.type === 'pickup'}
                     defaultDelivery={activeOrderTarget.type === 'delivery'}
                     exchangeRates={exchangeRates}
+                    initialEditItem={editingCartItem}
                   />
                 </div>
               ) : selectedDrink ? (
@@ -872,10 +942,15 @@ export const MeseroPage: React.FC = () => {
                     drink={selectedDrink}
                     isOpen={true}
                     inline={true}
-                    onClose={() => setSelectedDrink(null)}
+                    initialEditItem={editingCartItem}
+                    onClose={() => {
+                      setSelectedDrink(null);
+                      setEditingCartItem(null);
+                    }}
                     onConfirm={(config) => {
                       handleConfirmDrinkAdd(config);
                       setSelectedDrink(null);
+                      setEditingCartItem(null);
                     }}
                     defaultTakeaway={activeOrderTarget.type === 'pickup'}
                     defaultDelivery={activeOrderTarget.type === 'delivery'}
@@ -1150,14 +1225,27 @@ export const MeseroPage: React.FC = () => {
                               </button>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => removeCartItem(item.id)}
-                              className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
-                              title="Eliminar este ítem"
-                            >
-                              <IoTrashOutline className="text-base" />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              {item.category !== 'Salsas' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditCartItem(item)}
+                                  className="px-2.5 py-1 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 font-black text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs active:scale-95"
+                                  title="Editar personalización de este ítem"
+                                >
+                                  <IoPencilOutline className="text-sm" />
+                                  <span>Editar</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeCartItem(item.id)}
+                                className="text-gray-400 hover:text-red-600 p-1.5 transition-colors cursor-pointer"
+                                title="Eliminar este ítem"
+                              >
+                                <IoTrashOutline className="text-base" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -1260,10 +1348,14 @@ export const MeseroPage: React.FC = () => {
           availableProteins={availableProteins}
           availableFreeToppings={availableFreeToppings}
           isOpen={!!selectedBurger}
-          onClose={() => setSelectedBurger(null)}
+          onClose={() => {
+            setSelectedBurger(null);
+            setEditingCartItem(null);
+          }}
           onConfirm={handleConfirmBurgerAdd}
           defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
           exchangeRates={exchangeRates}
+          initialEditItem={editingCartItem}
         />
       )}
 
@@ -1272,8 +1364,16 @@ export const MeseroPage: React.FC = () => {
         <DrinkSelectorModal
           drink={selectedDrink}
           isOpen={!!selectedDrink}
-          onClose={() => setSelectedDrink(null)}
-          onConfirm={handleConfirmDrinkAdd}
+          initialEditItem={editingCartItem}
+          onClose={() => {
+            setSelectedDrink(null);
+            setEditingCartItem(null);
+          }}
+          onConfirm={(config) => {
+            handleConfirmDrinkAdd(config);
+            setSelectedDrink(null);
+            setEditingCartItem(null);
+          }}
           defaultTakeaway={activeOrderTarget?.type === 'pickup' || activeOrderTarget?.type === 'delivery'}
           exchangeRates={exchangeRates}
         />
