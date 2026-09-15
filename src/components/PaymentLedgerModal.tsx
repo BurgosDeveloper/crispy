@@ -251,7 +251,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
       if (currency === 'Bs') setAmountLocal((pendingDebtUSD * exchangeRates.Bs).toFixed(2));
     } else {
       if (currency === 'USD') setAmountLocal(pendingChangeUSD.toFixed(2));
-      if (currency === 'COP') setAmountLocal(String(roundCOP(pendingChangeUSD * exchangeRates.COP)));
+      if (currency === 'COP') setAmountLocal(String(Math.round(pendingChangeUSD * exchangeRates.COP)));
       if (currency === 'Bs') setAmountLocal((pendingChangeUSD * exchangeRates.Bs).toFixed(2));
     }
   };
