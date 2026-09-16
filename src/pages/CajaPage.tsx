@@ -87,6 +87,7 @@ export const CajaPage: React.FC = () => {
 
   const filteredCajaTransactions = cajaChicaTransactions.filter(t => !t.shift || t.shift === 'ambos' || t.shift === userSession?.shift);
   const filteredApertura = cajaChicaApertura.shift && cajaChicaApertura.shift !== 'ambos' && cajaChicaApertura.shift !== userSession?.shift ? { usdCash: 0, copCash: 0 } : cajaChicaApertura;
+  const isFirstApertura = !filteredApertura.openedAt && filteredApertura.usdCash === 0 && filteredApertura.copCash === 0;
 
   const [activeOrderForPay, setActiveOrderForPay] = useState<Order | null>(null);
   const [orderAppendModalOrder, setOrderAppendModalOrder] = useState<Order | null>(null);
@@ -1553,16 +1554,20 @@ export const CajaPage: React.FC = () => {
               {(userSession?.role === 'admin' || userSession?.role === 'caja') && (
                 <button
                   onClick={() => {
-                    requireAdminPin(
-                      'Modificar Apertura de Caja',
-                      'Autorizar Apertura de Caja',
-                      () => handleOpenAperturaModal()
-                    );
+                    if (isFirstApertura) {
+                      handleOpenAperturaModal();
+                    } else {
+                      requireAdminPin(
+                        'Modificar Apertura de Caja',
+                        'Autorizar Apertura de Caja',
+                        () => handleOpenAperturaModal()
+                      );
+                    }
                   }}
                   className="mt-2 text-xs text-yellow-600 hover:text-yellow-700 font-black flex items-center gap-1 hover:underline"
                 >
-                  <span>+ Modificar Apertura</span>
-                  {userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
+                  <span>{isFirstApertura ? '+ Registrar Fondo Inicial' : '+ Modificar Apertura'}</span>
+                  {!isFirstApertura && userSession?.role === 'caja' && <IoLockClosedOutline className="text-amber-500 text-xs" />}
                 </button>
               )}
             </div>
@@ -1976,7 +1981,9 @@ export const CajaPage: React.FC = () => {
       {isAperturaModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl space-y-5 text-black">
-            <h3 className="text-lg font-black text-black border-b border-gray-200 pb-3">Apertura de Saldo Inicial</h3>
+            <h3 className="text-lg font-black text-black border-b border-gray-200 pb-3">
+              {isFirstApertura ? 'Registrar Fondo Inicial de Caja' : 'Modificar Apertura de Saldo Inicial'}
+            </h3>
             
             <div className="space-y-4">
               <div>
@@ -2011,7 +2018,7 @@ export const CajaPage: React.FC = () => {
                 onClick={handleAperturaSubmit}
                 className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs border border-yellow-500 shadow-xs transition-all"
               >
-                GUARDAR APERTURA
+                {isFirstApertura ? 'REGISTRAR FONDO' : 'GUARDAR CAMBIOS'}
               </button>
             </div>
           </div>

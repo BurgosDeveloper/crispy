@@ -120,7 +120,7 @@ function printableText(value) {
   return String(value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/[^\x20-\x7E€]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -1656,6 +1656,7 @@ function buildReceiptTicket(order, rates = {}) {
 
   const lines = [
     '\x1B@',
+    '\x1Bt\x10',
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
@@ -1695,7 +1696,7 @@ function buildReceiptTicket(order, rates = {}) {
       }
     }
 
-    const priceCol = `$${lineTotalUSD.toFixed(2)}`;
+    const priceCol = `€${lineTotalUSD.toFixed(2)}`;
     const maxLeft = Math.max(1, LINE_WIDTH - priceCol.length - 1);
     const combinedLine = `${qty}x ${cleanName}${packagingTag}`;
     if (packagingTag && combinedLine.length > maxLeft) {
@@ -1725,20 +1726,20 @@ function buildReceiptTicket(order, rates = {}) {
       const exPrice = Number(ex.price) || 0;
       if (exPrice > 0) {
         const exName = printableText(ex.name || 'Adicional');
-        lines.push(`  + ADD ${exName} ($${(exPrice * qty).toFixed(2)})`);
+        lines.push(`  + ADD ${exName} (€${(exPrice * qty).toFixed(2)})`);
       }
     }
   }
 
   const deliveryFee = Number(order.deliveryFeeUSD || order.delivery_fee_usd || 0);
   if (deliveryFee > 0) {
-    lines.push(formatTwoColumns('1x SERVICIO DELIVERY', `$${deliveryFee.toFixed(2)}`));
+    lines.push(formatTwoColumns('1x SERVICIO DELIVERY', `€${deliveryFee.toFixed(2)}`));
   }
 
   lines.push(divider('-'));
   // Montos gigantes tamaño comanda de cocina (Doble Alto + Doble Ancho + Negrita)
   lines.push('\x1B \x00\x1B3\x26\x1BM\x00\x1D!\x11\x1BE\x01');
-  lines.push(formatTwoColumns('TOTAL USD:', `$${totalUSD.toFixed(2)}`, KITCHEN_LINE_WIDTH));
+  lines.push(formatTwoColumns('TOTAL EUR:', `€${totalUSD.toFixed(2)}`, KITCHEN_LINE_WIDTH));
   lines.push(formatTwoColumns('TOTAL COP:', `${roundCOP(totalUSD * copRate).toLocaleString('en-US')}`, KITCHEN_LINE_WIDTH));
   lines.push(formatTwoColumns('TOTAL Bs:', `${(totalUSD * bsRate).toFixed(2)}`, KITCHEN_LINE_WIDTH));
   lines.push('\x1D!\x00\x1BE\x00', PRINT_FORMAT_RESET, PRINT_FORMAT_SETUP);
@@ -1748,7 +1749,8 @@ function buildReceiptTicket(order, rates = {}) {
   lines.push('\x1Ba\x00');
   lines.push(PRINT_FORMAT_RESET, '\n\x1DV\x00');
 
-  return Buffer.from(lines.join('\n'), 'ascii');
+  const ticketText = lines.join('\n');
+  return Buffer.from(ticketText.replace(/€/g, '\x80'), 'latin1');
 }
 
 async function printReceiptTicket(order, rates = {}, targetPrinter = 'caja') {
