@@ -186,7 +186,7 @@ module.exports = function(io) {
       );
 
       const { rows: shiftOrdersRows } = await query(
-        `SELECT id, order_number, type, customer_name, total_usd, payment_status, status, table_number, created_at
+        `SELECT id, order_number, type, customer_name, total_usd, delivery_fee_usd, payment_status, status, table_number, created_at
          FROM orders
          WHERE archived_at IS NULL
          ORDER BY created_at ASC`
@@ -218,8 +218,90 @@ module.exports = function(io) {
         ]
       );
 
-      // 4. Impresión Térmica Automática del Cierre y Arqueo
+      // 4. Impresión Térmica Automática del Cierre y Arqueo (Enriquecido con data completa del turno)
       try {
+        const allShiftOrderIds = shiftOrdersRows.map((o) => o.id);
+
+        let shiftItems = [];
+        if (allShiftOrderIds.length > 0) {
+          const { rows: itemsRows } = await query(
+            `SELECT oi.*, o.order_number, COALESCE(NULLIF(oi.category, ''), p.category, 'Sin categoría') AS category
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             LEFT JOIN products p ON (p.id = oi.product_id OR LOWER(p.name) = LOWER(oi.product_name))
+             WHERE oi.order_id = ANY($1::text[])`,
+            [allShiftOrderIds]
+          );
+          shiftItems = itemsRows.map((it) => {
+            let extras = [];
+            try {
+              if (it.extras_json) {
+                extras = typeof it.extras_json === 'string' ? JSON.parse(it.extras_json) : it.extras_json;
+              }
+            } catch (e) {}
+            return {
+              id: it.id,
+              orderId: it.order_id,
+              orderNumber: String(it.order_number || '').replace(/^#+/, ''),
+              productName: it.product_name,
+              price: parseFloat(it.price) || 0,
+              quantity: it.quantity || 1,
+              category: it.category || 'Sin categoría',
+              drinkType: it.drink_type,
+              flavor: it.flavor || undefined,
+              extras,
+            };
+          });
+        }
+
+        let shiftPayments = [];
+        if (allShiftOrderIds.length > 0) {
+          const { rows: payRows } = await query(
+            `SELECT op.*, o.order_number
+             FROM order_payments op
+             JOIN orders o ON o.id = op.order_id
+             WHERE op.order_id = ANY($1::text[])
+             ORDER BY op.created_at ASC`,
+            [allShiftOrderIds]
+          );
+          shiftPayments = payRows.map((pm) => ({
+            id: pm.id,
+            orderId: pm.order_id,
+            orderNumber: String(pm.order_number || '').replace(/^#+/, ''),
+            payerName: pm.payer_name || 'Cliente General',
+            paymentMethod: pm.payment_method,
+            amountPaidUSD: parseFloat(pm.amount_paid_usd) || 0,
+            cashTenderedUSD: parseFloat(pm.cash_tendered_usd) || 0,
+            cashTenderedCOP: parseFloat(pm.cash_tendered_cop) || 0,
+            cashTenderedBs: parseFloat(pm.cash_tendered_bs) || 0,
+            changeGivenUSD: parseFloat(pm.change_given_usd) || 0,
+            changeGivenCOP: parseFloat(pm.change_given_cop) || 0,
+            changeGivenBs: parseFloat(pm.change_given_bs) || 0,
+            copRate: parseFloat(pm.cop_rate) || 3950,
+            bsRate: parseFloat(pm.bs_rate) || 36.5,
+            createdAt: pm.created_at,
+          }));
+        }
+
+        const mappedOrders = shiftOrdersRows.map((ord) => ({
+          id: ord.id,
+          orderNumber: String(ord.order_number || '').replace(/^#+/, ''),
+          type: ord.type,
+          customerName: ord.customer_name,
+          paymentStatus: ord.payment_status,
+          status: ord.status,
+          tableNumber: ord.table_number,
+          totalUSD: parseFloat(ord.total_usd) || 0,
+          deliveryFeeUSD: parseFloat(ord.delivery_fee_usd) || 0,
+          createdAt: ord.created_at,
+        }));
+
+        const { rows: rateRows } = await query(`SELECT cop_rate, bs_rate FROM shift_exchange_rates WHERE shift = 'ambos'`);
+        const currentRates = {
+          COP: Number(rateRows[0]?.cop_rate) || 3950,
+          Bs: Number(rateRows[0]?.bs_rate) || 36.5,
+        };
+
         await printCierreShiftTicket({
           shift: 'ambos',
           closedBy: req.user.username || 'Caja',
@@ -237,6 +319,26 @@ module.exports = function(io) {
           paymentMethods: paymentMethodRows,
           creditsUSD: parseFloat(creditSummaryRows[0]?.total_usd || 0),
           creditsCount: parseInt(creditSummaryRows[0]?.count || 0, 10),
+          orders: mappedOrders,
+          items: shiftItems,
+          payments: shiftPayments,
+          exchangeRates: currentRates,
+          transactions: txRows.map((t) => ({
+            id: t.id,
+            type: t.type,
+            amountUSD: parseFloat(t.amount_usd) || 0,
+            amountCOP: parseFloat(t.amount_cop) || 0,
+            amountBs: parseFloat(t.amount_bs) || 0,
+            paymentMethod: t.payment_method,
+            description: t.description,
+            orderId: t.order_id,
+            timestamp: t.timestamp,
+          })),
+          apertura: {
+            usdCash: openedUSD,
+            copCash: openedCOP,
+            openedAt: openedAt,
+          },
         });
         console.log(`🖨️ [IMPRESIÓN AUTOMÁTICA DE CIERRE] Ticket de cierre emitido exitosamente.`);
       } catch (printErr) {

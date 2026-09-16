@@ -172,6 +172,17 @@ function formatTwoColumns(left, right, width = LINE_WIDTH) {
   return `${truncatedLeft}${' '.repeat(spaces)}${r}`;
 }
 
+function formatThreeColumns(col1, col2, col3, width = LINE_WIDTH) {
+  const c1 = printableText(col1);
+  const c2 = printableText(col2);
+  const c3 = printableText(col3);
+  const rightPart = `${c2.padStart(4, ' ')} ${c3.padStart(8, ' ')}`;
+  const maxLeft = Math.max(1, width - rightPart.length - 1);
+  const truncatedLeft = c1.length > maxLeft ? c1.substring(0, maxLeft) : c1;
+  const spaces = Math.max(1, width - truncatedLeft.length - rightPart.length);
+  return `${truncatedLeft}${' '.repeat(spaces)}${rightPart}`;
+}
+
 function isKitchenItem(item) {
   if (!item) return false;
 
@@ -605,6 +616,10 @@ function getReportBaseProductName(item = {}) {
 }
 
 function buildReportTicket(reportType, data) {
+  if (reportType === 'contable') {
+    return buildCrispysCierreTicket(data);
+  }
+
   const titles = {
     contable: 'REPORTE CONTABLE',
     pizzas: 'HAMBURGUESAS VENDIDAS',
@@ -1758,82 +1773,376 @@ async function printReceiptTicket(order, rates = {}, targetPrinter = 'caja') {
   return sendRawTicketToTarget(payload, targetPrinter, 'caja');
 }
 
-function buildCierreShiftTicket(data) {
-  const shiftName = data.shift === 'noche' ? 'NOCHE' : data.shift === 'manana' ? 'MAÑANA' : 'GENERAL';
+function buildCrispysCierreTicket(data) {
   const lines = [
     '\x1B@',
     PRINT_FORMAT_SETUP,
     '\x1Ba\x01',
     '\x1BE\x01',
-    centered('CRISPY BURGER'),
-    centered(`ARQUEO Y CIERRE DE TURNO (${shiftName})`),
+    centered('CRISPYS CIERRE'),
     '\x1BE\x00',
     '\x1Ba\x00',
     divider('='),
-    `FECHA: ${new Date().toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}`,
-    `CERRADO POR: ${printableText(data.closedBy || 'Caja')}`,
-    `NOTAS: ${printableText(data.notes || 'Cierre de turno')}`,
-    divider(),
-    '\x1BE\x01',
-    centered('--- APERTURA DE CAJA ---'),
-    '\x1BE\x00',
-    `Fondo USD: $${Number(data.openedUSD || 0).toFixed(2)} USD`,
-    `Fondo COP: ${Math.round(Number(data.openedCOP || 0)).toLocaleString('en-US')} COP`,
-    divider(),
-    '\x1BE\x01',
-    centered('--- TOTALES POR METODO DE PAGO ---'),
-    '\x1BE\x00',
   ];
 
-  const methods = data.paymentMethods || [];
-  if (methods.length === 0) {
-    lines.push('Sin movimientos registrados.');
+  // 1. Cabecera con fecha y cajero
+  let fechaStr = '';
+  if (data.dateRange?.from) {
+    const dFrom = new Date(data.dateRange.from).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dTo = new Date(data.dateRange.to || data.dateRange.from).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    fechaStr = dFrom === dTo ? dFrom : `${dFrom} - ${dTo}`;
   } else {
-    for (const m of methods) {
-      lines.push('\x1BE\x01');
-      lines.push(...wrapText(`• ${printableText(m.payment_method)} (${m.count} pagos):`));
-      lines.push('\x1BE\x00');
-      const isCOP = ['Efectivo COP', 'Bancolombia', 'Nequi', 'Binance COP'].includes(m.payment_method);
-      const isBs = ['Pago Móvil', 'Tarjeta de Débito', 'Tarjeta de Crédito'].includes(m.payment_method);
-      if (isCOP && Number(m.total_cop) > 0) {
-        lines.push(`  ${Math.round(Number(m.total_cop)).toLocaleString('en-US')} COP`);
-      } else if (isBs && Number(m.total_bs) > 0) {
-        lines.push(`  ${Number(m.total_bs).toFixed(2)} Bs`);
-      } else if (Number(m.total_usd) > 0) {
-        lines.push(`  $${Number(m.total_usd).toFixed(2)} USD`);
-      }
+    fechaStr = new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  lines.push(`FECHA DE CAJA: ${fechaStr}`);
+  if (data.closedBy) {
+    lines.push(`CAJERO: ${printableText(data.closedBy)}`);
+  }
+  lines.push(`CAJERO A CARGO: _________`);
+  lines.push(divider('-'));
+
+  // 2. CIERRE: Efectivo que debe haber en gaveta
+  const openedUSD = Number(data.openedUSD ?? data.apertura?.usdCash ?? 0);
+  const openedCOP = Number(data.openedCOP ?? data.apertura?.copCash ?? 0);
+
+  let expectedUSD = (data.expectedUSD !== undefined && data.expectedUSD !== null) ? Number(data.expectedUSD) : null;
+  let expectedCOP = (data.expectedCOP !== undefined && data.expectedCOP !== null) ? Number(data.expectedCOP) : null;
+
+  if (expectedUSD === null || expectedCOP === null) {
+    const physicalCashTransactions = (data.transactions || []).filter((t) =>
+      ['Efectivo USD', 'Efectivo COP'].includes(t.paymentMethod || t.payment_method)
+    );
+    const totalIngresosUSD = physicalCashTransactions.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
+    const totalIngresosCOP = physicalCashTransactions.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
+    const totalEgresosUSD = physicalCashTransactions.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
+    const totalEgresosCOP = physicalCashTransactions.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
+
+    if (expectedUSD === null) expectedUSD = openedUSD + totalIngresosUSD - totalEgresosUSD;
+    if (expectedCOP === null) expectedCOP = openedCOP + totalIngresosCOP - totalEgresosCOP;
+  }
+
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'CIERRE', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('MONEDA', 'MONTO'));
+  lines.push(formatTwoColumns('USD', `${expectedUSD.toFixed(2)}$`));
+  lines.push(formatTwoColumns('COP', `${roundCOP(expectedCOP).toLocaleString('en-US')}COP`));
+  lines.push(divider('-'));
+
+  // 3. FONDO: Apertura de caja
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'FONDO', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('MONEDA', 'MONTO'));
+  lines.push(formatTwoColumns('USD', `${openedUSD.toFixed(2)}$`));
+  lines.push(formatTwoColumns('COP', `${roundCOP(openedCOP).toLocaleString('en-US')}COP`));
+  lines.push(divider('-'));
+
+  // 4. VENTA: Desglose por tipo de pago
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'VENTA', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('MONEDA', 'MONTO'));
+
+  const salesByMethod = new Map();
+  for (const pm of (data.payments || [])) {
+    const method = pm.paymentMethod || 'Otros';
+    const sale = reportSaleAmounts(pm);
+    const curr = salesByMethod.get(method) || { count: 0, usd: 0, cop: 0, bs: 0 };
+    curr.count += 1;
+    curr.usd += sale.usd;
+    curr.cop += sale.cop;
+    curr.bs += sale.bs;
+    salesByMethod.set(method, curr);
+  }
+
+  if (salesByMethod.size === 0 && Array.isArray(data.paymentMethods)) {
+    for (const m of data.paymentMethods) {
+      salesByMethod.set(m.payment_method, {
+        count: parseInt(m.count, 10) || 1,
+        usd: parseFloat(m.total_usd) || 0,
+        cop: parseFloat(m.total_cop) || 0,
+        bs: parseFloat(m.total_bs) || 0,
+      });
     }
   }
 
-  if (Number(data.creditsUSD) > 0 || Number(data.creditsCount) > 0) {
-    lines.push(divider());
-    lines.push('\x1BE\x01');
-    lines.push(`• CREDITOS / CUENTAS POR COBRAR:`);
-    lines.push(`  ${data.creditsCount || 0} comanda(s) a credito`);
-    lines.push(`  Total Deuda: $${Number(data.creditsUSD || 0).toFixed(2)} USD`);
-    lines.push('\x1BE\x00');
+  if (salesByMethod.size === 0) {
+    lines.push(formatTwoColumns('SIN VENTAS', '0.00$'));
+  } else {
+    for (const [method, amounts] of salesByMethod.entries()) {
+      let label = method.toUpperCase();
+      let montoStr = '';
+      if (['EFECTIVO COP', 'COP'].includes(label)) {
+        label = 'COP';
+        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+      } else if (['EFECTIVO USD', 'USD'].includes(label)) {
+        label = 'USD';
+        montoStr = `${amounts.usd.toFixed(2)}$`;
+      } else if (label.includes('BANCOLOMBIA')) {
+        label = 'BANCOLOM';
+        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+      } else if (label.includes('BINANCE COP')) {
+        label = 'BINANCE COP';
+        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+      } else if (label.includes('BINANCE')) {
+        label = 'BINANCE';
+        montoStr = `${amounts.usd.toFixed(2)}$`;
+      } else if (label.includes('ZELLE')) {
+        label = 'ZELLE';
+        montoStr = `${amounts.usd.toFixed(2)}$`;
+      } else if (label.includes('NEQUI')) {
+        label = 'NEQUI';
+        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+      } else if (['PAGO MOVIL', 'PAGO MÓVIL'].includes(label)) {
+        label = 'PGO MOVIL';
+        montoStr = `${amounts.bs.toFixed(2)}BS`;
+      } else if (['TARJETA DE DEBITO', 'TARJETA DE DÉBITO', 'TARJETA DE CREDITO', 'TARJETA DE CRÉDITO', 'PUNTO DE VENTA'].includes(label)) {
+        label = 'PTO VENTA';
+        montoStr = `${amounts.bs.toFixed(2)}BS`;
+      } else {
+        if (amounts.cop > 0) montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+        else if (amounts.bs > 0) montoStr = `${amounts.bs.toFixed(2)}BS`;
+        else montoStr = `${amounts.usd.toFixed(2)}$`;
+      }
+      lines.push(formatTwoColumns(label, montoStr));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 5. BOLIVARES: PTO VENTA y PGO MOVIL
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'BOLIVARES', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('TIPO', 'MONTO'));
+
+  let ptoVentaBs = 0;
+  let pagoMovilBs = 0;
+  for (const pm of (data.payments || [])) {
+    const method = (pm.paymentMethod || '').toLowerCase();
+    const sale = reportSaleAmounts(pm);
+    if (method.includes('debito') || method.includes('débito') || method.includes('credito') || method.includes('crédito') || method.includes('punto')) {
+      ptoVentaBs += sale.bs;
+    } else if (method.includes('movil') || method.includes('móvil')) {
+      pagoMovilBs += sale.bs;
+    }
+  }
+  if (salesByMethod.size > 0 && ptoVentaBs === 0 && pagoMovilBs === 0 && Array.isArray(data.paymentMethods)) {
+    for (const m of data.paymentMethods) {
+      const name = (m.payment_method || '').toLowerCase();
+      if (name.includes('debito') || name.includes('débito') || name.includes('credito') || name.includes('crédito') || name.includes('punto')) {
+        ptoVentaBs += parseFloat(m.total_bs) || 0;
+      } else if (name.includes('movil') || name.includes('móvil')) {
+        pagoMovilBs += parseFloat(m.total_bs) || 0;
+      }
+    }
+  }
+  lines.push(formatTwoColumns('PTO VENTA', `${ptoVentaBs.toFixed(2)}BS`));
+  lines.push(formatTwoColumns('PGO MOVIL', `${pagoMovilBs.toFixed(2)}BS`));
+  lines.push(divider('-'));
+
+  // 6. BANCOLOMBIA: Desglose individual por comanda
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'BANCOLOMBIA', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('COMANDA', 'MONTO'));
+  const bancolombiaPayments = (data.payments || []).filter((pm) => (pm.paymentMethod || '').toLowerCase().includes('bancolombia'));
+  if (bancolombiaPayments.length === 0) {
+    lines.push(formatTwoColumns('SIN PAGOS', '0.00COP'));
+  } else {
+    for (const pm of bancolombiaPayments) {
+      const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
+      const sale = reportSaleAmounts(pm);
+      lines.push(formatTwoColumns(`#${ordNum}`, `${roundCOP(sale.cop).toLocaleString('en-US')}COP`));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 7. ZELLE: Desglose individual por comanda
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'ZELLE', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('COMANDA', 'MONTO'));
+  const zellePayments = (data.payments || []).filter((pm) => (pm.paymentMethod || '').toLowerCase().includes('zelle'));
+  if (zellePayments.length === 0) {
+    lines.push(formatTwoColumns('SIN PAGOS', '0.00$'));
+  } else {
+    for (const pm of zellePayments) {
+      const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
+      const sale = reportSaleAmounts(pm);
+      lines.push(formatTwoColumns(`#${ordNum}`, `${sale.usd.toFixed(2)}$`));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 8. BINANCE: Desglose individual por comanda
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'BINANCE', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('COMANDA', 'MONTO'));
+  const binancePayments = (data.payments || []).filter((pm) => (pm.paymentMethod || '').toLowerCase().includes('binance'));
+  if (binancePayments.length === 0) {
+    lines.push(formatTwoColumns('SIN PAGOS', '0.00$'));
+  } else {
+    for (const pm of binancePayments) {
+      const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
+      const sale = reportSaleAmounts(pm);
+      const montoStr = sale.cop > 0 ? `${roundCOP(sale.cop).toLocaleString('en-US')}COP` : `${sale.usd.toFixed(2)}$`;
+      lines.push(formatTwoColumns(`#${ordNum}`, montoStr));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 9. CREDITOS: Deudores
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'CREDITOS', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatTwoColumns('DEUDOR', 'MONTO'));
+  const creditOrders = (data.orders || []).filter((o) => o.paymentStatus === 'credito');
+  if (creditOrders.length === 0) {
+    if (Number(data.creditsUSD) > 0) {
+      lines.push(formatTwoColumns('CREDITOS TURNO', `${Number(data.creditsUSD).toFixed(2)}$`));
+    } else {
+      lines.push(formatTwoColumns('SIN CREDITOS', '0.00$'));
+    }
+  } else {
+    for (const ord of creditOrders) {
+      const deudor = printableText(ord.customerName || `Comanda #${ord.orderNumber}`).toUpperCase().substring(0, 16);
+      const monto = Number(ord.totalUSD || 0);
+      lines.push(formatTwoColumns(deudor, `${monto.toFixed(2)}$`));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 10. CLASIFICACIÓN DE ITEMS FACTURADOS:
+  // Categorías: COMIDAS, BEBIDAS, DELIVERYS, OTRO
+  const comidasGroup = new Map();
+  const bebidasGroup = new Map();
+  const deliverysGroup = new Map();
+  const otroGroup = new Map();
+
+  let totalItemsUSD = 0;
+
+  for (const item of (data.items || [])) {
+    const rawCat = (item.category || '').toLowerCase();
+    const rawName = (item.productName || item.name || '').trim();
+    const itQty = Number(item.quantity) || 1;
+    const rawPrice = Number(item.price) || 0;
+
+    // Extraer adicionales pagos de este item
+    const extrasList = [];
+    if (Array.isArray(item.extras)) extrasList.push(...item.extras);
+    else if (item.extrasJson && Array.isArray(item.extrasJson)) extrasList.push(...item.extrasJson);
+    else if (typeof item.extrasJson === 'string') {
+      try {
+        const parsed = JSON.parse(item.extrasJson);
+        if (Array.isArray(parsed)) extrasList.push(...parsed);
+      } catch (e) {}
+    }
+
+    let paidExtrasCost = 0;
+    for (const ex of extrasList) {
+      const exPrice = Number(ex.price) || 0;
+      const exName = (ex.name || 'Adicional').trim();
+      if (exPrice > 0) {
+        paidExtrasCost += exPrice;
+        const extraKey = `ADD ${exName}`.toUpperCase();
+        const currExtra = otroGroup.get(extraKey) || { name: extraKey, quantity: 0, totalUSD: 0 };
+        currExtra.quantity += itQty;
+        currExtra.totalUSD += exPrice * itQty;
+        otroGroup.set(extraKey, currExtra);
+        totalItemsUSD += exPrice * itQty;
+      }
+    }
+
+    const baseUnitPrice = Math.max(0, rawPrice - paidExtrasCost);
+    const itemTotalUSD = baseUnitPrice * itQty;
+    totalItemsUSD += itemTotalUSD;
+
+    const baseName = getReportBaseProductName(item).toUpperCase();
+    const nameLower = rawName.toLowerCase();
+
+    const isDrink = rawCat.includes('bebida') || rawCat.includes('drink') || rawCat.includes('refresco') || rawCat.includes('jugo') || rawCat.includes('licor') || rawCat.includes('cerveza') || rawCat.includes('agua') || !!item.drinkType || !!item.flavor || nameLower.includes('nestea') || nameLower.includes('refresco') || nameLower.includes('lipton') || nameLower.includes('pet') || nameLower.includes('yukery') || nameLower.includes('agua') || nameLower.includes('cerveza') || nameLower.includes('soda') || nameLower.includes('gatorade') || nameLower.includes('granizado');
+
+    const isDelivery = rawCat.includes('delivery') || nameLower.includes('delivery');
+
+    const isComida = rawCat.includes('burger') || rawCat.includes('hamburguesa') || rawCat.includes('comida') || rawCat.includes('plato') || rawCat.includes('entrada') || rawCat.includes('acompañante') || rawCat.includes('combo') || (!isDrink && !isDelivery && !rawCat.includes('adicional') && !rawCat.includes('extra') && !rawCat.includes('topping'));
+
+    if (isDelivery) {
+      const curr = deliverysGroup.get(baseName) || { name: baseName, quantity: 0, totalUSD: 0 };
+      curr.quantity += itQty;
+      curr.totalUSD += itemTotalUSD;
+      deliverysGroup.set(baseName, curr);
+    } else if (isDrink) {
+      const curr = bebidasGroup.get(baseName) || { name: baseName, quantity: 0, totalUSD: 0 };
+      curr.quantity += itQty;
+      curr.totalUSD += itemTotalUSD;
+      bebidasGroup.set(baseName, curr);
+    } else if (isComida) {
+      const curr = comidasGroup.get(baseName) || { name: baseName, quantity: 0, totalUSD: 0 };
+      curr.quantity += itQty;
+      curr.totalUSD += itemTotalUSD;
+      comidasGroup.set(baseName, curr);
+    } else {
+      const curr = otroGroup.get(baseName) || { name: baseName, quantity: 0, totalUSD: 0 };
+      curr.quantity += itQty;
+      curr.totalUSD += itemTotalUSD;
+      otroGroup.set(baseName, curr);
+    }
   }
 
-  lines.push(divider('='));
-  lines.push('\x1BE\x01', centered('--- ARQUEO DE EFECTIVO EN GAVETA ---'), '\x1BE\x00');
-  lines.push(`Esperado USD: $${Number(data.expectedUSD || 0).toFixed(2)} USD`);
-  lines.push(`Contado USD:  $${Number(data.actualUSD || 0).toFixed(2)} USD`);
-  const diffUSD = Number(data.differenceUSD || 0);
-  lines.push(`Diferencia USD: ${diffUSD >= 0 ? '+' : ''}$${diffUSD.toFixed(2)} USD`);
-  lines.push(divider());
-  lines.push(`Esperado COP: ${Math.round(Number(data.expectedCOP || 0)).toLocaleString('en-US')} COP`);
-  lines.push(`Contado COP:  ${Math.round(Number(data.actualCOP || 0)).toLocaleString('en-US')} COP`);
-  const diffCOP = Number(data.differenceCOP || 0);
-  lines.push(`Diferencia COP: ${diffCOP >= 0 ? '+' : ''}${Math.round(diffCOP).toLocaleString('en-US')} COP`);
+  for (const ord of (data.orders || [])) {
+    const fee = Number(ord.deliveryFeeUSD || ord.delivery_fee_usd || 0);
+    if (fee > 0 || ord.type === 'delivery') {
+      const delName = 'DELIVERY';
+      const curr = deliverysGroup.get(delName) || { name: delName, quantity: 0, totalUSD: 0 };
+      curr.quantity += 1;
+      curr.totalUSD += fee;
+      deliverysGroup.set(delName, curr);
+      totalItemsUSD += fee;
+    }
+  }
 
-  lines.push(divider('='));
-  lines.push('\x1BE\x01');
-  lines.push(`TOTAL FACTURADO TURNO:`);
-  lines.push(`$${Number(data.totalSalesUSD || 0).toFixed(2)} USD`);
-  lines.push(`TOTAL COMANDAS PROCESADAS: ${data.totalOrdersCount || 0}`);
-  lines.push('\x1BE\x00');
+  // 10.1 COMIDAS
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'COMIDAS', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatThreeColumns('ITEM', 'CANT', 'MONTO'));
+  if (comidasGroup.size === 0) {
+    lines.push(formatThreeColumns('SIN COMIDAS', '0', '$0.00'));
+  } else {
+    for (const it of comidasGroup.values()) {
+      lines.push(formatThreeColumns(it.name, String(it.quantity), `$${it.totalUSD.toFixed(2)}`));
+    }
+  }
   lines.push(divider('-'));
-  lines.push('');
+
+  // 10.2 BEBIDAS
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'BEBIDAS', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatThreeColumns('ITEM', 'CANT', 'MONTO'));
+  if (bebidasGroup.size === 0) {
+    lines.push(formatThreeColumns('SIN BEBIDAS', '0', '$0.00'));
+  } else {
+    for (const it of bebidasGroup.values()) {
+      lines.push(formatThreeColumns(it.name, String(it.quantity), `$${it.totalUSD.toFixed(2)}`));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 10.3 DELIVERYS
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'DELIVERYS', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatThreeColumns('ITEM', 'CANT', 'MONTO'));
+  if (deliverysGroup.size === 0) {
+    lines.push(formatThreeColumns('SIN DELIVERYS', '0', '$0.00'));
+  } else {
+    for (const it of deliverysGroup.values()) {
+      lines.push(formatThreeColumns(it.name, String(it.quantity), `$${it.totalUSD.toFixed(2)}`));
+    }
+  }
+  lines.push(divider('-'));
+
+  // 10.4 OTRO
+  lines.push('\x1Ba\x01', '\x1BE\x01', 'OTRO', '\x1BE\x00', '\x1Ba\x00');
+  lines.push(formatThreeColumns('ITEM', 'CANT', 'MONTO'));
+  if (otroGroup.size === 0) {
+    lines.push(formatThreeColumns('SIN OTROS', '0', '$0.00'));
+  } else {
+    for (const it of otroGroup.values()) {
+      lines.push(formatThreeColumns(it.name, String(it.quantity), `$${it.totalUSD.toFixed(2)}`));
+    }
+  }
+  lines.push(divider('='));
+
+  // TOTAL GENERAL ITEMS
+  lines.push('\x1BE\x01');
+  lines.push(formatTwoColumns('TOTAL GENERAL:', `$${totalItemsUSD.toFixed(2)} USD`));
+  lines.push('\x1BE\x00');
+  lines.push(divider('='));
+
+  // Pie de ticket
   lines.push('\x1Ba\x01');
   lines.push('TURNO CERRADO EXITOSAMENTE');
   lines.push('CRISPY BURGER');
@@ -1841,6 +2150,10 @@ function buildCierreShiftTicket(data) {
   lines.push(PRINT_FORMAT_RESET, '\n\n\n\x1DV\x00');
 
   return Buffer.from(lines.join('\n'), 'ascii');
+}
+
+function buildCierreShiftTicket(data) {
+  return buildCrispysCierreTicket(data);
 }
 
 async function printReportTicket(reportType, data, targetPrinter = 'caja') {
@@ -1864,6 +2177,7 @@ module.exports = {
   buildKitchenAdditionTicket,
   buildReceiptTicket,
   buildReportTicket,
+  buildCrispysCierreTicket,
   buildCierreShiftTicket,
   loadDualPrinterConfig,
   saveDualPrinterConfig,
