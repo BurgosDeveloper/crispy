@@ -1799,7 +1799,158 @@ function buildCrispysCierreTicket(data) {
   lines.push(`CAJERO A CARGO: _________`);
   lines.push(divider('-'));
 
-  // 2. CIERRE: Efectivo que debe haber en gaveta
+  // Calcular los totales de cada método de pago con la MISMA lógica exacta de Sección 3 del reporte digital (reportService.ts)
+  const copRateGlobal = Number(data.exchangeRates?.COP) || 3950;
+  const bsRateGlobal = Number(data.exchangeRates?.Bs) || 36.5;
+
+  const methodNames = [
+    'Efectivo USD',
+    'Binance',
+    'Zelle',
+    'Efectivo COP',
+    'Bancolombia',
+    'Nequi',
+    'Binance COP',
+    'Pago Móvil',
+    'Tarjeta de Débito',
+    'Tarjeta de Crédito',
+  ];
+
+  const methodTotals = new Map(
+    methodNames.map((name) => [
+      name,
+      {
+        currency: reportPaymentCurrency(name),
+        incomeNative: 0,
+        changeNative: 0,
+        netNative: 0,
+        netUSD: 0,
+        count: 0,
+      },
+    ])
+  );
+
+  const billedTotals = { usd: 0, cop: 0, bs: 0 };
+  const payments = Array.isArray(data.payments) ? data.payments : [];
+
+  for (const payment of payments) {
+    const method = payment.paymentMethod || 'Efectivo USD';
+    const curr = reportPaymentCurrency(method);
+    const cRate = Number(payment.copRate) || copRateGlobal;
+    const bRate = Number(payment.bsRate) || bsRateGlobal;
+
+    const paidUSD = Number(payment.amountPaidUSD) || 0;
+    let tenderUSD = Number(payment.cashTenderedUSD) || 0;
+    let tenderCOP = Number(payment.cashTenderedCOP) || 0;
+    let tenderBs = Number(payment.cashTenderedBs) || 0;
+
+    // Si es un cobro y no vino el efectivo recibido explícito, calcular según el método
+    if (tenderUSD === 0 && tenderCOP === 0 && tenderBs === 0 && paidUSD > 0) {
+      if (curr === 'USD') tenderUSD = paidUSD;
+      else if (curr === 'COP') tenderCOP = paidUSD * cRate;
+      else if (curr === 'Bs') tenderBs = paidUSD * bRate;
+    }
+
+    const changeUSD = Number(payment.changeGivenUSD) || 0;
+    const changeCOP = Number(payment.changeGivenCOP) || 0;
+    const changeBs = Number(payment.changeGivenBs) || 0;
+
+    let totals = methodTotals.get(method);
+    if (!totals) {
+      totals = {
+        currency: curr,
+        incomeNative: 0,
+        changeNative: 0,
+        netNative: 0,
+        netUSD: 0,
+        count: 0,
+      };
+      methodTotals.set(method, totals);
+    }
+
+    if (curr === 'USD') {
+      totals.incomeNative += tenderUSD;
+      billedTotals.usd += tenderUSD;
+    } else if (curr === 'COP') {
+      totals.incomeNative += tenderCOP;
+      billedTotals.cop += tenderCOP;
+    } else if (curr === 'Bs') {
+      totals.incomeNative += tenderBs;
+      billedTotals.bs += tenderBs;
+    }
+
+    if (paidUSD > 0 || tenderUSD > 0 || tenderCOP > 0 || tenderBs > 0) {
+      totals.count += 1;
+    }
+
+    // Descontar vueltos estrictamente en su moneda nativa
+    if (changeUSD > 0 || changeCOP > 0 || changeBs > 0) {
+      if (paidUSD === 0) {
+        // Fila de vuelto dedicada
+        if (changeUSD > 0) {
+          totals.changeNative += changeUSD;
+          billedTotals.usd -= changeUSD;
+        }
+        if (changeCOP > 0) {
+          totals.changeNative += changeCOP;
+          billedTotals.cop -= changeCOP;
+        }
+        if (changeBs > 0) {
+          totals.changeNative += changeBs;
+          billedTotals.bs -= changeBs;
+        }
+      } else {
+        // Fila mixta (cobro con excedente y vuelto en una sola fila)
+        if (changeUSD > 0) {
+          const usdM = methodTotals.get('Efectivo USD');
+          if (usdM) usdM.changeNative += changeUSD;
+          billedTotals.usd -= changeUSD;
+        }
+        if (changeCOP > 0) {
+          const copM = methodTotals.get('Efectivo COP');
+          if (copM) copM.changeNative += changeCOP;
+          billedTotals.cop -= changeCOP;
+        }
+        if (changeBs > 0) {
+          const bsM = methodTotals.get('Pago Móvil');
+          if (bsM) bsM.changeNative += changeBs;
+          billedTotals.bs -= changeBs;
+        }
+      }
+    }
+  }
+
+  // Si payments está vacío pero data.paymentMethods viene poblado (ej. desde cierre)
+  if (payments.length === 0 && Array.isArray(data.paymentMethods)) {
+    for (const m of data.paymentMethods) {
+      const name = m.payment_method;
+      const curr = reportPaymentCurrency(name);
+      let net = 0;
+      if (curr === 'COP') net = parseFloat(m.total_cop) || 0;
+      else if (curr === 'Bs') net = parseFloat(m.total_bs) || 0;
+      else net = parseFloat(m.total_usd) || 0;
+
+      let totals = methodTotals.get(name);
+      if (!totals) {
+        totals = { currency: curr, incomeNative: net, changeNative: 0, netNative: net, netUSD: parseFloat(m.total_usd) || 0, count: parseInt(m.count, 10) || 1 };
+        methodTotals.set(name, totals);
+      } else {
+        totals.incomeNative = net;
+        totals.netNative = net;
+        totals.count = parseInt(m.count, 10) || 1;
+      }
+    }
+  }
+
+  // Calcular netNative y netUSD para cada método
+  for (const [, totals] of methodTotals) {
+    totals.netNative = totals.incomeNative - totals.changeNative;
+    if (totals.currency === 'USD') totals.netUSD = totals.netNative;
+    else if (totals.currency === 'COP') totals.netUSD = totals.netNative / copRateGlobal;
+    else if (totals.currency === 'Bs') totals.netUSD = totals.netNative / bsRateGlobal;
+  }
+
+  // 2. CIERRE: Efectivo que debe haber en gaveta física
   const openedUSD = Number(data.openedUSD ?? data.apertura?.usdCash ?? 0);
   const openedCOP = Number(data.openedCOP ?? data.apertura?.copCash ?? 0);
 
@@ -1807,95 +1958,82 @@ function buildCrispysCierreTicket(data) {
   let expectedCOP = (data.expectedCOP !== undefined && data.expectedCOP !== null) ? Number(data.expectedCOP) : null;
 
   if (expectedUSD === null || expectedCOP === null) {
-    const physicalCashTransactions = (data.transactions || []).filter((t) =>
-      ['Efectivo USD', 'Efectivo COP'].includes(t.paymentMethod || t.payment_method)
+    const manualCashTx = (data.transactions || []).filter((t) =>
+      !t.orderId && !t.order_id && ['Efectivo USD', 'Efectivo COP'].includes(t.paymentMethod || t.payment_method)
     );
-    const totalIngresosUSD = physicalCashTransactions.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
-    const totalIngresosCOP = physicalCashTransactions.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
-    const totalEgresosUSD = physicalCashTransactions.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
-    const totalEgresosCOP = physicalCashTransactions.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
+    const manualIngUSD = manualCashTx.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
+    const manualIngCOP = manualCashTx.filter((t) => t.type === 'ingreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
+    const manualEgUSD = manualCashTx.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountUSD ?? t.amount_usd) || 0), 0);
+    const manualEgCOP = manualCashTx.filter((t) => t.type === 'egreso').reduce((sum, t) => sum + (Number(t.amountCOP ?? t.amount_cop) || 0), 0);
 
-    if (expectedUSD === null) expectedUSD = openedUSD + totalIngresosUSD - totalEgresosUSD;
-    if (expectedCOP === null) expectedCOP = openedCOP + totalIngresosCOP - totalEgresosCOP;
+    const netCashUSD = methodTotals.get('Efectivo USD')?.netNative || 0;
+    const netCashCOP = methodTotals.get('Efectivo COP')?.netNative || 0;
+
+    if (expectedUSD === null) expectedUSD = openedUSD + netCashUSD + manualIngUSD - manualEgUSD;
+    if (expectedCOP === null) expectedCOP = openedCOP + netCashCOP + manualIngCOP - manualEgCOP;
   }
 
   lines.push('\x1Ba\x01', '\x1BE\x01', 'CIERRE', '\x1BE\x00', '\x1Ba\x00');
   lines.push(formatTwoColumns('MONEDA', 'MONTO'));
   lines.push(formatTwoColumns('USD', `${expectedUSD.toFixed(2)}$`));
-  lines.push(formatTwoColumns('COP', `${roundCOP(expectedCOP).toLocaleString('en-US')}COP`));
+  lines.push(formatTwoColumns('COP', `${Math.round(expectedCOP).toLocaleString('en-US')}COP`));
   lines.push(divider('-'));
 
   // 3. FONDO: Apertura de caja
   lines.push('\x1Ba\x01', '\x1BE\x01', 'FONDO', '\x1BE\x00', '\x1Ba\x00');
   lines.push(formatTwoColumns('MONEDA', 'MONTO'));
   lines.push(formatTwoColumns('USD', `${openedUSD.toFixed(2)}$`));
-  lines.push(formatTwoColumns('COP', `${roundCOP(openedCOP).toLocaleString('en-US')}COP`));
+  lines.push(formatTwoColumns('COP', `${Math.round(openedCOP).toLocaleString('en-US')}COP`));
   lines.push(divider('-'));
 
-  // 4. VENTA: Desglose por tipo de pago
+  // 4. VENTA: Desglose por tipo de pago (100% idéntico a Sección 3 del reporte digital)
   lines.push('\x1Ba\x01', '\x1BE\x01', 'VENTA', '\x1BE\x00', '\x1Ba\x00');
   lines.push(formatTwoColumns('MONEDA', 'MONTO'));
 
-  const salesByMethod = new Map();
-  for (const pm of (data.payments || [])) {
-    const method = pm.paymentMethod || 'Otros';
-    const sale = reportSaleAmounts(pm);
-    const curr = salesByMethod.get(method) || { count: 0, usd: 0, cop: 0, bs: 0 };
-    curr.count += 1;
-    curr.usd += sale.usd;
-    curr.cop += sale.cop;
-    curr.bs += sale.bs;
-    salesByMethod.set(method, curr);
-  }
+  const activeMethods = Array.from(methodTotals.entries()).filter(
+    ([, totals]) => totals.count > 0 || totals.netNative !== 0
+  );
 
-  if (salesByMethod.size === 0 && Array.isArray(data.paymentMethods)) {
-    for (const m of data.paymentMethods) {
-      salesByMethod.set(m.payment_method, {
-        count: parseInt(m.count, 10) || 1,
-        usd: parseFloat(m.total_usd) || 0,
-        cop: parseFloat(m.total_cop) || 0,
-        bs: parseFloat(m.total_bs) || 0,
-      });
-    }
-  }
-
-  if (salesByMethod.size === 0) {
+  if (activeMethods.length === 0) {
     lines.push(formatTwoColumns('SIN VENTAS', '0.00$'));
   } else {
-    for (const [method, amounts] of salesByMethod.entries()) {
+    for (const [method, totals] of activeMethods) {
       let label = method.toUpperCase();
       let montoStr = '';
       if (['EFECTIVO COP', 'COP'].includes(label)) {
         label = 'COP';
-        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+        montoStr = `${Math.round(totals.netNative).toLocaleString('en-US')}COP`;
       } else if (['EFECTIVO USD', 'USD'].includes(label)) {
         label = 'USD';
-        montoStr = `${amounts.usd.toFixed(2)}$`;
+        montoStr = `${totals.netNative.toFixed(2)}$`;
       } else if (label.includes('BANCOLOMBIA')) {
         label = 'BANCOLOM';
-        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+        montoStr = `${Math.round(totals.netNative).toLocaleString('en-US')}COP`;
       } else if (label.includes('BINANCE COP')) {
         label = 'BINANCE COP';
-        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+        montoStr = `${Math.round(totals.netNative).toLocaleString('en-US')}COP`;
       } else if (label.includes('BINANCE')) {
         label = 'BINANCE';
-        montoStr = `${amounts.usd.toFixed(2)}$`;
+        montoStr = `${totals.netNative.toFixed(2)}$`;
       } else if (label.includes('ZELLE')) {
         label = 'ZELLE';
-        montoStr = `${amounts.usd.toFixed(2)}$`;
+        montoStr = `${totals.netNative.toFixed(2)}$`;
       } else if (label.includes('NEQUI')) {
         label = 'NEQUI';
-        montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
+        montoStr = `${Math.round(totals.netNative).toLocaleString('en-US')}COP`;
       } else if (['PAGO MOVIL', 'PAGO MÓVIL'].includes(label)) {
         label = 'PGO MOVIL';
-        montoStr = `${amounts.bs.toFixed(2)}BS`;
-      } else if (['TARJETA DE DEBITO', 'TARJETA DE DÉBITO', 'TARJETA DE CREDITO', 'TARJETA DE CRÉDITO', 'PUNTO DE VENTA'].includes(label)) {
-        label = 'PTO VENTA';
-        montoStr = `${amounts.bs.toFixed(2)}BS`;
+        montoStr = `${totals.netNative.toFixed(2)}BS`;
+      } else if (['TARJETA DE DEBITO', 'TARJETA DE DÉBITO'].includes(label)) {
+        label = 'PTO VENTA (DEB)';
+        montoStr = `${totals.netNative.toFixed(2)}BS`;
+      } else if (['TARJETA DE CREDITO', 'TARJETA DE CRÉDITO'].includes(label)) {
+        label = 'PTO VENTA (CRE)';
+        montoStr = `${totals.netNative.toFixed(2)}BS`;
       } else {
-        if (amounts.cop > 0) montoStr = `${roundCOP(amounts.cop).toLocaleString('en-US')}COP`;
-        else if (amounts.bs > 0) montoStr = `${amounts.bs.toFixed(2)}BS`;
-        else montoStr = `${amounts.usd.toFixed(2)}$`;
+        if (totals.currency === 'COP') montoStr = `${Math.round(totals.netNative).toLocaleString('en-US')}COP`;
+        else if (totals.currency === 'Bs') montoStr = `${totals.netNative.toFixed(2)}BS`;
+        else montoStr = `${totals.netNative.toFixed(2)}$`;
       }
       lines.push(formatTwoColumns(label, montoStr));
     }
@@ -1906,27 +2044,11 @@ function buildCrispysCierreTicket(data) {
   lines.push('\x1Ba\x01', '\x1BE\x01', 'BOLIVARES', '\x1BE\x00', '\x1Ba\x00');
   lines.push(formatTwoColumns('TIPO', 'MONTO'));
 
-  let ptoVentaBs = 0;
-  let pagoMovilBs = 0;
-  for (const pm of (data.payments || [])) {
-    const method = (pm.paymentMethod || '').toLowerCase();
-    const sale = reportSaleAmounts(pm);
-    if (method.includes('debito') || method.includes('débito') || method.includes('credito') || method.includes('crédito') || method.includes('punto')) {
-      ptoVentaBs += sale.bs;
-    } else if (method.includes('movil') || method.includes('móvil')) {
-      pagoMovilBs += sale.bs;
-    }
-  }
-  if (salesByMethod.size > 0 && ptoVentaBs === 0 && pagoMovilBs === 0 && Array.isArray(data.paymentMethods)) {
-    for (const m of data.paymentMethods) {
-      const name = (m.payment_method || '').toLowerCase();
-      if (name.includes('debito') || name.includes('débito') || name.includes('credito') || name.includes('crédito') || name.includes('punto')) {
-        ptoVentaBs += parseFloat(m.total_bs) || 0;
-      } else if (name.includes('movil') || name.includes('móvil')) {
-        pagoMovilBs += parseFloat(m.total_bs) || 0;
-      }
-    }
-  }
+  const debitoBs = methodTotals.get('Tarjeta de Débito')?.netNative || 0;
+  const creditoBs = methodTotals.get('Tarjeta de Crédito')?.netNative || 0;
+  const ptoVentaBs = debitoBs + creditoBs;
+  const pagoMovilBs = methodTotals.get('Pago Móvil')?.netNative || 0;
+
   lines.push(formatTwoColumns('PTO VENTA', `${ptoVentaBs.toFixed(2)}BS`));
   lines.push(formatTwoColumns('PGO MOVIL', `${pagoMovilBs.toFixed(2)}BS`));
   lines.push(divider('-'));
@@ -1940,8 +2062,11 @@ function buildCrispysCierreTicket(data) {
   } else {
     for (const pm of bancolombiaPayments) {
       const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
-      const sale = reportSaleAmounts(pm);
-      lines.push(formatTwoColumns(`#${ordNum}`, `${roundCOP(sale.cop).toLocaleString('en-US')}COP`));
+      const tenderCOP = Number(pm.cashTenderedCOP) || 0;
+      const changeCOP = Number(pm.changeGivenCOP) || 0;
+      const cRate = Number(pm.copRate) || copRateGlobal;
+      const copAmount = tenderCOP > 0 ? (tenderCOP - changeCOP) : (Number(pm.amountPaidUSD || 0) * cRate);
+      lines.push(formatTwoColumns(`#${ordNum}`, `${Math.round(copAmount).toLocaleString('en-US')}COP`));
     }
   }
   lines.push(divider('-'));
@@ -1955,8 +2080,10 @@ function buildCrispysCierreTicket(data) {
   } else {
     for (const pm of zellePayments) {
       const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
-      const sale = reportSaleAmounts(pm);
-      lines.push(formatTwoColumns(`#${ordNum}`, `${sale.usd.toFixed(2)}$`));
+      const tenderUSD = Number(pm.cashTenderedUSD) || 0;
+      const changeUSD = Number(pm.changeGivenUSD) || 0;
+      const usdAmount = tenderUSD > 0 ? (tenderUSD - changeUSD) : Number(pm.amountPaidUSD || 0);
+      lines.push(formatTwoColumns(`#${ordNum}`, `${usdAmount.toFixed(2)}$`));
     }
   }
   lines.push(divider('-'));
@@ -1970,9 +2097,19 @@ function buildCrispysCierreTicket(data) {
   } else {
     for (const pm of binancePayments) {
       const ordNum = String(pm.orderNumber || '?').replace(/^#+/, '');
-      const sale = reportSaleAmounts(pm);
-      const montoStr = sale.cop > 0 ? `${roundCOP(sale.cop).toLocaleString('en-US')}COP` : `${sale.usd.toFixed(2)}$`;
-      lines.push(formatTwoColumns(`#${ordNum}`, montoStr));
+      const isCOP = (pm.paymentMethod || '').toLowerCase().includes('cop');
+      if (isCOP) {
+        const tenderCOP = Number(pm.cashTenderedCOP) || 0;
+        const changeCOP = Number(pm.changeGivenCOP) || 0;
+        const cRate = Number(pm.copRate) || copRateGlobal;
+        const copAmount = tenderCOP > 0 ? (tenderCOP - changeCOP) : (Number(pm.amountPaidUSD || 0) * cRate);
+        lines.push(formatTwoColumns(`#${ordNum}`, `${Math.round(copAmount).toLocaleString('en-US')}COP`));
+      } else {
+        const tenderUSD = Number(pm.cashTenderedUSD) || 0;
+        const changeUSD = Number(pm.changeGivenUSD) || 0;
+        const usdAmount = tenderUSD > 0 ? (tenderUSD - changeUSD) : Number(pm.amountPaidUSD || 0);
+        lines.push(formatTwoColumns(`#${ordNum}`, `${usdAmount.toFixed(2)}$`));
+      }
     }
   }
   lines.push(divider('-'));
