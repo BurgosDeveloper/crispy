@@ -1796,9 +1796,6 @@ function buildCrispysCierreTicket(data) {
   }
 
   lines.push(`FECHA DE CAJA: ${fechaStr}`);
-  if (data.closedBy) {
-    lines.push(`CAJERO: ${printableText(data.closedBy)}`);
-  }
   lines.push(`CAJERO A CARGO: _________`);
   lines.push(divider('-'));
 
