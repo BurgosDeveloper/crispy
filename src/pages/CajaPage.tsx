@@ -325,19 +325,38 @@ export const CajaPage: React.FC = () => {
   const handleManualTxSubmit = async () => {
     const amount = parseFloat(manualAmountUSD);
     if (!Number.isFinite(amount) || amount <= 0) return;
-    await addCajaTransaction({
-      type: manualType,
-      amountUSD: manualCurrency === 'USD' ? amount : 0,
-      amountCOP: manualCurrency === 'COP' ? amount : 0,
-      amountBs: manualCurrency === 'Bs' ? amount : 0,
-      paymentMethod: manualPaymentMethod,
-      description: manualDesc || (manualType === 'egreso' ? 'Vuelto / Cambio entregado' : 'Ingreso manual'),
-    });
-    setManualAmountUSD('');
-    setManualCurrency('USD');
-    setManualPaymentMethod('Efectivo USD');
-    setManualDesc('');
-    setIsManualTxOpen(false);
+
+    const doSubmit = async () => {
+      await addCajaTransaction({
+        type: manualType,
+        amountUSD: manualCurrency === 'USD' ? amount : 0,
+        amountCOP: manualCurrency === 'COP' ? amount : 0,
+        amountBs: manualCurrency === 'Bs' ? amount : 0,
+        paymentMethod: manualPaymentMethod,
+        description: manualDesc || (manualType === 'egreso' ? 'Vuelto / Cambio entregado' : 'Ingreso manual'),
+      });
+      setManualAmountUSD('');
+      setManualCurrency('USD');
+      setManualPaymentMethod('Efectivo USD');
+      setManualDesc('');
+      setIsManualTxOpen(false);
+    };
+
+    if (userSession?.role === 'caja') {
+      const formattedAmount = manualCurrency === 'USD'
+        ? `$${amount.toFixed(2)} USD`
+        : manualCurrency === 'COP'
+        ? `$${Math.round(amount).toLocaleString()} COP`
+        : `Bs ${amount.toFixed(2)}`;
+      requireAdminPin(
+        `Registrar ${manualType === 'egreso' ? 'Egreso' : 'Ingreso'} (${formattedAmount})`,
+        `🔐 CONFIRMAR ${manualType === 'egreso' ? 'EGRESO' : 'INGRESO'} MANUAL`,
+        doSubmit,
+        `Ingrese el PIN de seguridad de 4 dígitos para autorizar este ${manualType === 'egreso' ? 'egreso' : 'ingreso'} de ${formattedAmount} en caja chica:`
+      );
+    } else {
+      await doSubmit();
+    }
   };
 
   // Totales de Caja Chica
@@ -1585,10 +1604,18 @@ export const CajaPage: React.FC = () => {
               <div className="text-xs text-gray-700 font-bold">{saldoEfectivoCOP.toLocaleString()} COP</div>
               <div className="text-[10px] text-gray-500 leading-tight">Transferencias, tarjetas y Bs permanecen en el movimiento contable, no en el arqueo físico.</div>
               <button
-                onClick={() => setIsManualTxOpen(true)}
-                className="mt-2 px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 text-xs font-black shadow-xs transition-all"
+                onClick={() => {
+                  requireAdminPin(
+                    'Registrar Movimiento en Caja Chica',
+                    '🔐 AUTORIZACIÓN: MOVIMIENTO DE CAJA CHICA',
+                    () => setIsManualTxOpen(true),
+                    'Ingrese el PIN de seguridad de 4 dígitos para abrir el registro de egresos o ingresos:'
+                  );
+                }}
+                className="mt-2 px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 text-xs font-black shadow-xs transition-all flex items-center gap-1.5"
               >
-                - Registrar Vuelto / Egreso
+                <span>- Registrar Vuelto / Egreso</span>
+                {userSession?.role === 'caja' && <IoLockClosedOutline className="text-black text-xs" />}
               </button>
             </div>
           </div>
