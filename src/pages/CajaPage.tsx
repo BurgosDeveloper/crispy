@@ -108,13 +108,13 @@ export const CajaPage: React.FC = () => {
 
   // States para confirmación e impresión de reportes de intervalo
   const [pendingReportChoice, setPendingReportChoice] = useState<{
-    type: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina';
+    type: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted';
     title: string;
     generator: () => void;
   } | null>(null);
 
   const [printerSelectReport, setPrinterSelectReport] = useState<{
-    type: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina';
+    type: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted';
     title: string;
     generator: () => void;
   } | null>(null);
@@ -1911,7 +1911,7 @@ export const CajaPage: React.FC = () => {
               {reporteIntervaloData && (
                 <div className="border-t border-gray-200 pt-4 space-y-3">
                   <p className="text-xs text-gray-600 font-medium">El reporte fue generado. Haz clic para abrirlo y podrás revisarlo o imprimirlo según desees:</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 ${userSession?.role === 'admin' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3`}>
                     <button
                       onClick={() => {
                         const dataForReport: ReporteIntervaloData = {
@@ -1974,6 +1974,18 @@ export const CajaPage: React.FC = () => {
                     >
                       <IoTimeOutline /> COCINA
                     </button>
+                    {userSession?.role === 'admin' && (
+                      <button
+                        onClick={() => setPendingReportChoice({
+                          type: 'audit_deleted',
+                          title: 'Auditoría Forense de Data Eliminada y Movimientos',
+                          generator: () => reportService.generateAuditDeletedIntervalReport(reporteIntervaloData),
+                        })}
+                        className="px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs flex items-center justify-center gap-2 border border-red-700 shadow-xs transition-all"
+                      >
+                        <IoTrashOutline className="text-base" /> <span>DATA ELIMINADA</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

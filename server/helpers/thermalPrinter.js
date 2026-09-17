@@ -630,6 +630,7 @@ function buildReportTicket(reportType, data) {
     ingresos: 'INGRESOS Y COBROS',
     egresos: 'VUELTOS Y EGRESOS',
     cocina: 'REPORTE DE COCINA',
+    audit_deleted: 'DATA ELIMINADA Y AUDITORIA',
   };
   const title = titles[reportType];
   if (!title) throw new Error('Tipo de reporte térmico no válido.');
@@ -794,6 +795,43 @@ function buildReportTicket(reportType, data) {
     }
     addSection(lines, 'RESUMEN DE COCINA');
     lines.push(`COMANDAS: ${(data.orders || []).length}`, `ITEMS FACTURADOS: ${(data.items || []).reduce((total, item) => total + (Number(item.quantity) || 0), 0)}`);
+  } else if (reportType === 'audit_deleted') {
+    const edits = data.edits || [];
+    let delCount = 0;
+    let cancCount = 0;
+    let editCount = 0;
+    let pmCount = 0;
+    let cajaCount = 0;
+
+    for (const e of edits) {
+      if (e.editType === 'eliminacion_comanda') delCount++;
+      else if (e.editType === 'cancelacion_comanda') cancCount++;
+      else if (e.editType === 'anulacion_pago') pmCount++;
+      else if (e.editType === 'egreso_caja' || e.editType === 'ingreso_caja') cajaCount++;
+      else editCount++;
+    }
+
+    addSection(lines, 'RESUMEN FORENSE');
+    lines.push(`COMANDAS ELIMINADAS:  ${delCount}`);
+    lines.push(`COMANDAS CANCELADAS:  ${cancCount}`);
+    lines.push(`PAGOS ANULADOS:       ${pmCount}`);
+    lines.push(`COMANDAS EDITADAS:    ${editCount}`);
+    lines.push(`MOVIMIENTOS CAJA:     ${cajaCount}`);
+    lines.push(`TOTAL EVENTOS:        ${edits.length}`);
+
+    addSection(lines, 'HISTORIAL DE EVENTOS');
+    if (edits.length === 0) {
+      lines.push('SIN REGISTROS EN EL INTERVALO');
+    } else {
+      for (const e of edits) {
+        lines.push(divider('-', reportWidth));
+        lines.push(`HORA: ${reportTimestamp(e.createdAt)}`);
+        lines.push(`RESPONSABLE: ${e.editedBy || 'caja'}`);
+        lines.push(`EVENTO: ${e.editType}`);
+        lines.push(`REF: ${e.orderNumber ? '#' + e.orderNumber : (e.orderId || 'Caja')}`);
+        lines.push(...wrapText(`DETALLE: ${e.editDetails || 'N/A'}`, reportWidth));
+      }
+    }
   } else {
     // REPORTE CONTABLE CONSOLIDADO
     const copRateGlobal = Number(data.exchangeRates?.COP) || 3950;

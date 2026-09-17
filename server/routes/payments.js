@@ -371,13 +371,13 @@ module.exports = function(io) {
       try {
         await client.query('BEGIN');
         const { rows: orderRows } = await client.query(
-          `SELECT id, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
+          `SELECT id, order_number, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
           [id]
         );
         const order = orderRows[0];
         assertPaymentOrderAccess(req.user, order);
         const { rows: paymentRows } = await client.query(
-          `SELECT item_ids, amount_paid_usd FROM order_payments WHERE id = $1 AND order_id = $2 FOR UPDATE`,
+          `SELECT item_ids, amount_paid_usd, payment_method, payer_name FROM order_payments WHERE id = $1 AND order_id = $2 FOR UPDATE`,
           [paymentId, id]
         );
         if (!paymentRows[0]) {
@@ -385,6 +385,19 @@ module.exports = function(io) {
           client.release();
           return res.status(404).json({ error: 'Registro de pago no encontrado.' });
         }
+
+        const pm = paymentRows[0];
+        const editId = `edit-pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        await client.query(
+          `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, 'anulacion_pago', $5)`,
+          [
+            editId,
+            id,
+            order.order_number || '',
+            req.user.username || 'caja',
+            `Pago de $${Number(pm.amount_paid_usd || 0).toFixed(2)} USD (${pm.payment_method || 'Efectivo'}) de ${pm.payer_name || 'Cliente general'} fue ANULADO / ELIMINADO de la comanda #${order.order_number || id}.`
+          ]
+        );
 
         await client.query(`DELETE FROM order_payments WHERE id = $1 AND order_id = $2`, [paymentId, id]);
         await client.query(`DELETE FROM caja_chica_transactions WHERE order_id = $1 AND description LIKE $2`, [id, `%[${paymentId}]%`]);

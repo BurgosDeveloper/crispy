@@ -107,6 +107,33 @@ module.exports = function(io) {
         [txId, type, normalizedUSD, normalizedCOP, normalizedBs, paymentMethod.trim(), description || 'Movimiento manual']
       );
 
+      // Registro forense inmutable en order_edits
+      try {
+        const editId = `edit-caja-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        const amountsList = [];
+        if (normalizedUSD > 0) amountsList.push(`$${normalizedUSD.toFixed(2)} USD`);
+        if (normalizedCOP > 0) amountsList.push(`$${Math.round(normalizedCOP).toLocaleString('es-CO')} COP`);
+        if (normalizedBs > 0) amountsList.push(`Bs ${normalizedBs.toFixed(2)}`);
+        const amountDisplay = amountsList.join(' / ') || '$0.00';
+
+        const actionTitle = type === 'egreso' ? 'EGRESO MANUAL' : 'INGRESO MANUAL';
+        const editType = type === 'egreso' ? 'egreso_caja' : 'ingreso_caja';
+        const user = req.user?.username || 'caja';
+
+        await query(
+          `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details)
+           VALUES ($1, NULL, 'Caja Chica', $2, $3, $4)`,
+          [
+            editId,
+            user,
+            editType,
+            `${actionTitle}: ${amountDisplay} (${paymentMethod.trim()}). Motivo: "${description || 'Movimiento manual'}".`
+          ]
+        );
+      } catch (cajaAuditErr) {
+        console.warn('Aviso: No se pudo registrar auditoría de caja chica:', cajaAuditErr.message);
+      }
+
       io.emit('caja:updated');
       res.status(201).json({ success: true });
     } catch (err) {

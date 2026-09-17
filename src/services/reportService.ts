@@ -166,6 +166,13 @@ export class ReportService {
     });
   }
 
+  private reportDateWithSeconds(value: string) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-VE', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+
   private escapeHtml(value: unknown) {
     return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -727,6 +734,109 @@ export class ReportService {
       <div class="section-title">TIEMPOS COCINA Y AUDITORÍA DE PREPARACIÓN</div>
       <p style="font-size:12px; color:#4b5563;">${this.intervalTitle(data)}</p>
       <table><thead><tr><th>Comanda</th><th>Tipo</th><th>Hora recibida</th><th>Estado</th><th style="text-align:center;">Preparación</th></tr></thead><tbody>${rows || '<tr><td colspan="5" style="text-align:center;">Sin comandas facturadas en el intervalo.</td></tr>'}</tbody></table>
+    `);
+  }
+
+  // 8. Reporte Forense de Data Eliminada, Ediciones y Movimientos de Caja
+  generateAuditDeletedIntervalReport(data: ReporteIntervaloData) {
+    const edits = data.edits || [];
+
+    // Contadores de KPIs
+    let deletedOrdersCount = 0;
+    let cancelledOrdersCount = 0;
+    let modifiedOrdersCount = 0;
+    let annulledPaymentsCount = 0;
+    let manualExpensesCount = 0;
+    let manualIncomesCount = 0;
+
+    edits.forEach((e) => {
+      if (e.editType === 'eliminacion_comanda') deletedOrdersCount++;
+      else if (e.editType === 'cancelacion_comanda') cancelledOrdersCount++;
+      else if (e.editType === 'anulacion_pago') annulledPaymentsCount++;
+      else if (e.editType === 'egreso_caja') manualExpensesCount++;
+      else if (e.editType === 'ingreso_caja') manualIncomesCount++;
+      else modifiedOrdersCount++;
+    });
+
+    const getBadge = (type: string) => {
+      switch (type) {
+        case 'eliminacion_comanda':
+          return '<span style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">🗑️ COMANDA ELIMINADA</span>';
+        case 'cancelacion_comanda':
+          return '<span style="background:#ffedd5; color:#9a3412; border:1px solid #fb923c; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">🚫 COMANDA CANCELADA</span>';
+        case 'anulacion_pago':
+          return '<span style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">💳 PAGO ANULADO</span>';
+        case 'egreso_caja':
+          return '<span style="background:#fce7f3; color:#9d174d; border:1px solid #f472b6; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📉 EGRESO CAJA CHICA</span>';
+        case 'ingreso_caja':
+          return '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📈 INGRESO CAJA CHICA</span>';
+        default:
+          return '<span style="background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">✏️ MODIFICACIÓN / EDICIÓN</span>';
+      }
+    };
+
+    const rows = edits.map((e) => {
+      const orderRef = e.orderNumber ? `#${this.escapeHtml(e.orderNumber.replace(/^#+/, ''))}` : (e.orderId ? this.escapeHtml(e.orderId) : 'Caja Chica');
+      return `<tr>
+        <td style="white-space:nowrap; font-family:monospace; font-size:10.5px; font-weight:600;">${this.reportDateWithSeconds(e.createdAt)}</td>
+        <td style="font-weight:700; color:#111827;">${this.escapeHtml(e.editedBy || 'caja')}</td>
+        <td>${getBadge(e.editType)}</td>
+        <td style="font-weight:700; color:#4b5563;">${orderRef}</td>
+        <td style="line-height:1.4; color:#1f2937;">${this.escapeHtml(e.editDetails || 'Sin detalles registrados')}</td>
+      </tr>`;
+    }).join('');
+
+    this.openPrintWindow('Auditoria_Data_Eliminada_Intervalo', `
+      <div class="section-title" style="border-left-color:#dc2626; color:#991b1b;">
+        🛡️ AUDITORÍA FORENSE DE DATA ELIMINADA, EDICIONES Y MOVIMIENTOS
+      </div>
+      <p style="font-size:12px; color:#4b5563; margin-bottom:12px;">${this.intervalTitle(data)}</p>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:16px;">
+        <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#991b1b; text-transform:uppercase;">Comandas Eliminadas</div>
+          <div style="font-size:20px; font-weight:900; color:#dc2626;">${deletedOrdersCount}</div>
+        </div>
+        <div style="background:#fff7ed; border:1.5px solid #ffedd5; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#9a3412; text-transform:uppercase;">Comandas Canceladas</div>
+          <div style="font-size:20px; font-weight:900; color:#ea580c;">${cancelledOrdersCount}</div>
+        </div>
+        <div style="background:#fefce8; border:1.5px solid #fef08a; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#854d0e; text-transform:uppercase;">Pagos Anulados</div>
+          <div style="font-size:20px; font-weight:900; color:#ca8a04;">${annulledPaymentsCount}</div>
+        </div>
+        <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#075985; text-transform:uppercase;">Comandas Modificadas</div>
+          <div style="font-size:20px; font-weight:900; color:#0284c7;">${modifiedOrdersCount}</div>
+        </div>
+        <div style="background:#fdf2f8; border:1.5px solid #fbcfe8; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#9d174d; text-transform:uppercase;">Egresos de Caja</div>
+          <div style="font-size:20px; font-weight:900; color:#db2777;">${manualExpensesCount}</div>
+        </div>
+        <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:8px 10px; text-align:center;">
+          <div style="font-size:9.5px; font-weight:800; color:#166534; text-transform:uppercase;">Ingresos de Caja</div>
+          <div style="font-size:20px; font-weight:900; color:#16a34a;">${manualIncomesCount}</div>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; margin-bottom:14px; font-size:10.5px; color:#475569;">
+        <strong>ℹ️ Registro Inmutable de Seguridad:</strong> Este reporte audita todas las modificaciones, anulaciones y eliminaciones registradas con fecha exacta al segundo y usuario responsable, incluso si la comanda fue borrada físicamente de la base de datos.
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:130px;">Fecha y Hora</th>
+            <th style="width:85px;">Usuario</th>
+            <th style="width:145px;">Tipo de Acción</th>
+            <th style="width:75px;">Ref #</th>
+            <th>Detalle Forense de la Operación</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || '<tr><td colspan="5" style="text-align:center; padding:18px; color:#6b7280; font-weight:bold;">No se registraron eliminaciones, anulaciones ni modificaciones en este intervalo.</td></tr>'}
+        </tbody>
+      </table>
     `);
   }
 

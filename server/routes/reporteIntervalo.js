@@ -8,7 +8,7 @@ module.exports = function (io) {
   router.post('/reporte-intervalo/imprimir', requireRole('caja', 'admin'), async (req, res) => {
     try {
       const { reportType, data, targetPrinter = 'caja' } = req.body || {};
-      if (!['contable', 'pizzas', 'ingresos', 'egresos', 'cocina'].includes(reportType)) {
+      if (!['contable', 'pizzas', 'ingresos', 'egresos', 'cocina', 'audit_deleted'].includes(reportType)) {
         return res.status(400).json({ error: 'El tipo de reporte no es válido.' });
       }
       if (!data || !Array.isArray(data.orders) || !Array.isArray(data.items) || !Array.isArray(data.payments) || !Array.isArray(data.transactions)) {
@@ -173,15 +173,23 @@ module.exports = function (io) {
         }
       }
 
-      // 5. Ediciones de órdenes en el rango
+      // 5. Ediciones de órdenes y auditoría de eliminaciones en el rango
       let editRows = [];
       try {
         const { rows } = await query(
-          `SELECT oe.* FROM order_edits oe
-           JOIN orders o ON o.id = oe.order_id
+          `SELECT 
+             oe.id,
+             oe.order_id,
+             COALESCE(oe.order_number, o.order_number, 'Sin #') AS order_number,
+             oe.edited_by,
+             oe.edit_type,
+             oe.edit_details,
+             oe.created_at
+           FROM order_edits oe
+           LEFT JOIN orders o ON o.id = oe.order_id
            WHERE oe.created_at >= $1 AND oe.created_at <= $2
-           ${req.user.shift === 'ambos' ? '' : 'AND o.shift = $3'}
-           ORDER BY created_at ASC`,
+           ${req.user.shift === 'ambos' ? '' : 'AND (o.shift IS NULL OR o.shift = $3 OR o.shift = \'ambos\')'}
+           ORDER BY oe.created_at DESC`,
           shiftParams
         );
         editRows = rows;

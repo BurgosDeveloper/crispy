@@ -507,9 +507,36 @@ export function exportToExcel(data: ReporteIntervaloData): void {
   ws5['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 18 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, ws5, 'Créditos');
 
+  // --- Hoja 6: Auditoría Forense y Eliminaciones ---
+  if (data.edits && data.edits.length > 0) {
+    const editRows = data.edits.map((e) => [
+      formatDate(e.createdAt),
+      e.editedBy || 'caja',
+      e.editType === 'eliminacion_comanda' ? 'ELIMINACIÓN DE COMANDA'
+        : e.editType === 'cancelacion_comanda' ? 'CANCELACIÓN DE COMANDA'
+        : e.editType === 'anulacion_pago' ? 'ANULACIÓN DE PAGO'
+        : e.editType === 'egreso_caja' ? 'EGRESO CAJA CHICA'
+        : e.editType === 'ingreso_caja' ? 'INGRESO CAJA CHICA'
+        : 'MODIFICACIÓN / EDICIÓN',
+      e.orderNumber ? `#${e.orderNumber}` : (e.orderId ? e.orderId : 'Caja Chica'),
+      e.editDetails || 'Sin detalles'
+    ]);
+
+    const auditData = [
+      ['AUDITORÍA FORENSE DE DATA ELIMINADA, EDICIONES Y MOVIMIENTOS'],
+      ['Desde:', formatDate(data.dateRange.from), 'Hasta:', formatDate(data.dateRange.to)],
+      [],
+      ['Fecha / Hora', 'Usuario Responsable', 'Tipo de Acción', 'Referencia', 'Detalle Forense de la Operación'],
+      ...editRows
+    ];
+    const ws6 = XLSX.utils.aoa_to_sheet(auditData);
+    ws6['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 26 }, { wch: 18 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, ws6, 'Auditoría y Eliminaciones');
+  }
+
   // Generar y descargar
   const fromFormatted = new Date(data.dateRange.from).toISOString().slice(0, 10);
   const toFormatted = new Date(data.dateRange.to).toISOString().slice(0, 10);
-  const fileName = `Basilico_Reporte_${fromFormatted}_a_${toFormatted}.xlsx`;
+  const fileName = `Crispy_Reporte_${fromFormatted}_a_${toFormatted}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }

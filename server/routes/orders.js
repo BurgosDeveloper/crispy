@@ -232,6 +232,22 @@ module.exports = function(io) {
         }
       }
 
+      if (status === 'cancelado') {
+        const { rows: ordRows } = await client.query('SELECT order_number, total_usd, customer_name FROM orders WHERE id = $1', [id]);
+        const ord = ordRows[0];
+        const editId = `edit-canc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        await client.query(
+          `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, 'cancelacion_comanda', $5)`,
+          [
+            editId,
+            id,
+            ord?.order_number || '',
+            req.user.username || 'caja',
+            `Comanda #${ord?.order_number} (${ord?.customer_name || 'Sin cliente'}, Total: $${Number(ord?.total_usd || 0).toFixed(2)} USD) fue marcada como CANCELADA.`
+          ]
+        );
+      }
+
       const cashLedgerResult = await postCompletedOrderCashMovements(client, id);
       await client.query('COMMIT');
       client.release();
@@ -271,7 +287,7 @@ module.exports = function(io) {
       await assertOrderAccess(client, req.user, id);
 
       const { rows: orderRows } = await client.query(
-        `SELECT id, order_number, table_number, shift FROM orders WHERE id = $1 FOR UPDATE`,
+        `SELECT id, order_number, customer_name, total_usd, table_number, shift FROM orders WHERE id = $1 FOR UPDATE`,
         [id]
       );
       if (orderRows.length === 0) {
@@ -282,11 +298,39 @@ module.exports = function(io) {
       }
       const order = orderRows[0];
 
+      // Consultar ítems y pagos antes de borrar para registro inmutable de auditoría
+      const { rows: itemsRows } = await client.query(
+        `SELECT product_name, quantity, price FROM order_items WHERE order_id = $1`,
+        [id]
+      );
+      const { rows: paymentsRows } = await client.query(
+        `SELECT payment_method, amount_paid_usd, payer_name FROM order_payments WHERE order_id = $1`,
+        [id]
+      );
+      const itemsList = itemsRows
+        .map((it) => `${it.quantity}x ${it.product_name} ($${(Number(it.price) * (Number(it.quantity) || 1)).toFixed(2)})`)
+        .join(', ') || 'Sin ítems';
+      const paymentsList = paymentsRows
+        .map((pm) => `$${Number(pm.amount_paid_usd).toFixed(2)} USD (${pm.payment_method}) [${pm.payer_name || 'Cliente'}]`)
+        .join(', ') || 'Sin pagos registrados';
+
+      const editId = `edit-del-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      await client.query(
+        `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          editId,
+          id,
+          order.order_number || '',
+          req.user.username || 'caja',
+          'eliminacion_comanda',
+          `Comanda #${order.order_number} (${order.customer_name || 'Cliente general'}, Mesa ${order.table_number || 'N/A'}, Total: $${Number(order.total_usd || 0).toFixed(2)} USD) fue ELIMINADA del sistema. Ítems que contenía: [${itemsList}]. Cobros que tenía: [${paymentsList}].`
+        ]
+      );
+
       // 1. Eliminar transacciones de caja chica vinculadas a la comanda
       await client.query(`DELETE FROM caja_chica_transactions WHERE order_id = $1`, [id]);
 
-      // 2. Eliminar auditorías de edición
-      await client.query(`DELETE FROM order_edits WHERE order_id = $1`, [id]);
+      // 2. CONSERVAR order_edits (NO se borra) para auditoría forense del administrador
 
       // 3. Eliminar pagos de la comanda
       await client.query(`DELETE FROM order_payments WHERE order_id = $1`, [id]);
@@ -344,6 +388,21 @@ module.exports = function(io) {
         client = null;
         return res.status(404).json({ error: 'Comanda no encontrada.' });
       }
+
+      const { rows: ordRows } = await client.query('SELECT order_number, total_usd, customer_name FROM orders WHERE id = $1', [id]);
+      const ord = ordRows[0];
+      const editId = `edit-canc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      await client.query(
+        `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, 'cancelacion_comanda', $5)`,
+        [
+          editId,
+          id,
+          ord?.order_number || '',
+          req.user.username || 'caja',
+          `Comanda #${ord?.order_number} (${ord?.customer_name || 'Sin cliente'}, Total: $${Number(ord?.total_usd || 0).toFixed(2)} USD) fue CANCELADA.`
+        ]
+      );
+
       const cashLedgerResult = await postCompletedOrderCashMovements(client, id);
       await client.query('COMMIT');
       client.release();
@@ -420,7 +479,14 @@ module.exports = function(io) {
         [kitchenNotes ?? null, totalUSD ?? null, deliveryFeeUSD ?? null, customerName ?? null, tableNumber ?? null, type ?? null, paymentStatus ?? null, id]
       );
 
+      let oldItemsSummary = '';
       if (items && Array.isArray(items)) {
+        const { rows: oldItemsRows } = await client.query(
+          `SELECT product_name, quantity, price FROM order_items WHERE order_id = $1`,
+          [id]
+        );
+        oldItemsSummary = oldItemsRows.map((it) => `${it.quantity}x ${it.product_name}`).join(', ');
+
         await client.query(`DELETE FROM order_items WHERE order_id = $1`, [id]);
 
         for (const item of items) {
@@ -456,11 +522,14 @@ module.exports = function(io) {
         }
       }
 
-      // Registrar edición en historial
+      // Registrar edición en historial con detalle forense
       const editDetails = [];
-      if (items && Array.isArray(items)) editDetails.push('Productos modificados');
-      if (kitchenNotes !== undefined) editDetails.push('Notas de cocina actualizadas');
-      if (totalUSD !== undefined) editDetails.push(`Total actualizado a $${totalUSD}`);
+      if (items && Array.isArray(items)) {
+        const newItemsSummary = items.map((it) => `${it.quantity || 1}x ${it.productName || 'Producto'}`).join(', ');
+        editDetails.push(`Ítems modificados: Antes [${oldItemsSummary || 'Vacío'}] ➔ Ahora [${newItemsSummary || 'Vacío'}]`);
+      }
+      if (kitchenNotes !== undefined) editDetails.push(`Notas de cocina: "${kitchenNotes}"`);
+      if (totalUSD !== undefined) editDetails.push(`Total: $${Number(totalUSD).toFixed(2)} USD`);
       if (customerName !== undefined) editDetails.push(`Cliente: ${customerName}`);
       if (tableNumber !== undefined) editDetails.push(`Mesa: ${tableNumber}`);
       if (type !== undefined) editDetails.push(`Tipo: ${type}`);
@@ -470,7 +539,7 @@ module.exports = function(io) {
         const { rows: orderForEdit } = await client.query(`SELECT order_number FROM orders WHERE id = $1`, [id]);
         await client.query(
           `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [editId, id, orderForEdit[0]?.order_number || '', req.user.username, 'modificacion', editDetails.join('; ') || 'Edición general']
+          [editId, id, orderForEdit[0]?.order_number || '', req.user.username || 'caja', 'modificacion', editDetails.join('; ') || 'Edición general']
         );
       } catch (editErr) {
         console.warn('Aviso: No se pudo registrar edición en historial:', editErr.message);

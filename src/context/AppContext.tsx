@@ -107,7 +107,7 @@ interface AppContextType {
   realizarCierreCaja: (actualUSD?: number, actualCOP?: number, notes?: string) => Promise<any>;
   obtenerReporteDiario: () => Promise<any>;
   fetchReporteIntervalo: (from: string, to: string) => Promise<any>;
-  printReporteIntervalo: (reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina', data: any, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
+  printReporteIntervalo: (reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted', data: any, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
   printOrderReceipt: (orderId: string, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
   reprintKitchenOrder: (orderId: string, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
   getPrintersConfig: () => Promise<DualPrintersConfig>;
@@ -785,7 +785,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const printReporteIntervalo = async (
-    reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina',
+    reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted',
     data: any,
     targetPrinter: 'cocina' | 'caja' | 'ambas' = 'caja'
   ) => {
