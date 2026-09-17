@@ -2244,7 +2244,7 @@ export const CajaPage: React.FC = () => {
                     <span className="text-black font-black">${(it.price * it.quantity).toFixed(2)}</span>
                   </div>
                   {it.extras && it.extras.length > 0 && (
-                    <div className="text-[10px] text-gray-500 mt-0.5">Extras: {it.extras.map(e => e.name).join(', ')}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">Extras: {it.extras.map(e => `${(e.quantity && e.quantity > 1) ? `${e.quantity}x ` : ''}${e.name}`).join(', ')}</div>
                   )}
                 </div>
               ))}

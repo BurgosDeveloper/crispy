@@ -56,6 +56,8 @@ export interface Table {
 export interface OrderItemExtra {
   name: string;
   price: number;
+  quantity?: number;
+  unitPrice?: number;
 }
 
 export interface HalfDetails {
@@ -224,7 +226,7 @@ export interface BurgerUnitConfig {
   proteins: string[];
   removedIngredients: string[];
   selectedFreeToppings: string[];
-  selectedPaidExtras: { name: string; price: number }[];
+  selectedPaidExtras: { name: string; price: number; quantity?: number; unitPrice?: number }[];
   isTakeaway: boolean;
   isDelivery?: boolean;
   isCut: boolean;

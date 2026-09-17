@@ -299,10 +299,12 @@ export class ReportService {
         let paidExtrasUnitCost = 0;
         extrasList.forEach((extra) => {
           const price = Number(extra.price) || 0;
-          const extraName = (extra.name || 'Adicional').trim();
+          const exQty = Number(extra.quantity) || 1;
+          const rawName = (extra.name || 'Adicional').trim();
+          const cleanBaseName = rawName.replace(/^\d+x\s*/i, '').trim();
           if (price > 0) {
             paidExtrasUnitCost += price;
-            const extraDisplayName = `ADD ${extraName}`;
+            const extraDisplayName = `ADD ${cleanBaseName}`;
             if (!tally[extraDisplayName]) {
               tally[extraDisplayName] = {
                 qty: 0,
@@ -310,7 +312,7 @@ export class ReportService {
                 category: 'Adicionales',
               };
             }
-            tally[extraDisplayName].qty += itQty;
+            tally[extraDisplayName].qty += itQty * exQty;
             tally[extraDisplayName].revenueUSD += price * itQty;
           }
         });
@@ -889,15 +891,18 @@ export class ReportService {
       let paidExtrasUnitCost = 0;
       extrasList.forEach((extra) => {
         const price = Number(extra.price) || 0;
-        const extraName = (extra.name || 'Adicional').trim();
+        const exQty = Number(extra.quantity) || 1;
+        const rawName = (extra.name || 'Adicional').trim();
+        const cleanBaseName = rawName.replace(/^\d+x\s*/i, '').trim();
         if (price > 0) {
           paidExtrasUnitCost += price;
-          const current = paidExtrasMap.get(extraName) || { name: `ADD ${extraName}`, quantity: 0, subtotalUSD: 0, unitPrice: price };
-          current.quantity += itQty;
+          const unitPrice = extra.unitPrice || (price / exQty);
+          const current = paidExtrasMap.get(cleanBaseName) || { name: `ADD ${cleanBaseName}`, quantity: 0, subtotalUSD: 0, unitPrice };
+          current.quantity += itQty * exQty;
           current.subtotalUSD += price * itQty;
-          paidExtrasMap.set(extraName, current);
+          paidExtrasMap.set(cleanBaseName, current);
         } else {
-          freeToppingsCount += itQty;
+          freeToppingsCount += itQty * exQty;
         }
       });
 
@@ -1333,7 +1338,12 @@ export class ReportService {
       const paidExtras = extrasList.filter((e) => Number(e.price) > 0);
       if (paidExtras.length > 0) {
         extrasDetail = `<div style="font-size: 10px; color: #4b5563; font-weight: 600; padding-left: 6px;">` +
-          paidExtras.map((e) => `+ ADD ${this.escapeHtml(e.name)} (€${(Number(e.price) * qty).toFixed(2)})`).join(', ') +
+          paidExtras.map((e) => {
+            const q = Number(e.quantity) || 1;
+            const cleanName = (e.name || 'Adicional').replace(/^\d+x\s*/i, '').trim();
+            const label = q > 1 ? `${q}x ${cleanName}` : cleanName;
+            return `+ ADD ${this.escapeHtml(label)} (€${(Number(e.price) * qty).toFixed(2)})`;
+          }).join(', ') +
           `</div>`;
       }
 

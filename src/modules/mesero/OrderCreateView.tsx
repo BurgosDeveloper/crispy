@@ -118,8 +118,8 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
     const bRem = [...(b.removedIngredients || [])].sort().join('|');
     if (aRem !== bRem) return false;
 
-    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
-    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
+    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
     if (aExtras !== bExtras) return false;
 
     return Math.abs(a.price - b.price) < 0.01;
@@ -737,7 +737,7 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
                       <div className="text-xs text-gray-800 font-bold space-y-0.5">
                         {item.extras.map((ex, exIdx) => (
                           <div key={exIdx} className="flex justify-between">
-                            <span>➕ ADD: {ex.name}</span>
+                            <span>➕ ADD: {(ex.quantity && ex.quantity > 1) ? `${ex.quantity}x ` : ''}{ex.name}</span>
                             {ex.price > 0 && <span className="font-black text-emerald-700">+${ex.price.toFixed(2)}</span>}
                           </div>
                         ))}

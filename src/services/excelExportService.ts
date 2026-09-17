@@ -323,15 +323,17 @@ export function exportToExcel(data: ReporteIntervaloData): void {
     let paidExtrasUnitCost = 0;
     extrasList.forEach((extra) => {
       const price = Number(extra.price) || 0;
-      const extraName = (extra.name || 'Adicional').trim();
+      const exQty = Number(extra.quantity) || 1;
+      const rawName = (extra.name || 'Adicional').trim();
+      const cleanBaseName = rawName.replace(/^\d+x\s*/i, '').trim();
       if (price > 0) {
         paidExtrasUnitCost += price;
-        const current = paidExtrasMap.get(extraName) || { name: `ADD ${extraName}`, quantity: 0, subtotalUSD: 0 };
-        current.quantity += itQty;
+        const current = paidExtrasMap.get(cleanBaseName) || { name: `ADD ${cleanBaseName}`, quantity: 0, subtotalUSD: 0 };
+        current.quantity += itQty * exQty;
         current.subtotalUSD += price * itQty;
-        paidExtrasMap.set(extraName, current);
+        paidExtrasMap.set(cleanBaseName, current);
       } else {
-        freeToppingsCount += itQty;
+        freeToppingsCount += itQty * exQty;
       }
     });
 

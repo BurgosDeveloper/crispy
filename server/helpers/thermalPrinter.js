@@ -459,12 +459,15 @@ function itemDetails(item, order = {}) {
   for (const ext of rawExtras) {
     const extName = typeof ext === 'string' ? ext : (ext.name || '');
     const extPrice = typeof ext === 'object' ? Number(ext.price) || 0 : 0;
+    const extQty = typeof ext === 'object' ? (Number(ext.quantity) || 1) : 1;
     if (extPrice === 0 && extName) {
       const abbrev = abbreviateFreeTopping(extName);
       const tag = abbrev || extName.replace(/\s*\(GRATIS\)\s*/gi, '').trim().toUpperCase();
       if (!freeToppings.includes(tag)) freeToppings.push(tag);
     } else if (extName) {
-      paidExtras.push(extName);
+      const cleanName = extName.replace(/^\d+x\s*/i, '').trim();
+      const label = extQty > 1 ? `${extQty}x ${cleanName}` : cleanName;
+      paidExtras.push(label);
     }
   }
 
@@ -1739,9 +1742,12 @@ function buildReceiptTicket(order, rates = {}) {
 
     for (const ex of extrasList) {
       const exPrice = Number(ex.price) || 0;
+      const exQty = Number(ex.quantity) || 1;
       if (exPrice > 0) {
-        const exName = printableText(ex.name || 'Adicional');
-        lines.push(`  + ADD ${exName} (€${(exPrice * qty).toFixed(2)})`);
+        const rawName = printableText(ex.name || 'Adicional');
+        const cleanName = rawName.replace(/^\d+x\s*/i, '').trim();
+        const label = exQty > 1 ? `${exQty}x ${cleanName}` : cleanName;
+        lines.push(`  + ADD ${label} (€${(exPrice * qty).toFixed(2)})`);
       }
     }
   }
@@ -2162,12 +2168,14 @@ function buildCrispysCierreTicket(data) {
     let paidExtrasCost = 0;
     for (const ex of extrasList) {
       const exPrice = Number(ex.price) || 0;
-      const exName = (ex.name || 'Adicional').trim();
+      const exQty = Number(ex.quantity) || 1;
+      const rawName = (ex.name || 'Adicional').trim();
+      const cleanBaseName = rawName.replace(/^\d+x\s*/i, '').trim().toUpperCase();
       if (exPrice > 0) {
         paidExtrasCost += exPrice;
-        const extraKey = `ADD ${exName}`.toUpperCase();
+        const extraKey = `ADD ${cleanBaseName}`;
         const currExtra = otroGroup.get(extraKey) || { name: extraKey, quantity: 0, totalUSD: 0 };
-        currExtra.quantity += itQty;
+        currExtra.quantity += itQty * exQty;
         currExtra.totalUSD += exPrice * itQty;
         otroGroup.set(extraKey, currExtra);
         totalItemsUSD += exPrice * itQty;

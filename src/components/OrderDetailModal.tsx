@@ -324,7 +324,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       )}
                       {item.extras && item.extras.length > 0 && (
                         <div className="text-xs sm:text-sm font-bold pl-2 mt-1 text-emerald-700">
-                          {item.category && item.category !== 'Pizzas' && item.category !== 'Hamburguesas' ? '🥗 Contorno(s):' : '➕ ADD:'} {item.extras.map(e => `${e.name}${e.price > 0 ? ` (+$${e.price.toFixed(2)})` : ''}`).join(', ')}
+                          {item.category && item.category !== 'Pizzas' && item.category !== 'Hamburguesas' ? '🥗 Contorno(s):' : '➕ ADD:'} {item.extras.map(e => `${(e.quantity && e.quantity > 1) ? `${e.quantity}x ` : ''}${e.name}${e.price > 0 ? ` (+$${e.price.toFixed(2)})` : ''}`).join(', ')}
                         </div>
                       )}
                     </>

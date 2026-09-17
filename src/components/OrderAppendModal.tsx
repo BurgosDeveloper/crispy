@@ -144,8 +144,8 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
     const bRem = [...(b.removedIngredients || [])].sort().join('|');
     if (aRem !== bRem) return false;
 
-    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
-    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
+    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
     if (aExtras !== bExtras) return false;
 
     return Math.abs(a.price - b.price) < 0.01;
@@ -848,7 +848,7 @@ export const OrderAppendModal: React.FC<OrderAppendModalProps> = ({
                                   )}
                                   {item.extras && item.extras.length > 0 && (
                                     <div className="text-gray-800 font-bold">
-                                      {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
+                                      {item.extras.map((e) => (e.price === 0 ? `✨ ${e.name}` : `+ ADD: ${(e.quantity && e.quantity > 1) ? `${e.quantity}x ` : ''}${e.name} ($${e.price.toFixed(2)})`)).join(' • ')}
                                     </div>
                                   )}
                                   {item.flavor && (

@@ -144,10 +144,20 @@ const createEditUnitConfig = (
     .filter(Boolean);
   const paidExtras = allExtras
     .filter((e) => Number(e.price) > 0)
-    .map((e) => ({
-      name: (e.name || '').replace(/^\+?\s*(ADD|EXTRA):?\s*/i, '').trim(),
-      price: Number(e.price),
-    }));
+    .map((e) => {
+      const cleanName = (e.name || '').replace(/^\+?\s*(ADD|EXTRA):?\s*/i, '').trim();
+      const match = cleanName.match(/^(\d+)x\s*(.*)$/i);
+      const quantity = e.quantity || (match ? parseInt(match[1], 10) : 1);
+      const name = match ? match[2].trim() : cleanName;
+      const totalPrice = Number(e.price);
+      const unitPrice = e.unitPrice || (quantity > 0 ? totalPrice / quantity : totalPrice);
+      return {
+        name,
+        price: totalPrice,
+        unitPrice,
+        quantity,
+      };
+    });
 
   const paidExtrasTotal = paidExtras.reduce((sum, e) => sum + e.price, 0);
 
@@ -185,8 +195,8 @@ function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
   const bFree = [...b.selectedFreeToppings].sort().join('|');
   if (aFree !== bFree) return false;
 
-  const aPaid = (a.selectedPaidExtras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
-  const bPaid = (b.selectedPaidExtras || []).map((e) => `${e.name}:${e.price}`).sort().join('|');
+  const aPaid = (a.selectedPaidExtras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
+  const bPaid = (b.selectedPaidExtras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
   if (aPaid !== bPaid) return false;
 
   return true;
@@ -195,9 +205,9 @@ function areUnitsIdentical(a: BurgerUnitConfig, b: BurgerUnitConfig): boolean {
 export interface BurgerOrderConfirmationItem {
   burger: Product;
   quantity: number;
-  proteins: string[];
+  proteins?: string[];
   removedIngredients: string[];
-  extras: Array<{ name: string; price: number }>;
+  extras: Array<{ name: string; price: number; quantity?: number; unitPrice?: number }>;
   isTakeaway: boolean;
   isDelivery?: boolean;
   isCut: boolean;
@@ -483,14 +493,44 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
   };
 
   const togglePaidExtra = (extraIng: Ingredient) => {
-    const price = getExtraPrice(extraIng);
+    const unitPrice = getExtraPrice(extraIng);
     updateCurrentUnit((prev) => {
-      const exists = prev.selectedPaidExtras.some((e) => e.name === extraIng.name);
+      const existingIndex = prev.selectedPaidExtras.findIndex(
+        (e) => e.name.toLowerCase().trim() === extraIng.name.toLowerCase().trim()
+      );
+
+      if (existingIndex === -1) {
+        return {
+          ...prev,
+          selectedPaidExtras: [
+            ...prev.selectedPaidExtras,
+            { name: extraIng.name, price: unitPrice, unitPrice, quantity: 1 },
+          ],
+        };
+      }
+
+      const existing = prev.selectedPaidExtras[existingIndex];
+      const currentQty = existing.quantity || 1;
+
+      if (currentQty < 3) {
+        const nextQty = currentQty + 1;
+        const basePrice = existing.unitPrice ?? unitPrice;
+        const updatedExtras = [...prev.selectedPaidExtras];
+        updatedExtras[existingIndex] = {
+          ...existing,
+          quantity: nextQty,
+          unitPrice: basePrice,
+          price: basePrice * nextQty,
+        };
+        return {
+          ...prev,
+          selectedPaidExtras: updatedExtras,
+        };
+      }
+
       return {
         ...prev,
-        selectedPaidExtras: exists
-          ? prev.selectedPaidExtras.filter((e) => e.name !== extraIng.name)
-          : [...prev.selectedPaidExtras, { name: extraIng.name, price }],
+        selectedPaidExtras: prev.selectedPaidExtras.filter((_, idx) => idx !== existingIndex),
       };
     });
   };
@@ -522,9 +562,14 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     }
 
     const itemsToEmit: BurgerOrderConfirmationItem[] = groups.map(({ unit: u, quantity }) => {
-      const combinedExtras: { name: string; price: number }[] = [
-        ...u.selectedFreeToppings.map((name) => ({ name, price: 0 })),
-        ...u.selectedPaidExtras,
+      const combinedExtras: Array<{ name: string; price: number; quantity?: number; unitPrice?: number }> = [
+        ...u.selectedFreeToppings.map((name) => ({ name, price: 0, quantity: 1 })),
+        ...u.selectedPaidExtras.map((e) => ({
+          name: e.name,
+          price: e.price,
+          unitPrice: e.unitPrice ?? (e.quantity ? e.price / e.quantity : e.price),
+          quantity: e.quantity || 1,
+        })),
       ];
       const extrasCost = u.selectedPaidExtras.reduce((sum, e) => sum + e.price, 0);
       const unitPrice = burger.price + extrasCost;
@@ -912,7 +957,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   </div>
                   <div className="text-xs font-bold text-gray-500 mt-0.5">
                     {currentUnit.selectedPaidExtras.length > 0
-                      ? `+${currentUnit.selectedPaidExtras.length} adicional(es) (+${currentUnitExtrasTotal.toFixed(2)} USD)`
+                      ? `+${currentUnit.selectedPaidExtras.reduce((s, e) => s + (e.quantity || 1), 0)} porción(es) (+${currentUnitExtrasTotal.toFixed(2)} USD)`
                       : 'Sin adicionales con costo'}
                   </div>
                 </div>
@@ -1023,24 +1068,52 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                 {paidExtrasList.map((extra) => {
-                  const isSelected = currentUnit.selectedPaidExtras.some((e) => e.name === extra.name);
-                  const price = getExtraPrice(extra);
+                  const existingExtra = currentUnit.selectedPaidExtras.find((e) => e.name.toLowerCase().trim() === extra.name.toLowerCase().trim());
+                  const count = existingExtra?.quantity || (existingExtra ? 1 : 0);
+                  const unitPrice = getExtraPrice(extra);
+                  const displayPrice = count > 0 ? unitPrice * count : unitPrice;
 
                   return (
                     <button
                       key={extra.id}
                       type="button"
                       onClick={() => togglePaidExtra(extra)}
-                      className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border flex flex-col items-center justify-center gap-1.5 cursor-pointer min-h-[72px] ${
-                        isSelected
-                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.02]'
+                      className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[76px] select-none ${
+                        count === 3
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.03]'
+                          : count === 2
+                          ? 'bg-orange-500 text-white border-orange-600 shadow-sm scale-[1.02]'
+                          : count === 1
+                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.01]'
                           : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-yellow-400'
                       }`}
+                      title={`${extra.name} (Toca para ciclar 1x, 2x, 3x o retirar)`}
                     >
-                      <span className="truncate leading-tight text-center">{extra.name}</span>
-                      <span className="font-black text-xs sm:text-sm px-2 py-0.5 rounded-lg bg-black/5 text-stone-900">
-                        +${price.toFixed(2)}
-                      </span>
+                      <span className="truncate leading-tight text-center max-w-full">{extra.name}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {count > 0 && (
+                          <span
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                              count === 3 || count === 2
+                                ? 'bg-black/30 text-white'
+                                : 'bg-black/15 text-black'
+                            }`}
+                          >
+                            {count}x
+                          </span>
+                        )}
+                        <span
+                          className={`font-black text-xs sm:text-sm px-2 py-0.5 rounded-lg ${
+                            count === 3 || count === 2
+                              ? 'bg-black/20 text-white'
+                              : count === 1
+                              ? 'bg-black/10 text-stone-950'
+                              : 'bg-black/5 text-stone-900'
+                          }`}
+                        >
+                          +${displayPrice.toFixed(2)}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
