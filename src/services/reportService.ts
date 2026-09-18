@@ -122,14 +122,14 @@ export class ReportService {
             -webkit-font-smoothing: antialiased;
           }
           body {
-            padding: 16px 12px 85px 12px;
+            padding: 12px 10px 85px 10px;
           }
           .report-container {
             width: 100%;
             max-width: 980px;
             margin: 0 auto;
             background: #ffffff;
-            padding: 24px 28px;
+            padding: 20px 22px;
             border-radius: 12px;
             box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
             border: 1px solid #e2e8f0;
@@ -197,19 +197,19 @@ export class ReportService {
             color: #334155;
             font-weight: 800;
             text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 0.03em;
-            padding: 8px 10px;
+            font-size: 9.5px;
+            letter-spacing: 0.01em;
+            padding: 7px 6px;
             border-top: 1px solid #cbd5e1;
             border-bottom: 2px solid #94a3b8;
             text-align: left;
             vertical-align: middle;
             box-sizing: border-box;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
           }
           td {
-            padding: 8px 10px;
+            padding: 7px 6px;
             border-bottom: 1px solid #e2e8f0;
             color: #1e293b;
             vertical-align: top;
@@ -356,7 +356,7 @@ export class ReportService {
     if (Number.isNaN(date.getTime())) return value;
     const dStr = date.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const tStr = date.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    return `<div style="font-weight:700; font-size:10.5px; white-space:nowrap;">${dStr}</div><div style="font-size:9.5px; color:#64748b; font-family:monospace; margin-top:1px; white-space:nowrap;">${tStr}</div>`;
+    return `<div style="font-weight:700; font-size:10px; white-space:nowrap;">${dStr}</div><div style="font-size:9px; color:#64748b; font-family:monospace; margin-top:1px; white-space:nowrap;">${tStr}</div>`;
   }
 
   private escapeHtml(value: unknown) {
@@ -945,21 +945,22 @@ export class ReportService {
     });
 
     const getBadge = (type: string) => {
+      const badgeStyle = 'display:inline-block; max-width:100%; box-sizing:border-box; text-align:center; padding:3px 6px; border-radius:4px; font-weight:800; font-size:9.5px; line-height:1.2;';
       switch (type) {
         case 'eliminacion_comanda':
-          return '<span style="display:inline-block; white-space:nowrap; background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">🗑️ COMANDA ELIMINADA</span>';
+          return `<span style="${badgeStyle} background:#fee2e2; color:#991b1b; border:1px solid #f87171;">🗑️ COMANDA ELIMINADA</span>`;
         case 'cancelacion_comanda':
-          return '<span style="display:inline-block; white-space:nowrap; background:#ffedd5; color:#9a3412; border:1px solid #fb923c; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">🚫 COMANDA CANCELADA</span>';
+          return `<span style="${badgeStyle} background:#ffedd5; color:#9a3412; border:1px solid #fb923c;">🚫 COMANDA CANCELADA</span>`;
         case 'anulacion_pago':
-          return '<span style="display:inline-block; white-space:nowrap; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">💳 PAGO ANULADO</span>';
+          return `<span style="${badgeStyle} background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">💳 PAGO ANULADO</span>`;
         case 'egreso_caja':
-          return '<span style="display:inline-block; white-space:nowrap; background:#fce7f3; color:#9d174d; border:1px solid #f472b6; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">📉 EGRESO CAJA CHICA</span>';
+          return `<span style="${badgeStyle} background:#fce7f3; color:#9d174d; border:1px solid #f472b6;">📉 EGRESO CAJA</span>`;
         case 'ingreso_caja':
-          return '<span style="display:inline-block; white-space:nowrap; background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">📈 INGRESO CAJA CHICA</span>';
+          return `<span style="${badgeStyle} background:#dcfce7; color:#166534; border:1px solid #86efac;">📈 INGRESO CAJA</span>`;
         case 'adicion_items':
-          return '<span style="display:inline-block; white-space:nowrap; background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">➕ ÍTEMS ADICIONADOS</span>';
+          return `<span style="${badgeStyle} background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe;">➕ ÍTEMS ADICIONADOS</span>`;
         default:
-          return '<span style="display:inline-block; white-space:nowrap; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">✏️ MODIFICACIÓN / EDICIÓN</span>';
+          return `<span style="${badgeStyle} background:#e0f2fe; color:#075985; border:1px solid #7dd3fc;">✏️ MODIFICACIÓN</span>`;
       }
     };
 
@@ -970,8 +971,8 @@ export class ReportService {
       return `<tr>
         <td style="vertical-align:top;">${this.reportDateWithSeconds(e.createdAt)}</td>
         <td style="font-weight:700; color:#111827; vertical-align:top;">${this.escapeHtml(e.editedBy || 'caja')}</td>
-        <td style="vertical-align:top;">${getBadge(e.editType)}</td>
-        <td style="font-weight:700; color:#4b5563; vertical-align:top;">${orderRef}</td>
+        <td style="vertical-align:top; text-align:center;">${getBadge(e.editType)}</td>
+        <td style="font-weight:700; color:#4b5563; vertical-align:top; text-align:center;">${orderRef}</td>
         <td style="line-height:1.45; color:#1f2937; word-break:break-word; vertical-align:top;">${this.escapeHtml(e.editDetails || 'Sin detalles registrados')}</td>
       </tr>`;
     }).join('');
@@ -1016,11 +1017,11 @@ export class ReportService {
       <table>
         <thead>
           <tr>
-            <th style="width:16%;">Fecha y Hora</th>
-            <th style="width:10%;">Usuario</th>
-            <th style="width:18%;">Tipo de Acción</th>
-            <th style="width:10%;">Ref #</th>
-            <th style="width:46%;">Detalle Forense de la Operación</th>
+            <th style="width:15%;">Fecha y Hora</th>
+            <th style="width:12%;">Usuario</th>
+            <th style="width:21%; text-align:center;">Tipo de Acción</th>
+            <th style="width:9%; text-align:center;">Ref #</th>
+            <th style="width:43%;">Detalle Forense de la Operación</th>
           </tr>
         </thead>
         <tbody>
