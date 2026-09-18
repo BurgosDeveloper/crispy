@@ -517,8 +517,11 @@ export function exportToExcel(data: ReporteIntervaloData): void {
         : e.editType === 'anulacion_pago' ? 'ANULACIÓN DE PAGO'
         : e.editType === 'egreso_caja' ? 'EGRESO CAJA CHICA'
         : e.editType === 'ingreso_caja' ? 'INGRESO CAJA CHICA'
+        : e.editType === 'adicion_items' ? 'ADICIÓN / CAMBIO DE ÍTEMS'
         : 'MODIFICACIÓN / EDICIÓN',
-      e.orderNumber ? `#${e.orderNumber}` : (e.orderId ? e.orderId : 'Caja Chica'),
+      (e.orderNumber && e.orderNumber !== 'Caja Chica' && e.orderNumber !== 'Sin #')
+        ? `#${e.orderNumber.replace(/^#+/, '')}`
+        : (e.orderNumber === 'Caja Chica' ? 'Caja Chica' : (e.orderId ? e.orderId : 'Caja Chica')),
       e.editDetails || 'Sin detalles'
     ]);
 

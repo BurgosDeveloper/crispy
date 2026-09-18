@@ -770,13 +770,17 @@ export class ReportService {
           return '<span style="background:#fce7f3; color:#9d174d; border:1px solid #f472b6; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📉 EGRESO CAJA CHICA</span>';
         case 'ingreso_caja':
           return '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📈 INGRESO CAJA CHICA</span>';
+        case 'adicion_items':
+          return '<span style="background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">➕ ÍTEMS ADICIONADOS</span>';
         default:
           return '<span style="background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">✏️ MODIFICACIÓN / EDICIÓN</span>';
       }
     };
 
     const rows = edits.map((e) => {
-      const orderRef = e.orderNumber ? `#${this.escapeHtml(e.orderNumber.replace(/^#+/, ''))}` : (e.orderId ? this.escapeHtml(e.orderId) : 'Caja Chica');
+      const orderRef = (e.orderNumber && e.orderNumber !== 'Caja Chica' && e.orderNumber !== 'Sin #')
+        ? `#${this.escapeHtml(e.orderNumber.replace(/^#+/, ''))}`
+        : (e.orderNumber === 'Caja Chica' ? 'Caja Chica' : (e.orderId ? this.escapeHtml(e.orderId) : 'Caja Chica'));
       return `<tr>
         <td style="white-space:nowrap; font-family:monospace; font-size:10.5px; font-weight:600;">${this.reportDateWithSeconds(e.createdAt)}</td>
         <td style="font-weight:700; color:#111827;">${this.escapeHtml(e.editedBy || 'caja')}</td>

@@ -828,7 +828,10 @@ function buildReportTicket(reportType, data) {
         lines.push(`HORA: ${reportTimestamp(e.createdAt)}`);
         lines.push(`RESPONSABLE: ${e.editedBy || 'caja'}`);
         lines.push(`EVENTO: ${e.editType}`);
-        lines.push(`REF: ${e.orderNumber ? '#' + e.orderNumber : (e.orderId || 'Caja')}`);
+        const ref = (e.orderNumber && e.orderNumber !== 'Caja Chica' && e.orderNumber !== 'Sin #')
+          ? '#' + e.orderNumber.replace(/^#+/, '')
+          : (e.orderNumber === 'Caja Chica' ? 'Caja Chica' : (e.orderId || 'Caja'));
+        lines.push(`REF: ${ref}`);
         lines.push(...wrapText(`DETALLE: ${e.editDetails || 'N/A'}`, reportWidth));
       }
     }
