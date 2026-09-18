@@ -535,6 +535,15 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
     });
   };
 
+  const removePaidExtra = (extraName: string) => {
+    updateCurrentUnit((prev) => ({
+      ...prev,
+      selectedPaidExtras: prev.selectedPaidExtras.filter(
+        (e) => e.name.toLowerCase().trim() !== extraName.toLowerCase().trim()
+      ),
+    }));
+  };
+
   const copRate = exchangeRates?.COP || 3950;
   const bsRate = exchangeRates?.Bs || 36.5;
 
@@ -1074,47 +1083,62 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   const displayPrice = count > 0 ? unitPrice * count : unitPrice;
 
                   return (
-                    <button
-                      key={extra.id}
-                      type="button"
-                      onClick={() => togglePaidExtra(extra)}
-                      className={`p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[76px] select-none ${
-                        count === 3
-                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.03]'
-                          : count === 2
-                          ? 'bg-orange-500 text-white border-orange-600 shadow-sm scale-[1.02]'
-                          : count === 1
-                          ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.01]'
-                          : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-yellow-400'
-                      }`}
-                      title={`${extra.name} (Toca para ciclar 1x, 2x, 3x o retirar)`}
-                    >
-                      <span className="truncate leading-tight text-center max-w-full">{extra.name}</span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {count > 0 && (
+                    <div key={extra.id} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => togglePaidExtra(extra)}
+                        className={`w-full p-3 rounded-2xl text-center font-black text-xs sm:text-sm transition-all border flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[76px] select-none ${
+                          count === 3
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.03]'
+                            : count === 2
+                            ? 'bg-orange-500 text-white border-orange-600 shadow-sm scale-[1.02]'
+                            : count === 1
+                            ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs scale-[1.01]'
+                            : 'bg-stone-50 text-gray-800 border-gray-200 hover:border-yellow-400'
+                        }`}
+                        title={`${extra.name} (Toca para ciclar 1x, 2x, 3x)`}
+                      >
+                        <span className="truncate leading-tight text-center max-w-full">{extra.name}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {count > 0 && (
+                            <span
+                              className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                                count === 3 || count === 2
+                                  ? 'bg-black/30 text-white'
+                                  : 'bg-black/15 text-black'
+                              }`}
+                            >
+                              {count}x
+                            </span>
+                          )}
                           <span
-                            className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                            className={`font-black text-xs sm:text-sm px-2 py-0.5 rounded-lg ${
                               count === 3 || count === 2
-                                ? 'bg-black/30 text-white'
-                                : 'bg-black/15 text-black'
+                                ? 'bg-black/20 text-white'
+                                : count === 1
+                                ? 'bg-black/10 text-stone-950'
+                                : 'bg-black/5 text-stone-900'
                             }`}
                           >
-                            {count}x
+                            +${displayPrice.toFixed(2)}
                           </span>
-                        )}
-                        <span
-                          className={`font-black text-xs sm:text-sm px-2 py-0.5 rounded-lg ${
-                            count === 3 || count === 2
-                              ? 'bg-black/20 text-white'
-                              : count === 1
-                              ? 'bg-black/10 text-stone-950'
-                              : 'bg-black/5 text-stone-900'
-                          }`}
+                        </div>
+                      </button>
+
+                      {count > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePaidExtra(extra.name);
+                          }}
+                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white font-black text-xs flex items-center justify-center border-2 border-white shadow-md z-10 cursor-pointer active:scale-90"
+                          title={`Quitar ${extra.name} de una`}
                         >
-                          +${displayPrice.toFixed(2)}
-                        </span>
-                      </div>
-                    </button>
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>

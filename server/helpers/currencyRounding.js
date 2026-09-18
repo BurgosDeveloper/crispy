@@ -1,11 +1,15 @@
-﻿/**
+/**
  * Redondeo Comercial Contable para Crispy Burger POS Backend (Tarea 13)
  */
 
 function roundCOP(amountCOP) {
   const num = parseFloat(amountCOP);
   if (!num || num <= 0 || isNaN(num)) return 0;
-  return Math.ceil(num / 1000) * 1000;
+  const base = Math.floor(num / 1000) * 1000;
+  const rem = num - base;
+  if (rem === 0) return base;
+  if (rem <= 500) return base + 500;
+  return base + 1000;
 }
 
 function roundBs(amountBs) {

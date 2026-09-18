@@ -1,3 +1,5 @@
+const { roundCOP } = require('./currencyRounding');
+
 const PAYMENT_METHODS_BY_CURRENCY = {
   USD: ['Efectivo USD', 'Binance', 'Zelle'],
   COP: ['Efectivo COP', 'Bancolombia', 'Nequi'],
@@ -46,8 +48,8 @@ function paymentHistoryTotals(payments) {
 
     if (cashCOP > 0) {
       if (paidUSD > 0 && copRate > 0) {
-        // En cobros COP se redondea al millar comercial superior. El exceso sobre el cobro redondeado es el vuelto.
-        const requiredCOP = Math.ceil((paidUSD * copRate) / 1000) * 1000;
+        // En cobros COP se redondea comercialmente (> 0.5 al millar superior, <= 0.5 a 500). El exceso sobre el cobro redondeado es el vuelto exacto.
+        const requiredCOP = roundCOP(paidUSD * copRate);
         const excessCOP = Math.max(0, cashCOP - requiredCOP);
         tenderedUSD += paidUSD + (excessCOP / copRate);
       } else if (copRate > 0) {

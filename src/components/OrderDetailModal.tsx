@@ -119,6 +119,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const isDelivered = order.status === 'entregada';
   const isPrepared = order.status === 'preparada';
 
+  const payments = order.paymentHistory || [];
+  const hasIndividualPayments = payments.some((p) => (p.itemIds?.length || 0) > 0) || (order.items && order.items.some((it) => it.isPaidIndividually));
+  const hasGeneralPayments = payments.some((p) => (!p.itemIds || p.itemIds.length === 0) && (p.amountPaidUSD || 0) > 0);
+
   // Calculate sum of currently selected items if in selectable mode
   const selectedTotalUSD = order.items
     .filter((it) => selectedItemIds.includes(it.id))
@@ -447,18 +451,29 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {/* 1. COBRAR */}
                 {onPayOrder && !isPaid ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onPayOrder(order);
-                    }}
-                    className="py-2.5 px-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all cursor-pointer active:scale-95"
-                    title="Proceder al cobro de la comanda"
-                  >
-                    <IoCashOutline className="text-base" />
-                    <span>COBRAR (${remainingUSD > 0 ? remainingUSD.toFixed(2) : totalUSD.toFixed(2)})</span>
-                  </button>
+                  hasIndividualPayments ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="py-2.5 px-3 rounded-xl bg-gray-200 text-gray-400 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-gray-300 cursor-not-allowed"
+                      title="Cobro por personas en curso. Utiliza el botón X PERSONAS."
+                    >
+                      <span>👥 POR PERSONAS</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onPayOrder(order);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all cursor-pointer active:scale-95"
+                      title="Proceder al cobro de la comanda"
+                    >
+                      <IoCashOutline className="text-base" />
+                      <span>COBRAR (${remainingUSD > 0 ? remainingUSD.toFixed(2) : totalUSD.toFixed(2)})</span>
+                    </button>
+                  )
                 ) : isPaid ? (
                   <div className="py-2.5 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
                     <IoCashOutline className="text-base text-green-700" />
@@ -486,12 +501,21 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 {onSplitPayment && !isPaid && (
                   <button
                     type="button"
+                    disabled={hasGeneralPayments}
                     onClick={() => {
                       onClose();
                       onSplitPayment(order);
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border-2 border-blue-300 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
-                    title="Cobro dividido por personas o ítems individuales"
+                    className={`py-2.5 px-3 rounded-xl border-2 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs transition-all ${
+                      hasGeneralPayments
+                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                        : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 cursor-pointer active:scale-95'
+                    }`}
+                    title={
+                      hasGeneralPayments
+                        ? 'No disponible: la comanda ya tiene un abono general registrado. Continúa desde COBRAR.'
+                        : 'Cobro dividido por personas o ítems individuales'
+                    }
                   >
                     <IoPeopleOutline className="text-base" />
                     <span>👥 X PERSONAS</span>

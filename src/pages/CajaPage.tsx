@@ -291,6 +291,27 @@ export const CajaPage: React.FC = () => {
     setSplitPaymentScope(null);
   };
 
+  const handleOpenNextPersonSplit = async (order: Order) => {
+    const freshOrder = orders.find((o) => o.id === order.id) || order;
+    setActiveOrderForPay(null);
+    setSplitPaymentScope(null);
+    setIsEditingSplitPayment(false);
+
+    const hasMultiQuantity = (freshOrder.items || []).some((it) => (Number(it.quantity) || 1) > 1);
+    if (hasMultiQuantity && expandOrderItemsForSplit) {
+      try {
+        const expanded = await expandOrderItemsForSplit(freshOrder.id);
+        if (expanded) {
+          setSplitPaymentSelectionOrder(expanded);
+          return;
+        }
+      } catch (err) {
+        console.warn('Aviso: no se pudo expandir ítems en siguiente persona:', err);
+      }
+    }
+    setSplitPaymentSelectionOrder(freshOrder);
+  };
+
   const handleConfirmMergeOrders = async () => {
     if (selectedOrderIdsForMultiPay.length < 2) return;
     const [target, ...sources] = selectedOrderIdsForMultiPay;
@@ -512,7 +533,15 @@ export const CajaPage: React.FC = () => {
               onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
               onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
               canPay={true}
-              onPayOrder={(ord) => handleOpenPayModal(ord)}
+              onPayOrder={(ord) => {
+                const payments = ord.paymentHistory || [];
+                const hasIndividualPayments = payments.some((p) => (p.itemIds?.length || 0) > 0) || (ord.items && ord.items.some((it) => it.isPaidIndividually));
+                if (hasIndividualPayments) {
+                  handleOpenSplitItemsModal(ord);
+                } else {
+                  handleOpenPayModal(ord);
+                }
+              }}
               onMarkDelivered={async (ord) => {
                 await updateOrderStatus(ord.id, 'entregada');
                 setOrderDetailModalOrder(null);
@@ -911,25 +940,53 @@ export const CajaPage: React.FC = () => {
                     {/* Action buttons */}
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
                       {!isPaid ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPayModal(ord)}
-                            className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
-                          >
-                            <IoCashOutline className="text-base" />
-                            <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
-                          </button>
+                        (() => {
+                          const payments = ord.paymentHistory || [];
+                          const hasIndividualPayments = payments.some((p) => (p.itemIds?.length || 0) > 0) || (ord.items && ord.items.some((it) => it.isPaidIndividually));
+                          const hasGeneralPayments = payments.some((p) => (!p.itemIds || p.itemIds.length === 0) && (p.amountPaidUSD || 0) > 0);
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenSplitItemsModal(ord)}
-                            className="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border-2 border-blue-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                            title="Cobro dividido por personas o ítems individuales"
-                          >
-                            <span>👥 X PERSONAS</span>
-                          </button>
-                        </>
+                          return (
+                            <>
+                              {hasIndividualPayments ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="flex-1 py-2.5 rounded-xl bg-gray-200 text-gray-400 font-black text-xs flex items-center justify-center gap-1.5 border border-gray-300 cursor-not-allowed"
+                                  title="Cobro por personas en curso. Use el botón X PERSONAS."
+                                >
+                                  <span>👥 POR PERSONAS</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPayModal(ord)}
+                                  className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                                >
+                                  <IoCashOutline className="text-base" />
+                                  <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                disabled={hasGeneralPayments}
+                                onClick={() => handleOpenSplitItemsModal(ord)}
+                                className={`py-2.5 px-3 rounded-xl border-2 font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs ${
+                                  hasGeneralPayments
+                                    ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                    : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 cursor-pointer'
+                                }`}
+                                title={
+                                  hasGeneralPayments
+                                    ? 'No disponible: la comanda ya tiene un abono general registrado. Continúe en COBRAR.'
+                                    : 'Cobro dividido por personas o ítems individuales'
+                                }
+                              >
+                                <span>👥 X PERSONAS</span>
+                              </button>
+                            </>
+                          );
+                        })()
                       ) : (
                         <div className="py-2 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 text-xs font-black flex items-center gap-1">
                           <IoCheckmarkCircle className="text-base text-green-700" />
@@ -1282,28 +1339,45 @@ export const CajaPage: React.FC = () => {
                       {!isPaid ? (
                         <>
                           {(() => {
-                            const hasIndividualPayments = ord.paymentHistory?.some((payment) => (payment.itemIds?.length || 0) > 0);
-                            return hasIndividualPayments ? (
-                              <div className="w-full rounded-xl border border-blue-400/40 bg-blue-500/15 px-2 py-2.5 text-center text-xs font-black text-blue-200" title="Los pagos restantes deben registrarse por persona">
-                                👥 POR PERSONA
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleOpenPayModal(ord)}
-                                className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all"
-                              >
-                                <IoCashOutline className="text-base" />
-                                <span>💳 COBRAR (${(ord.totalUSD - (ord.paidAmountUSD || 0)).toFixed(2)})</span>
-                              </button>
+                            const payments = ord.paymentHistory || [];
+                            const hasIndividualPayments = payments.some((payment) => (payment.itemIds?.length || 0) > 0) || (ord.items && ord.items.some((it) => it.isPaidIndividually));
+                            const hasGeneralPayments = payments.some((payment) => (!payment.itemIds || payment.itemIds.length === 0) && (payment.amountPaidUSD || 0) > 0);
+
+                            return (
+                              <>
+                                {hasIndividualPayments ? (
+                                  <div className="w-full rounded-xl border border-gray-300 bg-gray-100 px-2 py-2.5 text-center text-xs font-black text-gray-400 select-none" title="Cobro por personas en curso. Continúe con el botón X PERSONAS.">
+                                    👥 EN COBRO X PERSONAS
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => handleOpenPayModal(ord)}
+                                    className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all cursor-pointer"
+                                  >
+                                    <IoCashOutline className="text-base" />
+                                    <span>💳 COBRAR (${(ord.totalUSD - (ord.paidAmountUSD || 0)).toFixed(2)})</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  disabled={hasGeneralPayments}
+                                  onClick={() => handleOpenSplitItemsModal(ord)}
+                                  className={`w-full py-2.5 rounded-xl border font-black text-xs flex items-center justify-center gap-1 transition-all ${
+                                    hasGeneralPayments
+                                      ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                      : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300 cursor-pointer'
+                                  }`}
+                                  title={
+                                    hasGeneralPayments
+                                      ? 'No disponible: la comanda ya tiene un abono general registrado. Continúe en COBRAR.'
+                                      : 'Cobro dividido por personas o ítems individuales'
+                                  }
+                                >
+                                  <span>👥 X PERSONAS</span>
+                                </button>
+                              </>
                             );
                           })()}
-
-                          <button
-                            onClick={() => handleOpenSplitItemsModal(ord)}
-                            className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 font-black text-xs flex items-center justify-center gap-1 transition-all"
-                          >
-                            <span>👥 X PERSONAS</span>
-                          </button>
                         </>
                       ) : (
                         <div className="p-2 rounded-xl bg-green-100 border border-green-300 text-green-900 text-[11px] font-black text-center flex items-center justify-center gap-1 sm:col-span-2">
@@ -2002,6 +2076,7 @@ export const CajaPage: React.FC = () => {
           onViewOrder={(order) => setOrderDetailModalOrder(order)}
           paymentScope={splitPaymentScope || undefined}
           onEditPaymentScope={splitPaymentScope ? handleEditSplitPaymentSelection : undefined}
+          onNextPerson={handleOpenNextPersonSplit}
         />
       )}
 

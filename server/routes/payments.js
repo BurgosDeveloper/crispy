@@ -12,6 +12,7 @@ const {
 const { postCompletedOrderCashMovements } = require('../helpers/cashLedger');
 const { assertShiftAccess } = require('../helpers/shiftScope');
 const { getRatesForShift } = require('../helpers/exchangeRates');
+const { roundCOP } = require('../helpers/currencyRounding');
 const { requireRole } = require('../helpers/sessionAuth');
 
 function assertPaymentOrderAccess(user, order) {
@@ -67,6 +68,15 @@ module.exports = function(io) {
         client.release();
         client = null;
         return res.status(409).json({ error: 'Esta comanda ya tiene pagos por persona. Registra los movimientos restantes desde Pagar por personas.' });
+      }
+      const hasGeneralPayments = paymentRows.some(
+        (payment) => (!Array.isArray(payment.item_ids) || payment.item_ids.length === 0) && Number(payment.amount_paid_usd) > 0
+      );
+      if (hasGeneralPayments && normalizedItemIds.length > 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        client = null;
+        return res.status(409).json({ error: 'Esta comanda ya tiene un abono general registrado. Continúa el cobro desde la opción Cobrar general.' });
       }
       const totals = paymentHistoryTotals(paymentRows);
       const orderTotal = Number(order.total_usd) || 0;
@@ -127,7 +137,7 @@ module.exports = function(io) {
         // El monto imputado al pago (principal) es el mínimo entre lo entregado (amountUSD) y la deuda pendiente.
         // En COP, si el cliente paga el monto comercial redondeado, cubre la totalidad de la deuda.
         if (currency === 'COP') {
-          const requiredCOP = Math.ceil((scopePendingDebtUSD * copRate) / 1000) * 1000;
+          const requiredCOP = roundCOP(scopePendingDebtUSD * copRate);
           if (localAmount >= requiredCOP) {
             amountPaidUSD = scopePendingDebtUSD;
           } else {
@@ -138,7 +148,7 @@ module.exports = function(io) {
         }
         tendered = paymentAmounts(localAmount, currency);
       } else {
-        const copToleranceUSD = currency === 'COP' && copRate > 0 ? (1000 / copRate) : 0.01;
+        const copToleranceUSD = currency === 'COP' && copRate > 0 ? (1000 / copRate) : 0.02;
         if (amountUSD > pendingChangeUSD + copToleranceUSD) {
           await client.query('ROLLBACK');
           client.release();

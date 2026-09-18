@@ -48,6 +48,7 @@ interface PaymentLedgerModalProps {
     itemIds: string[];
   };
   onEditPaymentScope?: (order: Order) => void;
+  onNextPerson?: (order: Order) => void;
 }
 
 export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
@@ -56,6 +57,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   onViewOrder,
   paymentScope,
   onEditPaymentScope,
+  onNextPerson,
 }) => {
   const {
     orders,
@@ -216,16 +218,17 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
   const pendingDebtUSD = Math.max(0, scopeTotalUSD - paidUSD);
   const pendingChangeUSD = Math.max(0, tenderedUSD - scopeTotalUSD - changeGivenUSD);
 
+  const fullOrderTotalUSD = liveOrder?.totalUSD ?? order?.totalUSD ?? 0;
   const fullOrderPaidUSD = history.reduce((total, item) => total + (item.amountPaidUSD || 0), 0);
   const fullOrderTenderedUSD = history.reduce((total, item) => total + getEntryTenderedUSD(item), 0);
   const fullOrderChangeUSD = history.reduce((total, item) => total + getEntryChangeUSD(item), 0);
 
-  const entryUSD = asUSD(Number(amountLocal) || 0, currency, exchangeRates.COP, exchangeRates.Bs);
-
   const copToleranceUSD = exchangeRates.COP > 0 ? (1000 / exchangeRates.COP) : 0.05;
   const isReadyToClose =
-    Math.max(0, (order?.totalUSD || 0) - fullOrderPaidUSD) <= 0.05 &&
-    Math.max(0, fullOrderTenderedUSD - (order?.totalUSD || 0) - fullOrderChangeUSD) <= Math.max(0.05, copToleranceUSD);
+    Math.max(0, fullOrderTotalUSD - fullOrderPaidUSD) <= 0.05 &&
+    Math.max(0, fullOrderTenderedUSD - fullOrderTotalUSD - fullOrderChangeUSD) <= Math.max(0.05, copToleranceUSD);
+  const isScopeSettled = pendingDebtUSD <= 0.01 && pendingChangeUSD <= 0.01;
+  const entryUSD = asUSD(Number(amountLocal) || 0, currency, exchangeRates.COP, exchangeRates.Bs);
 
   // Auto-switch to change if debt is settled but change is owed
   useEffect(() => {
@@ -743,18 +746,66 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
               CANCELAR
             </button>
 
-            <button
-              type="button"
-              disabled={!isReadyToClose || isSubmitting}
-              onClick={handleFinalize}
-              className={`px-10 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider transition-all shadow-md cursor-pointer ${
-                isReadyToClose && !isSubmitting
-                  ? 'bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-95'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300'
-              }`}
-            >
-              {isSubmitting ? 'PROCESANDO...' : 'FINALIZAR COBRO'}
-            </button>
+            {paymentScope ? (
+              // Flujo de Cobro Dividido por Persona
+              isScopeSettled ? (
+                isReadyToClose ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={handleFinalize}
+                    className="px-10 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider transition-all shadow-md cursor-pointer bg-green-500 hover:bg-green-600 text-white border-2 border-green-600 active:scale-95 flex items-center gap-2"
+                  >
+                    <span>{isSubmitting ? 'PROCESANDO...' : '✅ FINALIZAR COMANDA'}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      if (onNextPerson) {
+                        onNextPerson(liveOrder || order);
+                      } else {
+                        onClose();
+                      }
+                    }}
+                    className="px-8 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider transition-all shadow-md cursor-pointer bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-95 flex items-center gap-2 animate-pulse"
+                  >
+                    <span>👥 COBRAR SIGUIENTE PERSONA ➔</span>
+                  </button>
+                )
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="px-8 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300"
+                >
+                  {pendingDebtUSD > 0.01
+                    ? `FALTA COBRAR ($${pendingDebtUSD.toFixed(2)})`
+                    : `FALTA VUELTO ($${pendingChangeUSD.toFixed(2)})`}
+                </button>
+              )
+            ) : (
+              // Flujo de Cobro General
+              <button
+                type="button"
+                disabled={!isReadyToClose || isSubmitting}
+                onClick={handleFinalize}
+                className={`px-10 py-4 rounded-xl text-base sm:text-lg font-black uppercase tracking-wider transition-all shadow-md cursor-pointer ${
+                  isReadyToClose && !isSubmitting
+                    ? 'bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-500 active:scale-95'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300'
+                }`}
+              >
+                {isSubmitting
+                  ? 'PROCESANDO...'
+                  : isReadyToClose
+                  ? '✅ FINALIZAR COMANDA'
+                  : pendingDebtUSD > 0.01
+                  ? `FALTA COBRAR ($${pendingDebtUSD.toFixed(2)})`
+                  : `FALTA VUELTO ($${pendingChangeUSD.toFixed(2)})`}
+              </button>
+            )}
           </div>
         </div>
       </div>

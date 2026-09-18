@@ -230,17 +230,27 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         {activeOrder.items.length} itm
                       </span>
                       {canPay && onPayOrder && activeOrder.paymentStatus !== 'pagado' ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onPayOrder(activeOrder);
-                          }}
-                          className="px-2 py-1 rounded-lg bg-stone-900 hover:bg-black text-white font-black text-xs flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
-                          title="Cobrar comanda directamente"
-                        >
-                          <span>Cobrar</span>
-                        </button>
+                        (() => {
+                          const payments = activeOrder.paymentHistory || [];
+                          const hasIndiv = payments.some((p) => (p.itemIds?.length || 0) > 0) || (activeOrder.items && activeOrder.items.some((it) => it.isPaidIndividually));
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPayOrder(activeOrder);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 ${
+                                hasIndiv
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  : 'bg-stone-900 hover:bg-black text-white'
+                              }`}
+                              title={hasIndiv ? 'Cobro por personas en curso' : 'Cobrar comanda directamente'}
+                            >
+                              <span>{hasIndiv ? '👥 Personas' : 'Cobrar'}</span>
+                            </button>
+                          );
+                        })()
                       ) : (
                         <span className="font-black text-stone-950 uppercase text-xs">
                           {activeOrder.paymentStatus === 'pagado' ? 'PAGADO' : 'VER'}
