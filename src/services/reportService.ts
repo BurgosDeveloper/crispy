@@ -6,14 +6,15 @@ import { roundCOP } from '../utils/currencyRounding';
 import { isSalsaItem } from '../utils/productClassifier';
 
 export class ReportService {
-  private openPrintWindow(title: string, htmlContent: string) {
-    const printWin = window.open('', '_blank', 'width=900,height=750');
+  private openPrintWindow(title: string, htmlContent: string, isNarrowTicket: boolean = false) {
+    const printWin = window.open('', '_blank', isNarrowTicket ? 'width=450,height=750' : 'width=1050,height=850');
     if (!printWin) {
       alert('Por favor habilite las ventanas emergentes (popups) para ver e imprimir los reportes PDF.');
       return;
     }
 
-    const fullDoc = `
+    const fullDoc = isNarrowTicket
+      ? `
       <!DOCTYPE html>
       <html lang="es">
       <head>
@@ -28,53 +29,18 @@ export class ReportService {
           * { box-sizing: border-box; }
           body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            margin: 0;
+            margin: 0 auto;
             padding: 0;
             width: 74mm;
             color: #111827;
             background: #ffffff;
-            font-size: 9px;
-          }
-          .header {
-            display: block;
-            border-bottom: 2px solid #111827;
-            padding-bottom: 7px;
-            margin-bottom: 10px;
-          }
-          .logo-title {
-            font-size: 15px;
-            font-weight: 900;
-            color: #070707;
-            letter-spacing: 0;
-          }
-          .logo-sub {
-            font-size: 8px;
-            color: #374151;
-            font-weight: 800;
-            text-transform: uppercase;
-          }
-          .doc-meta {
-            text-align: left;
-            font-size: 10px;
-            color: #374151;
-            margin-top: 5px;
-          }
-          .section-title {
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0;
-            color: #111827;
-            margin-top: 14px;
-            margin-bottom: 6px;
-            padding-left: 6px;
-            border-left: 3px solid #111827;
+            font-size: 9.5px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-size: 10.5px;
             word-break: break-word;
           }
@@ -89,31 +55,17 @@ export class ReportService {
             border-bottom: 1.5px solid #6b7280;
           }
           td {
-            padding: 5px 4px;
+            padding: 4px;
             border-bottom: 1px solid #e5e7eb;
             color: #1f2937;
             vertical-align: top;
           }
           .total-box {
-            background-color: #ecfdf5;
-            border: 1.5px solid #a7f3d0;
-            border-radius: 4px;
-            padding: 9px;
-            display: block;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-          }
-          .total-label {
-            font-size: 10px;
-            font-weight: 900;
-            color: #065f46;
-            text-transform: uppercase;
-          }
-          .total-val {
-            font-size: 16px;
-            font-weight: 900;
-            color: #047857;
+            background-color: #fffbeb;
+            border: 1.5px solid #facc15;
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 8px;
           }
           .no-print {
             position: fixed;
@@ -123,34 +75,238 @@ export class ReportService {
             color: white;
             padding: 9px 12px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-weight: 900;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
-            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
           }
           @media print {
             .no-print { display: none; }
-            body { width: 74mm; font-size: 10.5px; }
+            body { width: 74mm; font-size: 10px; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <div class="logo-title">🍔 CRISPY BURGER</div>
-            <div class="logo-sub">Sistema de Gestión & Auditoría de Ventas</div>
+        ${htmlContent}
+        <button class="no-print" onclick="window.print()">🖨️ IMPRIMIR PRE-CUENTA</button>
+      </body>
+      </html>
+      `
+      : `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>${title} - Crispy Burger POS</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+          @page {
+            size: letter portrait;
+            margin: 12mm 14mm;
+          }
+          * { box-sizing: border-box; }
+          body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 24px 16px 80px 16px;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-size: 11.5px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+          }
+          .report-container {
+            max-width: 980px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 32px 36px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e2e8f0;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2.5px solid #0f172a;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+            gap: 16px;
+          }
+          .logo-title {
+            font-size: 20px;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+          }
+          .logo-sub {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+          }
+          .doc-meta {
+            text-align: right;
+            font-size: 11px;
+            color: #475569;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            line-height: 1.55;
+          }
+          .doc-meta strong {
+            color: #0f172a;
+          }
+          .section-title {
+            font-size: 12.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #0f172a;
+            margin-top: 22px;
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0 6px 6px 0;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+            margin-bottom: 16px;
+            font-size: 11px;
+          }
+          th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 10.5px;
+            letter-spacing: 0.03em;
+            padding: 9px 12px;
+            border-top: 1px solid #cbd5e1;
+            border-bottom: 2px solid #94a3b8;
+            text-align: left;
+          }
+          td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+            vertical-align: middle;
+          }
+          tr:nth-child(even) td {
+            background-color: #fafbfc;
+          }
+          .total-box {
+            background-color: #ecfdf5;
+            border: 1.5px solid #a7f3d0;
+            border-radius: 8px;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+          }
+          .total-label {
+            font-size: 11px;
+            font-weight: 900;
+            color: #065f46;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+          }
+          .total-val {
+            font-size: 18px;
+            font-weight: 900;
+            color: #047857;
+          }
+          .print-actions {
+            position: fixed;
+            bottom: 20px;
+            right: 24px;
+            z-index: 1000;
+          }
+          .btn-print {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 12.5px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+          }
+          .btn-print:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+          }
+          @media print {
+            .no-print, .print-actions { display: none !important; }
+            body {
+              background: #ffffff !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              color: #000000 !important;
+              font-size: 10pt !important;
+            }
+            .report-container {
+              max-width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+            th {
+              background-color: #f1f5f9 !important;
+              color: #000000 !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            td {
+              color: #000000 !important;
+            }
+            .total-box {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            tr {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="report-container">
+          <div class="header">
+            <div>
+              <div class="logo-title">🍔 CRISPY BURGER</div>
+              <div class="logo-sub">Sistema de Gestión & Auditoría de Ventas</div>
+            </div>
+            <div class="doc-meta">
+              <div><strong>DOCUMENTO:</strong> ${title.replace(/_/g, ' ')}</div>
+              <div><strong>FECHA EMISIÓN:</strong> ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+              <div><strong>HORA:</strong> ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
           </div>
-          <div class="doc-meta">
-            <div><strong>REPORTE:</strong> ${title}</div>
-            <div><strong>FECHA EMISIÓN:</strong> ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-            <div><strong>HORA:</strong> ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-          </div>
+
+          ${htmlContent}
         </div>
 
-        ${htmlContent}
-
-        <button class="no-print" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR EN PDF</button>
+        <div class="print-actions no-print">
+          <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR EN PDF</button>
+        </div>
       </body>
       </html>
     `;
@@ -761,19 +917,19 @@ export class ReportService {
     const getBadge = (type: string) => {
       switch (type) {
         case 'eliminacion_comanda':
-          return '<span style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">🗑️ COMANDA ELIMINADA</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">🗑️ COMANDA ELIMINADA</span>';
         case 'cancelacion_comanda':
-          return '<span style="background:#ffedd5; color:#9a3412; border:1px solid #fb923c; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">🚫 COMANDA CANCELADA</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#ffedd5; color:#9a3412; border:1px solid #fb923c; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">🚫 COMANDA CANCELADA</span>';
         case 'anulacion_pago':
-          return '<span style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">💳 PAGO ANULADO</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">💳 PAGO ANULADO</span>';
         case 'egreso_caja':
-          return '<span style="background:#fce7f3; color:#9d174d; border:1px solid #f472b6; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📉 EGRESO CAJA CHICA</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#fce7f3; color:#9d174d; border:1px solid #f472b6; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">📉 EGRESO CAJA CHICA</span>';
         case 'ingreso_caja':
-          return '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">📈 INGRESO CAJA CHICA</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">📈 INGRESO CAJA CHICA</span>';
         case 'adicion_items':
-          return '<span style="background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">➕ ÍTEMS ADICIONADOS</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">➕ ÍTEMS ADICIONADOS</span>';
         default:
-          return '<span style="background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">✏️ MODIFICACIÓN / EDICIÓN</span>';
+          return '<span style="display:inline-block; white-space:nowrap; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:3px 8px; border-radius:4px; font-weight:800; font-size:10px;">✏️ MODIFICACIÓN / EDICIÓN</span>';
       }
     };
 
@@ -782,11 +938,11 @@ export class ReportService {
         ? `#${this.escapeHtml(e.orderNumber.replace(/^#+/, ''))}`
         : (e.orderNumber === 'Caja Chica' ? 'Caja Chica' : (e.orderId ? this.escapeHtml(e.orderId) : 'Caja Chica'));
       return `<tr>
-        <td style="white-space:nowrap; font-family:monospace; font-size:10.5px; font-weight:600;">${this.reportDateWithSeconds(e.createdAt)}</td>
+        <td style="white-space:nowrap; font-family:monospace; font-size:11px; font-weight:600;">${this.reportDateWithSeconds(e.createdAt)}</td>
         <td style="font-weight:700; color:#111827;">${this.escapeHtml(e.editedBy || 'caja')}</td>
         <td>${getBadge(e.editType)}</td>
         <td style="font-weight:700; color:#4b5563;">${orderRef}</td>
-        <td style="line-height:1.4; color:#1f2937;">${this.escapeHtml(e.editDetails || 'Sin detalles registrados')}</td>
+        <td style="line-height:1.45; color:#1f2937; word-break:break-word;">${this.escapeHtml(e.editDetails || 'Sin detalles registrados')}</td>
       </tr>`;
     }).join('');
 
@@ -796,45 +952,45 @@ export class ReportService {
       </div>
       <p style="font-size:12px; color:#4b5563; margin-bottom:12px;">${this.intervalTitle(data)}</p>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:16px;">
-        <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#991b1b; text-transform:uppercase;">Comandas Eliminadas</div>
-          <div style="font-size:20px; font-weight:900; color:#dc2626;">${deletedOrdersCount}</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:18px;">
+        <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#991b1b; text-transform:uppercase;">Comandas Eliminadas</div>
+          <div style="font-size:22px; font-weight:900; color:#dc2626;">${deletedOrdersCount}</div>
         </div>
-        <div style="background:#fff7ed; border:1.5px solid #ffedd5; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#9a3412; text-transform:uppercase;">Comandas Canceladas</div>
-          <div style="font-size:20px; font-weight:900; color:#ea580c;">${cancelledOrdersCount}</div>
+        <div style="background:#fff7ed; border:1.5px solid #ffedd5; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#9a3412; text-transform:uppercase;">Comandas Canceladas</div>
+          <div style="font-size:22px; font-weight:900; color:#ea580c;">${cancelledOrdersCount}</div>
         </div>
-        <div style="background:#fefce8; border:1.5px solid #fef08a; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#854d0e; text-transform:uppercase;">Pagos Anulados</div>
-          <div style="font-size:20px; font-weight:900; color:#ca8a04;">${annulledPaymentsCount}</div>
+        <div style="background:#fefce8; border:1.5px solid #fef08a; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#854d0e; text-transform:uppercase;">Pagos Anulados</div>
+          <div style="font-size:22px; font-weight:900; color:#ca8a04;">${annulledPaymentsCount}</div>
         </div>
-        <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#075985; text-transform:uppercase;">Comandas Modificadas</div>
-          <div style="font-size:20px; font-weight:900; color:#0284c7;">${modifiedOrdersCount}</div>
+        <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#075985; text-transform:uppercase;">Comandas Modificadas</div>
+          <div style="font-size:22px; font-weight:900; color:#0284c7;">${modifiedOrdersCount}</div>
         </div>
-        <div style="background:#fdf2f8; border:1.5px solid #fbcfe8; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#9d174d; text-transform:uppercase;">Egresos de Caja</div>
-          <div style="font-size:20px; font-weight:900; color:#db2777;">${manualExpensesCount}</div>
+        <div style="background:#fdf2f8; border:1.5px solid #fbcfe8; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#9d174d; text-transform:uppercase;">Egresos de Caja</div>
+          <div style="font-size:22px; font-weight:900; color:#db2777;">${manualExpensesCount}</div>
         </div>
-        <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:8px 10px; text-align:center;">
-          <div style="font-size:9.5px; font-weight:800; color:#166534; text-transform:uppercase;">Ingresos de Caja</div>
-          <div style="font-size:20px; font-weight:900; color:#16a34a;">${manualIncomesCount}</div>
+        <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:10px; font-weight:800; color:#166534; text-transform:uppercase;">Ingresos de Caja</div>
+          <div style="font-size:22px; font-weight:900; color:#16a34a;">${manualIncomesCount}</div>
         </div>
       </div>
 
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; margin-bottom:14px; font-size:10.5px; color:#475569;">
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin-bottom:16px; font-size:11px; color:#475569;">
         <strong>ℹ️ Registro Inmutable de Seguridad:</strong> Este reporte audita todas las modificaciones, anulaciones y eliminaciones registradas con fecha exacta al segundo y usuario responsable, incluso si la comanda fue borrada físicamente de la base de datos.
       </div>
 
       <table>
         <thead>
           <tr>
-            <th style="width:130px;">Fecha y Hora</th>
-            <th style="width:85px;">Usuario</th>
-            <th style="width:145px;">Tipo de Acción</th>
-            <th style="width:75px;">Ref #</th>
-            <th>Detalle Forense de la Operación</th>
+            <th style="width:17%; min-width:140px;">Fecha y Hora</th>
+            <th style="width:11%; min-width:85px;">Usuario</th>
+            <th style="width:20%; min-width:150px;">Tipo de Acción</th>
+            <th style="width:10%; min-width:75px;">Ref #</th>
+            <th style="width:42%; min-width:220px;">Detalle Forense de la Operación</th>
           </tr>
         </thead>
         <tbody>
@@ -1112,10 +1268,10 @@ export class ReportService {
           <td><strong>#${this.escapeHtml(ord.orderNumber)}</strong></td>
           <td>${this.reportDate(ord.createdAt)}</td>
           <td><strong>${this.escapeHtml(ord.customerName || 'Cliente Deudor')}</strong></td>
-          <td style="font-size:7.5px;">${orderItems || 'Consumo general'}</td>
+          <td style="font-size:11px; color:#374151;">${orderItems || 'Consumo general'}</td>
           <td style="text-align:right; font-weight:900; color:#b45309;">
             $${ord.totalUSD.toFixed(2)} USD
-            <div style="font-size:7px; color:#78350f; font-weight:normal;">(${copEquiv} COP / ${bsEquiv} Bs)</div>
+            <div style="font-size:9.5px; color:#78350f; font-weight:700; margin-top:2px;">(${copEquiv} COP / ${bsEquiv} Bs)</div>
           </td>
         </tr>
       `;
@@ -1345,15 +1501,15 @@ export class ReportService {
       <div class="section-title">SECCIÓN 6 — ÍTEMS FACTURADOS POR CATEGORÍA</div>
 
       <!-- 6.1 COMIDAS -->
-      <div style="font-size:10px; font-weight:900; margin:10px 0 3px; padding:3px 8px; background:#fef3c7; color:#92400e; border-left:3px solid #f59e0b;">
+      <div style="font-size:11px; font-weight:900; margin:14px 0 4px; padding:4px 10px; background:#fef3c7; color:#92400e; border-left:4px solid #f59e0b; border-radius:0 4px 4px 0;">
         6.1 COMIDAS (Hamburguesas, Raciones y Acompañantes)
       </div>
       <table>
         <thead>
           <tr>
             <th>Producto</th>
-            <th style="text-align:center; width:60px;">Cant.</th>
-            <th style="text-align:right; width:110px;">Total USD</th>
+            <th style="text-align:center; width:80px;">Cant.</th>
+            <th style="text-align:right; width:120px;">Total USD</th>
           </tr>
         </thead>
         <tbody>
@@ -1362,15 +1518,15 @@ export class ReportService {
       </table>
 
       <!-- 6.2 BEBIDAS -->
-      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#e0f2fe; color:#075985; border-left:3px solid #0284c7;">
+      <div style="font-size:11px; font-weight:900; margin:16px 0 4px; padding:4px 10px; background:#e0f2fe; color:#075985; border-left:4px solid #0284c7; border-radius:0 4px 4px 0;">
         6.2 BEBIDAS (Refrescos, Jugos, Cervezas, Granizados, Aguas)
       </div>
       <table>
         <thead>
           <tr>
             <th>Producto (Unificado)</th>
-            <th style="text-align:center; width:60px;">Cant.</th>
-            <th style="text-align:right; width:110px;">Total USD</th>
+            <th style="text-align:center; width:80px;">Cant.</th>
+            <th style="text-align:right; width:120px;">Total USD</th>
           </tr>
         </thead>
         <tbody>
@@ -1379,15 +1535,15 @@ export class ReportService {
       </table>
 
       <!-- 6.3 ADICIONALES -->
-      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#f3e8ff; color:#6b21a8; border-left:3px solid #9333ea;">
+      <div style="font-size:11px; font-weight:900; margin:16px 0 4px; padding:4px 10px; background:#f3e8ff; color:#6b21a8; border-left:4px solid #9333ea; border-radius:0 4px 4px 0;">
         6.3 ADICIONALES (Adicionales Pagos y Toppings Gratis)
       </div>
       <table>
         <thead>
           <tr>
             <th>Concepto</th>
-            <th style="text-align:center; width:60px;">Cant.</th>
-            <th style="text-align:right; width:110px;">Total USD</th>
+            <th style="text-align:center; width:80px;">Cant.</th>
+            <th style="text-align:right; width:120px;">Total USD</th>
           </tr>
         </thead>
         <tbody>
@@ -1396,15 +1552,15 @@ export class ReportService {
       </table>
 
       <!-- 6.4 OTROS -->
-      <div style="font-size:10px; font-weight:900; margin:14px 0 3px; padding:3px 8px; background:#f1f5f9; color:#334155; border-left:3px solid #64748b;">
+      <div style="font-size:11px; font-weight:900; margin:16px 0 4px; padding:4px 10px; background:#f1f5f9; color:#334155; border-left:4px solid #64748b; border-radius:0 4px 4px 0;">
         6.4 OTROS (Servicios de Delivery y Otros Conceptos)
       </div>
       <table>
         <thead>
           <tr>
             <th>Concepto</th>
-            <th style="text-align:center; width:60px;">Cant.</th>
-            <th style="text-align:right; width:110px;">Total USD</th>
+            <th style="text-align:center; width:80px;">Cant.</th>
+            <th style="text-align:right; width:120px;">Total USD</th>
           </tr>
         </thead>
         <tbody>
@@ -1412,9 +1568,9 @@ export class ReportService {
         </tbody>
       </table>
 
-      <div class="total-box" style="margin-top:14px; background:#ecfdf5; border-color:#059669;">
-        <div class="total-label" style="color:#065f46; font-size:11px;">TOTAL GENERAL FACTURADO EN ÍTEMS:</div>
-        <div class="total-val" style="color:#047857; font-size:13px;">$${totalItemsUSD.toFixed(2)} USD</div>
+      <div class="total-box" style="margin-top:16px; background:#ecfdf5; border-color:#059669;">
+        <div class="total-label" style="color:#065f46; font-size:12px;">TOTAL GENERAL FACTURADO EN ÍTEMS:</div>
+        <div class="total-val" style="color:#047857; font-size:18px;">$${totalItemsUSD.toFixed(2)} USD</div>
       </div>
     `;
 
@@ -1549,7 +1705,7 @@ export class ReportService {
       </div>
     `;
 
-    this.openPrintWindow(`PreCuenta_Comanda_${order.orderNumber}`, content);
+    this.openPrintWindow(`PreCuenta_Comanda_${order.orderNumber}`, content, true);
   }
 }
 
