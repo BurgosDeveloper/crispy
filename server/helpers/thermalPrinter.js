@@ -198,11 +198,13 @@ function isKitchenItem(item) {
     drinkType === 'merengada' ||
     drinkType === 'malteada' ||
     drinkType === 'batido' ||
+    drinkType === 'granizado' ||
     Boolean(item.sugarPreference || item.sugar_preference) ||
     name.includes('jugo') ||
     name.includes('merengada') ||
     name.includes('malteada') ||
-    name.includes('batido')
+    name.includes('batido') ||
+    name.includes('granizado')
   );
 
   // 2. REGLA ESTRICTA DE BEBIDAS:
@@ -332,6 +334,9 @@ function areProteinsDefault(burgerName, proteins, defaultProteins) {
   }
 
   // 6. Hamburguesas individuales de 1 carne
+  if (nameLower.includes('bistro')) {
+    return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
+  }
   if (nameLower.includes('mr pork') || nameLower.includes('pork')) {
     return pSorted.length === 1 && pSorted[0] === 'chuleta de cerdo ahumada';
   }
@@ -341,11 +346,8 @@ function areProteinsDefault(burgerName, proteins, defaultProteins) {
   if (nameLower.includes('chicken grill') || nameLower.includes('grill')) {
     return pSorted.length === 1 && pSorted[0] === 'pechuga de pollo a la plancha';
   }
-  if (nameLower.includes('crispy') || nameLower.includes('crispys')) {
+  if (nameLower.includes('crispys') || (nameLower.includes('crispy') && !nameLower.includes('bistro'))) {
     return pSorted.length === 1 && pSorted[0] === 'pollo crispy';
-  }
-  if (nameLower.includes('bistro')) {
-    return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
   }
 
   // Default general: 1 carne de novillo
@@ -1483,7 +1485,8 @@ function sendRawTicket(payload, config) {
       else resolve();
     };
 
-    socket.setTimeout(config.timeoutMs || 5000);
+    const connectTimeoutMs = Math.min(config.timeoutMs || 3500, 3500);
+    socket.setTimeout(connectTimeoutMs);
     socket.once('connect', () => socket.end(payload, () => complete()));
     socket.once('timeout', () => complete(new Error(`Tiempo de espera agotado al conectar con ${config.host}:${config.port}.`)));
     socket.once('error', complete);
@@ -2367,8 +2370,11 @@ module.exports = {
   loadPrinterConfig,
   printKitchenTicket,
   printKitchenAdditionTicket,
+  sendKitchenTicketWithFallback,
   printReceiptTicket,
   printReportTicket,
   printCierreShiftTicket,
   printTestTicket,
+  areProteinsDefault,
+  normalizeProteinName,
 };

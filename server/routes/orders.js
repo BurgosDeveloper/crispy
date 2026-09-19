@@ -6,7 +6,7 @@ const { postCompletedOrderCashMovements } = require('../helpers/cashLedger');
 const { requireRole } = require('../helpers/sessionAuth');
 const { assertShiftAccess } = require('../helpers/shiftScope');
 const { getRatesForShift } = require('../helpers/exchangeRates');
-const { printKitchenTicket, printKitchenAdditionTicket, printReceiptTicket, isKitchenItem } = require('../helpers/thermalPrinter');
+const { printKitchenTicket, printKitchenAdditionTicket, printReceiptTicket, isKitchenItem, areProteinsDefault } = require('../helpers/thermalPrinter');
 
 async function assertOrderAccess(executor, user, orderId) {
   const { rows } = await executor.query(`SELECT shift FROM orders WHERE id = $1`, [orderId]);
@@ -129,7 +129,7 @@ module.exports = function(io) {
             item.notes || '',
             item.drinkType || item.drink_type || null,
             item.category || null,
-            item.proteins || [],
+            areProteinsDefault(item.productName || item.name, item.proteins, item.defaultProteins) ? [] : (item.proteins || []),
             !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
             item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
             item.flavor || null,
@@ -175,6 +175,13 @@ module.exports = function(io) {
               console.log(`🚨 [RESPALDO EN CAJA] Comanda ${createdOrder.orderNumber} impresa en CAJA con alerta para cocina`);
             } else if (result.printed) {
               console.log(`🖨️ [COMANDA IMPRESA] ${createdOrder.orderNumber} en ${targetPrinter || 'cocina'} (${result.copies} copia${result.copies === 1 ? '' : 's'})`);
+            } else if (!result.printed && result.reason !== 'no_kitchen_items') {
+              console.error(`⚠️ [IMPRESIÓN FALLIDA] ${createdOrder.orderNumber}: ${result.reason || 'no_printer_available'}`);
+              io.emit('order:print_failed', {
+                orderId: createdOrder.id,
+                orderNumber: createdOrder.orderNumber,
+                message: result.reason || 'No se pudo imprimir en cocina ni en caja',
+              });
             }
           })
           .catch((printError) => {
@@ -525,7 +532,7 @@ module.exports = function(io) {
               item.notes || '',
               item.drinkType || item.drink_type || null,
               item.category || null,
-              item.proteins || [],
+              areProteinsDefault(item.productName || item.name, item.proteins, item.defaultProteins) ? [] : (item.proteins || []),
               !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
               item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
               item.flavor || null,
@@ -1167,7 +1174,7 @@ module.exports = function(io) {
               item.notes || '',
               item.drinkType || item.drink_type || null,
               item.category || null,
-              item.proteins || [],
+              areProteinsDefault(item.productName || item.name, item.proteins, item.defaultProteins) ? [] : (item.proteins || []),
               !!(item.isCut || item.is_cut || item.cutPreference === 'Picada'),
               item.cutPreference || item.cut_preference || (item.isCut ? 'Picada' : 'Entera'),
               item.flavor || null,
@@ -1252,6 +1259,13 @@ module.exports = function(io) {
             console.log(`🚨 [RESPALDO EN CAJA] Ticket adición #${order.order_number} impreso en CAJA con alerta para cocina`);
           } else if (addResult?.printed) {
             console.log(`🖨️ [TICKET ADICIÓN] Impreso exitosamente para comanda #${order.order_number} en destino: ${targetPrinter}`);
+          } else if (!addResult?.printed && addResult?.reason !== 'no_kitchen_items') {
+            console.error(`⚠️ [TICKET ADICIÓN FALLIDO] #${order.order_number}: ${addResult?.reason || 'no_printer_available'}`);
+            io.emit('order:print_failed', {
+              orderId: id,
+              orderNumber: order.order_number,
+              message: addResult?.reason || 'Error al conectar con las impresoras',
+            });
           }
         } catch (err) {
           console.warn(`⚠️ [IMPRESORA TÉRMICA] No se pudo imprimir ticket de adición: ${err.message}`);

@@ -455,6 +455,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncError(`La comanda ${printFailure.orderNumber || ''} fue guardada, pero no se imprimió: ${printFailure.message || 'verifica la impresora térmica.'}`);
     });
 
+    socket.on('order:kitchen_fallback', (data: { orderNumber?: string; reason?: string }) => {
+      setSyncError(`🚨 AVISO: Cocina no respondió. Comanda ${data.orderNumber || ''} se imprimió en CAJA (por cable). ¡Entregar ticket a cocina!`);
+    });
+
     socket.on('order:paid', (updatedOrder: Order) => {
       setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
       fetchCajaChica();

@@ -224,7 +224,12 @@ export const OrderCreateView: React.FC<OrderCreateViewProps> = ({
       price: config.finalPrice,
       quantity: config.quantity,
       category: config.burger.category || 'Hamburguesas',
-      proteins: config.proteins && config.proteins.length > 0 ? config.proteins : undefined,
+      proteins:
+        config.proteins &&
+        config.proteins.length > 0 &&
+        !areProteinsDefault(config.burger.name, config.proteins, config.burger.defaultProteins)
+          ? config.proteins
+          : undefined,
       removedIngredients: config.removedIngredients && config.removedIngredients.length > 0 ? config.removedIngredients : undefined,
       extras: config.extras && config.extras.length > 0 ? config.extras : undefined,
       isTakeaway: Boolean(config.isTakeaway),

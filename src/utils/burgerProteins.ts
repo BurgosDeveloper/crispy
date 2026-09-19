@@ -96,6 +96,9 @@ export function areProteinsDefault(burgerName: string, proteins?: string[], defa
   }
 
   // 6. Hamburguesas individuales de 1 carne
+  if (nameLower.includes('bistro')) {
+    return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
+  }
   if (nameLower.includes('mr pork') || nameLower.includes('pork')) {
     return pSorted.length === 1 && pSorted[0] === 'chuleta de cerdo ahumada';
   }
@@ -105,11 +108,8 @@ export function areProteinsDefault(burgerName: string, proteins?: string[], defa
   if (nameLower.includes('chicken grill') || nameLower.includes('grill')) {
     return pSorted.length === 1 && pSorted[0] === 'pechuga de pollo a la plancha';
   }
-  if (nameLower.includes('crispy') || nameLower.includes('crispys')) {
+  if (nameLower.includes('crispys') || (nameLower.includes('crispy') && !nameLower.includes('bistro'))) {
     return pSorted.length === 1 && pSorted[0] === 'pollo crispy';
-  }
-  if (nameLower.includes('bistro')) {
-    return pSorted.length === 1 && pSorted[0] === 'carne de novillo';
   }
 
   // Default general: 1 carne de novillo

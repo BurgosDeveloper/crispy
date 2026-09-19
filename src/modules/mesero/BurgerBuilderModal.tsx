@@ -586,11 +586,12 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
       // NOTA: Únicamente si el usuario escribió una nota real en el input.
       // NUNCA agregar tags artificiales como [#1], [#2] si el usuario no escribió nada.
       const userNote = getCleanItemNote(u.notes);
+      const isProteinChanged = !areProteinsDefault(burger.name, u.proteins, burger.defaultProteins);
 
       return {
         burger,
         quantity,
-        proteins: u.proteins.length > 0 ? u.proteins : undefined,
+        proteins: isProteinChanged && u.proteins.length > 0 ? u.proteins : undefined,
         removedIngredients: u.removedIngredients,
         extras: combinedExtras,
         isTakeaway: Boolean(u.isTakeaway),
@@ -843,7 +844,7 @@ export const BurgerBuilderModal: React.FC<BurgerBuilderModalProps> = ({
                   u.selectedPaidExtras.length > 0 ||
                   u.isCut ||
                   u.isTakeaway !== defaultTakeaway ||
-                  !areProteinsDefault(burger.name, u.proteins) ||
+                  !areProteinsDefault(burger.name, u.proteins, burger.defaultProteins) ||
                   Boolean(getCleanItemNote(u.notes));
 
                 const unitExtrasSum = u.selectedPaidExtras.reduce((s, e) => s + e.price, 0);
