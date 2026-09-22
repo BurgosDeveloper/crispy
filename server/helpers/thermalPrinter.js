@@ -1406,71 +1406,106 @@ function buildKitchenAdditionTicket(order, addedItems, isFallback = false) {
 
 function sendRawTicket(payload, config) {
   if (config.connectionType === 'usb') {
-    return new Promise((resolve, reject) => {
-      const printerName = String(config.usbDeviceName || 'POS-58').trim();
-      if (!printerName) {
-        return reject(new Error('Nombre de impresora o dispositivo USB no configurado.'));
-      }
+    const printerName = String(config.usbDeviceName || 'POS-58').trim();
+    if (!printerName) {
+      return Promise.reject(new Error('Nombre de impresora o dispositivo USB no configurado.'));
+    }
 
-      // 1. Puerto serial o paralelo directo (COMx o LPTx)
-      if (/^(COM\d+|LPT\d+)$/i.test(printerName)) {
+    // 1. Puerto serial o paralelo directo (COMx o LPTx)
+    if (/^(COM\d+|LPT\d+)$/i.test(printerName)) {
+      return new Promise((resolve, reject) => {
         try {
           fs.writeFileSync(`\\\\.\\${printerName}`, payload);
           return resolve();
         } catch (err) {
           return reject(err);
         }
-      }
+      });
+    }
 
-      // 2. Impresora USB en Windows (Spooler WinSpool directo con winspool.drv)
-      const os = require('os');
-      const tempPath = path.join(os.tmpdir(), `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
-      try {
-        fs.writeFileSync(tempPath, payload);
-      } catch (err) {
-        return reject(err);
-      }
+    // 2. Impresora USB en Windows (Spooler WinSpool directo con winspool.drv)
+    //    Sistema de reintentos: 3 intentos con backoff progresivo (1s, 2s, 3s).
+    //    Solo reintenta tras un fallo confirmado — si imprime al primer intento,
+    //    resolve() inmediato sin espera y sin riesgo de duplicados.
+    const USB_MAX_RETRIES = 3;
+    const USB_BACKOFF_MS = [1000, 2000, 3000];
+    const os = require('os');
+    const { execFile } = require('child_process');
+    const scriptPath = path.join(__dirname, 'rawPrinter.ps1');
 
-      const scriptPath = path.join(__dirname, 'rawPrinter.ps1');
-      const { execFile } = require('child_process');
-
-      execFile(
-        'powershell.exe',
-        [
-          '-WindowStyle', 'Hidden',
-          '-NoLogo',
-          '-NonInteractive',
-          '-NoProfile',
-          '-ExecutionPolicy', 'Bypass',
-          '-File', scriptPath,
-          '-PrinterName', printerName,
-          '-FilePath', tempPath,
-        ],
-        {
-          timeout: config.timeoutMs || 8000,
-          windowsHide: true,
-        },
-        (err, stdout, stderr) => {
-          try { fs.unlinkSync(tempPath); } catch (_) {}
-          if (err) {
-            const detail = (stderr || stdout || err.message).trim();
-            console.warn(`⚠️ [USB SPOOLER] Error en ${printerName}:`, detail);
-
-            // Fallback a socket LAN si host y puerto están configurados explícitamente
-            if (config.connectionType === 'lan' && config.host && Number.isInteger(config.port) && config.port > 0) {
-              const socket = net.createConnection({ host: config.host, port: config.port });
-              socket.setTimeout(config.timeoutMs || 5000);
-              socket.once('connect', () => socket.end(payload, () => resolve()));
-              socket.once('timeout', () => reject(new Error(`Fallo spooler USB (${printerName}) y tiempo de espera agotado en LAN (${config.host}:${config.port}).`)));
-              socket.once('error', (netErr) => reject(new Error(`Fallo spooler USB (${printerName}) y fallback LAN falló: ${netErr.message}`)));
-              return;
-            }
-            return reject(new Error(`No se pudo imprimir en USB "${printerName}". Detalle: ${detail}`));
-          }
-          resolve();
+    const attemptUsbPrint = (attempt) => {
+      return new Promise((resolve, reject) => {
+        const tempPath = path.join(os.tmpdir(), `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
+        try {
+          fs.writeFileSync(tempPath, payload);
+        } catch (err) {
+          return reject(err);
         }
-      );
-    });
+
+        execFile(
+          'powershell.exe',
+          [
+            '-WindowStyle', 'Hidden',
+            '-NoLogo',
+            '-NonInteractive',
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', scriptPath,
+            '-PrinterName', printerName,
+            '-FilePath', tempPath,
+          ],
+          {
+            timeout: config.timeoutMs || 8000,
+            windowsHide: true,
+          },
+          (err, stdout, stderr) => {
+            try { fs.unlinkSync(tempPath); } catch (_) {}
+            if (err) {
+              const detail = (stderr || stdout || err.message).trim();
+              return reject(new Error(detail));
+            }
+            resolve();
+          }
+        );
+      });
+    };
+
+    return (async () => {
+      let lastError = null;
+      for (let attempt = 1; attempt <= USB_MAX_RETRIES; attempt++) {
+        try {
+          await attemptUsbPrint(attempt);
+          if (attempt > 1) {
+            console.log(`✅ [USB REINTENTO OK] Impresión exitosa en ${printerName} al intento #${attempt}`);
+          }
+          return; // Éxito — sale de inmediato sin duplicar
+        } catch (err) {
+          lastError = err;
+          if (attempt < USB_MAX_RETRIES) {
+            const waitMs = USB_BACKOFF_MS[attempt - 1] || 2000;
+            console.warn(`⚠️ [USB INTENTO ${attempt}/${USB_MAX_RETRIES}] Error en ${printerName}: ${err.message}. Reintentando en ${waitMs}ms...`);
+            await new Promise((r) => setTimeout(r, waitMs));
+          } else {
+            console.warn(`❌ [USB AGOTADO] ${USB_MAX_RETRIES} intentos fallidos en ${printerName}: ${err.message}`);
+          }
+        }
+      }
+
+      // Todos los reintentos USB fallaron — intentar fallback LAN si está configurado
+      if (config.host && Number.isInteger(config.port) && config.port > 0) {
+        console.warn(`🔄 [USB→LAN FALLBACK] Intentando envío TCP a ${config.host}:${config.port}...`);
+        await new Promise((resolve, reject) => {
+          const socket = net.createConnection({ host: config.host, port: config.port });
+          socket.setTimeout(config.timeoutMs || 5000);
+          socket.once('connect', () => socket.end(payload, () => resolve()));
+          socket.once('timeout', () => reject(new Error(`Fallo spooler USB (${printerName}) y tiempo de espera agotado en LAN (${config.host}:${config.port}).`)));
+          socket.once('error', (netErr) => reject(new Error(`Fallo spooler USB (${printerName}) y fallback LAN falló: ${netErr.message}`)));
+        });
+        return;
+      }
+
+      throw new Error(`No se pudo imprimir en USB "${printerName}" tras ${USB_MAX_RETRIES} intentos. Último error: ${lastError ? lastError.message : 'desconocido'}`);
+    })();
   }
 
   // Conexión TCP / Red estándar para LAN
