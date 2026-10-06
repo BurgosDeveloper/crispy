@@ -56,7 +56,7 @@ interface AppContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
-  editOrder: (orderId: string, editData: { items: OrderItem[]; kitchenNotes?: string; totalUSD: number; deliveryFeeUSD?: number; customerName?: string; tableNumber?: number; type?: 'mesa' | 'delivery' | 'pickup' | 'credito' | 'llevar'; }) => Promise<Order>;
+  editOrder: (orderId: string, editData: { items: OrderItem[]; kitchenNotes?: string; totalUSD: number; deliveryFeeUSD?: number; customerName?: string; tableNumber?: number | null; type?: 'mesa' | 'delivery' | 'pickup' | 'credito' | 'llevar'; }) => Promise<Order>;
   processPayment: (
 
     orderId: string,
@@ -544,7 +544,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrders((prev) => prev.filter((order) => order.id !== orderId));
   };
 
-  const editOrder = async (orderId: string, editData: { items: OrderItem[]; kitchenNotes?: string; totalUSD: number; deliveryFeeUSD?: number; customerName?: string; tableNumber?: number; type?: 'mesa' | 'delivery' | 'pickup' | 'credito' | 'llevar'; }) => {
+  const editOrder = async (orderId: string, editData: { items: OrderItem[]; kitchenNotes?: string; totalUSD: number; deliveryFeeUSD?: number; customerName?: string; tableNumber?: number | null; type?: 'mesa' | 'delivery' | 'pickup' | 'credito' | 'llevar'; }) => {
     if (userSession?.role !== 'admin' && userSession?.role !== 'caja') {
       throw new Error('Solo un administrador o usuario de caja puede editar una comanda.');
     }

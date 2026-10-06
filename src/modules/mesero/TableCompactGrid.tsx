@@ -6,6 +6,7 @@ import {
   IoCashOutline,
   IoTimeOutline,
   IoCheckmarkDone,
+  IoPauseCircle,
 } from 'react-icons/io5';
 
 interface TableCompactGridProps {
@@ -19,6 +20,8 @@ interface TableCompactGridProps {
   onPrintReceipt?: (order: Order) => void;
   onViewHistory?: () => void;
   canPay?: boolean;
+  onOpenStandby?: () => void;
+  standbyCount?: number;
 }
 
 function cleanOrderNum(orderNumber?: string | number): string {
@@ -53,6 +56,8 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onPrintReceipt,
   onViewHistory,
   canPay = false,
+  onOpenStandby,
+  standbyCount = 0,
 }) => {
   // Comandas activas en curso
   const activeOrders = orders.filter(
@@ -101,8 +106,29 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
           </div>
         </div>
 
-        {/* Botones de Acción: NUEVO DELIVERY (Azul), NUEVO PICK UP (Rojo), ULTIMOS PEDIDOS (Amarillo) */}
+        {/* Botones de Acción: STANDBY, NUEVO DELIVERY (Azul), NUEVO PICK UP (Rojo), ULTIMOS PEDIDOS (Amarillo) */}
         <div className="flex items-center gap-2.5">
+          {onOpenStandby && (
+            <button
+              type="button"
+              onClick={onOpenStandby}
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer border ${
+                standbyCount > 0
+                  ? 'bg-amber-400 hover:bg-amber-500 text-black border-amber-500 shadow-amber-200'
+                  : 'bg-stone-100 hover:bg-stone-200 text-gray-700 border-gray-300'
+              }`}
+              title="Ver pedidos en espera (Standby)"
+            >
+              <IoPauseCircle className="text-lg shrink-0 text-black" />
+              <span className="hidden sm:inline">STANDBY</span>
+              {standbyCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-black text-yellow-300 text-[11px] font-black leading-none">
+                  {standbyCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {onSelectTarget && (
             <>
               <button

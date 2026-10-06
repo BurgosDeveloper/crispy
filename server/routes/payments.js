@@ -375,87 +375,99 @@ module.exports = function(io) {
   });
 
   router.delete('/:id/payments/:paymentId', requireRole('caja', 'admin'), async (req, res) => {
+    let client;
     try {
       const { id, paymentId } = req.params;
-      const client = await getClient();
-      try {
-        await client.query('BEGIN');
-        const { rows: orderRows } = await client.query(
-          `SELECT id, order_number, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
+      client = await getClient();
+      await client.query('BEGIN');
+      const { rows: orderRows } = await client.query(
+        `SELECT id, order_number, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      const order = orderRows[0];
+      if (!order) {
+        await client.query('ROLLBACK');
+        client.release();
+        client = null;
+        return res.status(404).json({ error: 'Comanda no encontrada.' });
+      }
+      assertPaymentOrderAccess(req.user, order);
+      const { rows: paymentRows } = await client.query(
+        `SELECT * FROM order_payments WHERE id = $1 AND order_id = $2 FOR UPDATE`,
+        [paymentId, id]
+      );
+      if (!paymentRows[0]) {
+        await client.query('ROLLBACK');
+        client.release();
+        client = null;
+        return res.status(404).json({ error: 'Registro de pago no encontrado.' });
+      }
+
+      const pm = paymentRows[0];
+      const isChange = Number(pm.change_given_usd || 0) > 0 || Number(pm.change_given_cop || 0) > 0 || Number(pm.change_given_bs || 0) > 0;
+      const editId = `edit-pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const editDetails = isChange
+        ? `Vuelto (${pm.payment_method || 'Efectivo'}) de la comanda #${order.order_number || id} fue ANULADO / ELIMINADO.`
+        : `Pago de $${Number(pm.amount_paid_usd || 0).toFixed(2)} USD (${pm.payment_method || 'Efectivo'}) de ${pm.payer_name || 'Cliente general'} fue ANULADO / ELIMINADO de la comanda #${order.order_number || id}.`;
+      await client.query(
+        `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          editId,
+          id,
+          order.order_number || '',
+          req.user.username || 'caja',
+          isChange ? 'anulacion_vuelto' : 'anulacion_pago',
+          editDetails,
+        ]
+      );
+
+      await client.query(`DELETE FROM order_payments WHERE id = $1 AND order_id = $2`, [paymentId, id]);
+      await client.query(`DELETE FROM caja_chica_transactions WHERE order_id = $1 AND (description LIKE $2 OR id LIKE $3)`, [id, `%[${paymentId}]%`, `%${paymentId}%`]);
+
+      const { rows: remainingPayments } = await client.query(`SELECT * FROM order_payments WHERE order_id = $1`, [id]);
+      const remainingTotals = paymentHistoryTotals(remainingPayments);
+      const newPaid = remainingTotals.paidUSD;
+
+      const total = parseFloat(order.total_usd || 0);
+      const pendingDebtUSD = Math.max(0, total - newPaid);
+      const pendingChangeUSD = Math.max(0, remainingTotals.tenderedUSD - total - remainingTotals.changeGivenUSD);
+      const newStatus = pendingDebtUSD <= 0.05 && pendingChangeUSD <= 0.05 ? 'pagado' : 'no_pagado';
+
+      await client.query(`UPDATE orders SET paid_amount_usd = $1, payment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, [newPaid, newStatus, id]);
+
+      if (Number(pm.amount_paid_usd) > 0 && Array.isArray(pm.item_ids) && pm.item_ids.length > 0) {
+        await client.query(
+          `UPDATE order_items SET is_paid_individually = false, paid_by_name = NULL WHERE order_id = $1 AND id = ANY($2::text[])`,
+          [id, pm.item_ids]
+        );
+        const { rows: remainingItemPayments } = await client.query(
+          `SELECT payer_name, item_ids FROM order_payments WHERE order_id = $1 AND cardinality(item_ids) > 0`,
           [id]
         );
-        const order = orderRows[0];
-        assertPaymentOrderAccess(req.user, order);
-        const { rows: paymentRows } = await client.query(
-          `SELECT item_ids, amount_paid_usd, payment_method, payer_name FROM order_payments WHERE id = $1 AND order_id = $2 FOR UPDATE`,
-          [paymentId, id]
-        );
-        if (!paymentRows[0]) {
-          await client.query('ROLLBACK');
-          client.release();
-          return res.status(404).json({ error: 'Registro de pago no encontrado.' });
-        }
-
-        const pm = paymentRows[0];
-        const editId = `edit-pm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-        await client.query(
-          `INSERT INTO order_edits (id, order_id, order_number, edited_by, edit_type, edit_details) VALUES ($1, $2, $3, $4, 'anulacion_pago', $5)`,
-          [
-            editId,
-            id,
-            order.order_number || '',
-            req.user.username || 'caja',
-            `Pago de $${Number(pm.amount_paid_usd || 0).toFixed(2)} USD (${pm.payment_method || 'Efectivo'}) de ${pm.payer_name || 'Cliente general'} fue ANULADO / ELIMINADO de la comanda #${order.order_number || id}.`
-          ]
-        );
-
-        await client.query(`DELETE FROM order_payments WHERE id = $1 AND order_id = $2`, [paymentId, id]);
-        await client.query(`DELETE FROM caja_chica_transactions WHERE order_id = $1 AND description LIKE $2`, [id, `%[${paymentId}]%`]);
-
-        const { rows: remainingPayments } = await client.query(`SELECT * FROM order_payments WHERE order_id = $1`, [id]);
-        const remainingTotals = paymentHistoryTotals(remainingPayments);
-        const newPaid = remainingTotals.paidUSD;
-
-        const total = parseFloat(order.total_usd || 0);
-        const pendingDebtUSD = Math.max(0, total - newPaid);
-        const pendingChangeUSD = Math.max(0, remainingTotals.tenderedUSD - total - remainingTotals.changeGivenUSD);
-        const newStatus = pendingDebtUSD <= 0.05 && pendingChangeUSD <= 0.05 ? 'pagado' : 'no_pagado';
-
-        await client.query(`UPDATE orders SET paid_amount_usd = $1, payment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, [newPaid, newStatus, id]);
-
-        if (Number(paymentRows[0].amount_paid_usd) > 0 && Array.isArray(paymentRows[0].item_ids) && paymentRows[0].item_ids.length > 0) {
+        for (const payment of remainingItemPayments) {
           await client.query(
-            `UPDATE order_items SET is_paid_individually = false, paid_by_name = NULL WHERE order_id = $1 AND id = ANY($2::text[])`,
-            [id, paymentRows[0].item_ids]
+            `UPDATE order_items SET is_paid_individually = true, paid_by_name = $1 WHERE order_id = $2 AND id = ANY($3::text[])`,
+            [payment.payer_name || 'Cliente General', id, payment.item_ids]
           );
-          const { rows: remainingItemPayments } = await client.query(
-            `SELECT payer_name, item_ids FROM order_payments WHERE order_id = $1 AND cardinality(item_ids) > 0`,
-            [id]
-          );
-          for (const payment of remainingItemPayments) {
-            await client.query(
-              `UPDATE order_items SET is_paid_individually = true, paid_by_name = $1 WHERE order_id = $2 AND id = ANY($3::text[])`,
-              [payment.payer_name || 'Cliente General', id, payment.item_ids]
-            );
-          }
         }
-        await postCompletedOrderCashMovements(client, id);
-        await client.query('COMMIT');
-        client.release();
-      } catch (e) {
-        await client.query('ROLLBACK');
-        if (client) client.release();
-        throw e;
       }
+      await postCompletedOrderCashMovements(client, id);
+      await client.query('COMMIT');
+      client.release();
+      client = null;
 
       const allOrders = await fetchAllOrders(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
       io.emit('orders:sync', allOrders);
       io.emit('caja:updated');
-      res.json(updatedOrder);
+      return res.json(updatedOrder);
     } catch (err) {
+      if (client) {
+        try { await client.query('ROLLBACK'); } catch (_) {}
+        try { client.release(); } catch (_) {}
+      }
       console.error('Error al eliminar movimiento de pago:', err);
-      res.status(500).json({ error: 'Error al eliminar pago' });
+      return res.status(500).json({ error: 'Error al eliminar pago' });
     }
   });
 

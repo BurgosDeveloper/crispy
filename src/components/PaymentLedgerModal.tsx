@@ -286,14 +286,22 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     }
   };
 
+  const isComandaFinalizada = liveOrder?.paymentStatus === 'pagado' || order?.paymentStatus === 'pagado';
+
   const handleRemoveEntry = async (paymentId: string) => {
     if (isSubmitting) return;
+    if (isComandaFinalizada) {
+      setError('La comanda ya está finalizada y cobrada. Para anular pagos use "Editar Comanda" con clave de Administrador.');
+      return;
+    }
+    const targetOrderId = liveOrder?.id || order?.id;
+    if (!targetOrderId) return;
     setIsSubmitting(true);
     setError('');
     // Actualización inmediata para que el pago no se quede dibujado en la modal
     setLocalHistory((prev) => (prev || []).filter((p) => p.id !== paymentId));
     try {
-      const updated = await deletePaymentEntry(order.id, paymentId);
+      const updated = await deletePaymentEntry(targetOrderId, paymentId);
       if (updated && updated.paymentHistory) {
         setLocalHistory(updated.paymentHistory);
       }
@@ -703,15 +711,24 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
                             ${usdEquiv.toFixed(2)} USD
                           </td>
                           <td className="p-3.5 text-right">
-                            <button
-                              type="button"
-                              disabled={isSubmitting}
-                              onClick={() => handleRemoveEntry(mov.id)}
-                              className="p-2 rounded-xl text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
-                              title="Anular este movimiento"
-                            >
-                              <IoTrashOutline className="text-xl" />
-                            </button>
+                            {isComandaFinalizada ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-black text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg select-none border border-gray-200"
+                                title="Comanda finalizada. Para anular pagos use 'Editar Comanda' (requiere clave de Administrador)."
+                              >
+                                🔒 Cobrada
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={() => handleRemoveEntry(mov.id)}
+                                className="p-2 rounded-xl text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Anular este movimiento"
+                              >
+                                <IoTrashOutline className="text-xl" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );

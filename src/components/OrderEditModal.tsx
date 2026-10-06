@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Order, OrderItem, Product, Ingredient } from '../data/mockData';
-import { getIngredientExtraPrice } from '../utils/pizzaPricing';
-import { IoClose, IoCreateOutline, IoTrashOutline, IoAddCircleOutline, IoCheckmarkCircleOutline, IoChevronDownOutline, IoChevronUpOutline } from 'react-icons/io5';
+import { useApp } from '../context/AppContext';
+import { ProductTextCatalog } from '../modules/mesero/ProductTextCatalog';
+import { BurgerBuilderModal, BurgerOrderConfirmationItem } from '../modules/mesero/BurgerBuilderModal';
+import { DrinkSelectorModal, DrinkOrderConfirmationItem } from '../modules/mesero/DrinkSelectorModal';
+import { DeliveryConfigPanel } from '../modules/mesero/DeliveryConfigPanel';
+import { roundCOP } from '../utils/currencyRounding';
+import { areProteinsDefault, getCleanItemNote, normalizeProteinName, formatRemovedIngredients } from '../utils/burgerProteins';
+import { isCustomizableProduct } from '../utils/productClassifier';
+import {
+  IoClose,
+  IoTrashOutline,
+  IoPencilOutline,
+  IoAlertCircleOutline,
+  IoCheckmarkCircle,
+  IoRestaurantOutline,
+  IoSaveOutline,
+} from 'react-icons/io5';
 
 interface OrderEditModalProps {
   order: Order | null;
@@ -14,7 +29,7 @@ interface OrderEditModalProps {
     kitchenNotes?: string;
     totalUSD: number;
     customerName?: string;
-    tableNumber?: number;
+    tableNumber?: number | null;
     type?: 'mesa' | 'llevar' | 'delivery' | 'pickup' | 'credito';
     deliveryFeeUSD?: number;
   }) => Promise<void>;
@@ -32,751 +47,1012 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({
   onDeletePaymentEntry,
   onDeleteOrder,
 }) => {
-  const [customerName, setCustomerName] = useState('');
+  const { exchangeRates, userSession } = useApp();
+
+  // Estados de formulario
+  const [customerName, setCustomerName] = useState<string>('');
   const [tableNumber, setTableNumber] = useState<number | ''>('');
-  const [type, setType] = useState<'mesa' | 'llevar' | 'delivery' | 'pickup' | 'credito'>('mesa');
-  const [kitchenNotes, setKitchenNotes] = useState('');
+  const [type, setType] = useState<'mesa' | 'pickup' | 'delivery'>('mesa');
+  const [kitchenNotes, setKitchenNotes] = useState<string>('');
+  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number>(0);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<Order['paymentHistory']>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProductToAdd, setSelectedProductToAdd] = useState<string>('');
-  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number | ''>('');
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-  const [error, setError] = useState('');
 
-  const availableExtras = useMemo(() => ingredients.filter(i => i.isExtraForPizza).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })), [ingredients]);
-  const allPizzaProducts = useMemo(() => products.filter(p => p.category === 'Pizzas').sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })), [products]);
+  // Estados de catálogo y personalización
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
+  const [selectedDrink, setSelectedDrink] = useState<Product | null>(null);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [showDeliveryConfig, setShowDeliveryConfig] = useState<boolean>(false);
+  const [leftTab, setLeftTab] = useState<'catalogo' | 'pagos'>('catalogo');
 
+  // Estados de UI y envío
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [successToast, setSuccessToast] = useState<string>('');
+
+  // Sincronizar estado al abrir modal o recibir comanda
   useEffect(() => {
-    if (order) {
+    if (order && isOpen) {
       setCustomerName(order.customerName || '');
-      setTableNumber(order.tableNumber || '');
-      setType(order.type || 'mesa');
+      setTableNumber(order.tableNumber ?? '');
+      const rawType = (order.type as string) === 'llevar' ? 'pickup' : (order.type || 'mesa');
+      setType(rawType === 'delivery' ? 'delivery' : rawType === 'pickup' ? 'pickup' : 'mesa');
       setKitchenNotes(order.kitchenNotes || '');
-      setDeliveryFeeUSD(order.deliveryFeeUSD || 0);
+      setDeliveryFeeUSD(Number(order.deliveryFeeUSD || 0));
       setItems(JSON.parse(JSON.stringify(order.items || [])));
-      setPaymentHistory(order.paymentHistory ? [...order.paymentHistory] : []);
-      setExpandedItemId(null);
+      setPaymentHistory(order.paymentHistory ? JSON.parse(JSON.stringify(order.paymentHistory)) : []);
+      setSelectedCategory('Todas');
+      setSearchQuery('');
+      setSelectedBurger(null);
+      setSelectedDrink(null);
+      setEditingItemIndex(null);
+      setShowDeliveryConfig(order.type === 'delivery');
+      setLeftTab('catalogo');
       setError('');
+      setSuccessToast('');
+      setIsSubmitting(false);
     }
-  }, [order]);
+  }, [order, isOpen]);
+
+  // Filtrar productos e ingredientes activos por turno
+  const activeProducts = useMemo(() => {
+    return products
+      .filter((p) => !p.shift || p.shift === 'ambos' || p.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [products, userSession?.shift]);
+
+  const activeIngredients = useMemo(() => {
+    return ingredients
+      .filter((i) => !i.shift || i.shift === 'ambos' || i.shift === userSession?.shift)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  }, [ingredients, userSession?.shift]);
+
+  const availableExtras = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.isExtra || i.isExtraForPizza || i.ingredientType === 'adicional' || i.ingredientType === 'gratis' || i.category === 'Adicionales' || i.category === 'Toppings'
+    );
+  }, [activeIngredients]);
+
+  const availableFreeToppings = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.ingredientType === 'gratis' || i.category === 'Gratis'
+    );
+  }, [activeIngredients]);
+
+  const availableProteins = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.ingredientType === 'proteina' || i.category === 'Proteínas' || i.category === 'Carnes'
+    );
+  }, [activeIngredients]);
+
+  const availableSalsas = useMemo(() => {
+    return activeIngredients.filter(
+      (i) => i.category === 'Salsas' || i.ingredientType === 'salsa'
+    );
+  }, [activeIngredients]);
 
   if (!isOpen || !order) return null;
 
   const hasPaymentHistory = (paymentHistory?.length || 0) > 0;
+  const isDeliveryOrder = type === 'delivery';
+  const effectiveDeliveryFee = isDeliveryOrder ? (Number(deliveryFeeUSD) || 0) : 0;
 
-  const calculateItemPrice = (item: OrderItem) => {
-    const prod = products.find(p => p.id === item.productId);
-    if (!prod) return item.price || 0;
+  // Cálculo de totales
+  const itemsSubtotalUSD = items.reduce(
+    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+    0
+  );
+  const totalUSD = itemsSubtotalUSD + effectiveDeliveryFee;
+  const totalCOP = roundCOP(totalUSD * (exchangeRates?.COP || 3950));
+  const totalBs = (totalUSD * (exchangeRates?.Bs || 36.5)).toFixed(2);
 
-    if (prod.category === 'Pizzas') {
-      let basePrice = prod.price;
-      let smallPrice = prod.priceSmall ?? (prod.price > 4 ? prod.price - 4 : prod.price * 0.7);
+  // Helper para comparar ítems idénticos
+  const areItemsIdentical = (a: OrderItem, b: OrderItem): boolean => {
+    if (a.productId !== b.productId) return false;
+    if (Boolean(a.isTakeaway) !== Boolean(b.isTakeaway)) return false;
+    if (Boolean(a.isDelivery) !== Boolean(b.isDelivery)) return false;
+    if (Boolean(a.isCut) !== Boolean(b.isCut)) return false;
+    if ((a.cutPreference || 'Entera') !== (b.cutPreference || 'Entera')) return false;
+    if ((a.sugarPreference || '') !== (b.sugarPreference || '')) return false;
+    if ((a.flavor || '') !== (b.flavor || '')) return false;
+    if (getCleanItemNote(a.notes) !== getCleanItemNote(b.notes)) return false;
 
-      if (item.isHalfHalf && item.halfDetails) {
-        const p1 = products.find(p => p.name === item.halfDetails!.half1Name);
-        const p2 = products.find(p => p.name === item.halfDetails!.half2Name);
-        const price1 = p1 ? p1.price : 0;
-        const price2 = p2 ? p2.price : 0;
-        basePrice = Math.max(price1, price2);
-        
-        const small1 = p1 ? (p1.priceSmall ?? (p1.price > 4 ? p1.price - 4 : p1.price * 0.7)) : 0;
-        const small2 = p2 ? (p2.priceSmall ?? (p2.price > 4 ? p2.price - 4 : p2.price * 0.7)) : 0;
-        smallPrice = Math.max(small1, small2);
-      }
+    const aProt = [...(a.proteins || [])].map(normalizeProteinName).sort().join('|');
+    const bProt = [...(b.proteins || [])].map(normalizeProteinName).sort().join('|');
+    if (aProt !== bProt) return false;
 
-      const effectiveBasePrice = item.size === 'Pequeña' ? smallPrice : basePrice;
-      
-      const combinedExtras = item.isHalfHalf && item.halfDetails 
-        ? [...(item.halfDetails.half1Extras || []), ...(item.halfDetails.half2Extras || [])]
-        : (item.extras || []);
-      
-      const extrasTotal = combinedExtras.reduce((sum, e) => sum + (e.price || 0), 0);
-      return Math.max(2.0, effectiveBasePrice + extrasTotal);
+    const aRem = [...(a.removedIngredients || [])].sort().join('|');
+    const bRem = [...(b.removedIngredients || [])].sort().join('|');
+    if (aRem !== bRem) return false;
+
+    const aExtras = (a.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
+    const bExtras = (b.extras || []).map((e) => `${e.name}:${e.quantity || 1}:${e.price}`).sort().join('|');
+    if (aExtras !== bExtras) return false;
+
+    return Math.abs(a.price - b.price) < 0.01;
+  };
+
+  const mergeItem = (list: OrderItem[], item: OrderItem): OrderItem[] => {
+    const matchIndex = list.findIndex((existing) => areItemsIdentical(existing, item));
+    if (matchIndex !== -1) {
+      const updated = [...list];
+      updated[matchIndex] = {
+        ...updated[matchIndex],
+        quantity: (updated[matchIndex].quantity || 1) + (item.quantity || 1),
+      };
+      return updated;
     }
-
-    return prod.price;
+    return [...list, item];
   };
 
-  const calculateTotal = (currentItems: OrderItem[]) => {
-    const itemsSum = currentItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-    const fee = type === 'delivery' ? (parseFloat(String(deliveryFeeUSD)) || 0) : 0;
-    return itemsSum + fee;
-  };
-
-  const updateItem = (index: number, updater: (item: OrderItem) => OrderItem) => {
-    const updated = [...items];
-    const newItem = updater(updated[index]);
-    newItem.price = calculateItemPrice(newItem);
-    updated[index] = newItem;
-    setItems(updated);
-  };
-
-  const handleQuantityChange = (index: number, delta: number) => {
-    const updated = [...items];
-    const newQty = (updated[index].quantity || 1) + delta;
-    if (newQty <= 0) {
-      updated.splice(index, 1);
-      setItems(updated);
+  // Selección de Producto desde Catálogo
+  const handleSelectProduct = (prod: Product) => {
+    if (isCustomizableProduct(prod)) {
+      setEditingItemIndex(null);
+      setSelectedBurger(prod);
+    } else if (prod.drinkType === 'jugo' || (prod.flavors && prod.flavors.length > 0)) {
+      setEditingItemIndex(null);
+      setSelectedDrink(prod);
     } else {
-      updateItem(index, item => ({ ...item, quantity: newQty }));
+      // Producto directo (acompañante o bebida simple)
+      const newItem: OrderItem = {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: prod.id,
+        productName: prod.name,
+        price: prod.price,
+        quantity: 1,
+        category: prod.category || 'Otros',
+        drinkType: prod.drinkType,
+        isTakeaway: type === 'pickup',
+        isDelivery: type === 'delivery',
+        isNewOrModified: true,
+      };
+      setItems((prev) => mergeItem(prev, newItem));
+      setSuccessToast(`¡${prod.name} agregado!`);
+      setTimeout(() => setSuccessToast(''), 2500);
     }
+  };
+
+  // Manejo de adición directa de salsas
+  const handleSelectSalsa = (salsa: Ingredient) => {
+    const newItem: OrderItem = {
+      id: `item-salsa-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      productId: salsa.id,
+      productName: `Salsa: ${salsa.name}`,
+      price: 0,
+      quantity: 1,
+      category: 'Salsas',
+      isTakeaway: type === 'pickup',
+      isDelivery: type === 'delivery',
+      isNewOrModified: true,
+    };
+    setItems((prev) => mergeItem(prev, newItem));
+    setSuccessToast(`¡Salsa ${salsa.name} agregada!`);
+    setTimeout(() => setSuccessToast(''), 2500);
+  };
+
+  // Confirmar Hamburguesa seleccionada o editada
+  const handleConfirmBurgerAdd = (
+    configOrList: BurgerOrderConfirmationItem | BurgerOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const generatedItems: OrderItem[] = list.map((config) => {
+      const isProteinChanged = !areProteinsDefault(
+        config.burger.name,
+        config.proteins,
+        config.burger.defaultProteins
+      );
+      return {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: config.burger.id,
+        productName: config.burger.name,
+        price: config.finalPrice,
+        quantity: config.quantity,
+        category: config.burger.category || 'Hamburguesas',
+        proteins: isProteinChanged ? config.proteins : [],
+        defaultProteins: config.burger.defaultProteins || [],
+        removedIngredients: config.removedIngredients,
+        extras: config.extras,
+        isTakeaway: Boolean(config.isTakeaway),
+        isDelivery: Boolean(config.isDelivery),
+        isCut: Boolean(config.isCut),
+        cutPreference: config.cutPreference,
+        notes: getCleanItemNote(config.notes) || undefined,
+        isNewOrModified: true,
+      };
+    });
+
+    if (editingItemIndex !== null) {
+      setItems((prev) => {
+        const updated = [...prev];
+        updated.splice(editingItemIndex, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingItemIndex(null);
+      setSuccessToast(`¡Hamburguesa editada y actualizada!`);
+    } else {
+      setItems((prev) => {
+        let current = [...prev];
+        for (const it of generatedItems) {
+          current = mergeItem(current, it);
+        }
+        return current;
+      });
+      setSuccessToast(`¡${list.length} hamburguesa(s) agregada(s)!`);
+    }
+
+    setSelectedBurger(null);
+    setTimeout(() => setSuccessToast(''), 2500);
+  };
+
+  // Confirmar Bebida seleccionada o editada
+  const handleConfirmDrinkAdd = (
+    configOrList: DrinkOrderConfirmationItem | DrinkOrderConfirmationItem[]
+  ) => {
+    const list = Array.isArray(configOrList) ? configOrList : [configOrList];
+    const generatedItems: OrderItem[] = list.map((config) => {
+      const formattedName = config.flavor
+        ? `${config.drink.name} (${config.flavor})`
+        : config.drink.name;
+
+      return {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        productId: config.drink.id,
+        productName: formattedName,
+        price: config.drink.price,
+        quantity: config.quantity,
+        category: config.drink.category || 'Bebidas',
+        drinkType: config.drink.drinkType,
+        sugarPreference: config.sugarPreference,
+        flavor: config.flavor,
+        isTakeaway: Boolean(config.isTakeaway),
+        isDelivery: Boolean(config.isDelivery),
+        notes: getCleanItemNote(config.notes) || undefined,
+        isNewOrModified: true,
+      };
+    });
+
+    if (editingItemIndex !== null) {
+      setItems((prev) => {
+        const updated = [...prev];
+        updated.splice(editingItemIndex, 1, ...generatedItems);
+        return updated;
+      });
+      setEditingItemIndex(null);
+      setSuccessToast(`¡Bebida editada y actualizada!`);
+    } else {
+      setItems((prev) => {
+        let current = [...prev];
+        for (const it of generatedItems) {
+          current = mergeItem(current, it);
+        }
+        return current;
+      });
+      setSuccessToast(`¡${list.length} bebida(s) agregada(s)!`);
+    }
+
+    setSelectedDrink(null);
+    setTimeout(() => setSuccessToast(''), 2500);
+  };
+
+  // Abrir editor para un ítem existente
+  const handleEditItem = (index: number) => {
+    const item = items[index];
+    if (!item) return;
+
+    // Buscar producto correspondiente en catálogo
+    let prod = products.find((p) => p.id === item.productId);
+    if (!prod) {
+      prod = products.find((p) => p.name.toLowerCase() === item.productName.toLowerCase());
+    }
+    if (!prod) {
+      // Fallback: construir producto básico para el configurador
+      prod = {
+        id: item.productId || 'custom-item',
+        name: item.productName,
+        category: item.category || 'Hamburguesas',
+        price: item.price,
+        description: '',
+        image: '',
+        baseIngredients: [],
+        proteinCount: 1,
+        defaultProteins: item.defaultProteins || [],
+        recipe: [],
+      };
+    }
+
+    setEditingItemIndex(index);
+    if (isCustomizableProduct(prod)) {
+      setSelectedBurger(prod);
+    } else if (prod.drinkType === 'jugo' || (prod.flavors && prod.flavors.length > 0)) {
+      setSelectedDrink(prod);
+    } else {
+      // Si no es configurable, permitir ajustar notas
+      const newNotes = window.prompt('Notas o indicaciones para este ítem:', item.notes || '');
+      if (newNotes !== null) {
+        setItems((prev) => {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], notes: newNotes.trim() };
+          return updated;
+        });
+      }
+      setEditingItemIndex(null);
+    }
+  };
+
+  // Manejo de cantidades
+  const handleQuantityChange = (index: number, delta: number) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      const newQty = (updated[index].quantity || 1) + delta;
+      if (newQty <= 0) {
+        updated.splice(index, 1);
+      } else {
+        updated[index] = { ...updated[index], quantity: newQty };
+      }
+      return updated;
+    });
   };
 
   const handleRemoveItem = (index: number) => {
-    const item = items[index];
-    if (item && item.isPaidIndividually) {
-      setError(`El producto "${item.productName}" ya fue pagado individualmente por ${item.paidByName || 'un cliente'}. Primero anula ese pago en el historial de pagos para poder eliminarlo.`);
+    const it = items[index];
+    if (it && it.isPaidIndividually) {
+      setError(`El producto "${it.productName}" ya fue pagado individualmente. Primero anula ese pago en la sección de pagos para poder eliminarlo.`);
       return;
     }
-    setError('');
-    const updated = [...items];
-    updated.splice(index, 1);
-    setItems(updated);
+    setItems((prev) => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
-  const handleAddProduct = () => {
-    if (!selectedProductToAdd) return;
-    const prod = products.find(p => p.id === selectedProductToAdd);
-    if (!prod) return;
-
-    setError('');
-    const isJugo = prod.category === 'Bebidas' && prod.drinkType === 'jugo';
-    const isPizza = prod.category === 'Pizzas';
-
-    const newItem: OrderItem = {
-      id: `it-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      productId: prod.id,
-      productName: prod.name,
-      price: prod.price,
-      quantity: 1,
-      size: isPizza ? 'Grande' : undefined,
-      isNewOrModified: true,
-      removedIngredients: [],
-      extras: [],
-      isHalfHalf: false,
-      isTakeaway: false,
-      sugarPreference: isJugo ? 'Con azúcar' : undefined,
-    };
-    
-    if (isPizza) {
-      newItem.price = calculateItemPrice(newItem);
+  // Anulación individual de pagos
+  const handleAnularPago = async (paymentId: string, isChange: boolean, amountStr: string) => {
+    if (!onDeletePaymentEntry) {
+      setError('La función de anulación de pagos no está disponible.');
+      return;
     }
-
-    setItems([...items, newItem]);
-    setExpandedItemId(newItem.id);
-    setSelectedProductToAdd('');
-  };
-
-  const handleSave = async () => {
-    if (hasPaymentHistory) {
-      setError('Anula primero todos los pagos y vueltos antes de modificar los productos.');
+    if (!window.confirm(`¿Estás seguro de anular este ${isChange ? 'vuelto' : 'pago'} de ${amountStr}? Se revertirá en el historial financiero y se ajustará el saldo.`)) {
       return;
     }
     try {
       setIsSubmitting(true);
-      const totalUSD = calculateTotal(items);
-      await onSaveEdit(order.id, {
-        items,
-        kitchenNotes,
-        totalUSD,
-        customerName,
-        tableNumber: tableNumber ? Number(tableNumber) : undefined,
-        type: type === 'llevar' ? 'pickup' : type,
-        deliveryFeeUSD: type === 'delivery' ? (parseFloat(String(deliveryFeeUSD)) || 0) : 0,
-      });
-      onClose();
-    } catch (e) {
-      console.error('Error al guardar edición:', e);
-      setError(e instanceof Error ? e.message : 'No se pudo guardar la edición.');
+      setError('');
+      const updatedOrder = await onDeletePaymentEntry(order.id, paymentId);
+      if (updatedOrder) {
+        setPaymentHistory(updatedOrder.paymentHistory ? [...updatedOrder.paymentHistory] : []);
+        setItems(JSON.parse(JSON.stringify(updatedOrder.items || [])));
+      } else {
+        setPaymentHistory((prev) => (prev || []).filter((p) => p.id !== paymentId));
+      }
+      setSuccessToast(`¡${isChange ? 'Vuelto' : 'Pago'} anulado exitosamente!`);
+      setTimeout(() => setSuccessToast(''), 3000);
+    } catch (err: any) {
+      console.error('Error al anular pago:', err);
+      setError(err?.message || 'Error al anular el movimiento de pago.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const currentTotal = calculateTotal(items);
+  // Guardar Cambios
+  const handleSave = async () => {
+    if (hasPaymentHistory) {
+      setError('⚠️ Esta comanda tiene pagos registrados. Anula primero los pagos en la pestaña de pagos antes de modificar productos o totales.');
+      setLeftTab('pagos');
+      return;
+    }
+    if (items.length === 0) {
+      setError('⚠️ La comanda debe contener al menos un producto.');
+      return;
+    }
+    if (type === 'delivery') {
+      if (!customerName.trim()) {
+        setError('⚠️ Para órdenes DELIVERY es estrictamente OBLIGATORIO ingresar el nombre del cliente.');
+        return;
+      }
+      if (effectiveDeliveryFee <= 0) {
+        setError('⚠️ Para órdenes DELIVERY es obligatorio especificar el costo de delivery ($ USD > 0).');
+        return;
+      }
+    }
+    if (type === 'pickup' && !customerName.trim()) {
+      setError('⚠️ Para órdenes PARA LLEVAR (PICKUP) es obligatorio ingresar el nombre del cliente.');
+      return;
+    }
+    if (type === 'mesa' && (!tableNumber || Number(tableNumber) <= 0)) {
+      setError('⚠️ Para órdenes en MESA debe especificar un número de mesa válido mayor a 0.');
+      return;
+    }
 
-  const toggleExpanded = (id: string) => {
-    setExpandedItemId(prev => prev === id ? null : id);
+    try {
+      setIsSubmitting(true);
+      setError('');
+      await onSaveEdit(order.id, {
+        items,
+        kitchenNotes: kitchenNotes.trim() || undefined,
+        totalUSD,
+        customerName: customerName.trim() || undefined,
+        tableNumber: type === 'mesa' && tableNumber ? Number(tableNumber) : null,
+        type: type === 'pickup' ? 'pickup' : type,
+        deliveryFeeUSD: isDeliveryOrder ? effectiveDeliveryFee : 0,
+      });
+      onClose();
+    } catch (err: any) {
+      console.error('Error al guardar edición de comanda:', err);
+      setError(err?.message || 'Error al guardar los cambios de la comanda.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const cleanOrderNumber = order.orderNumber.toString().replace(/^#+/, '');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-md animate-fade-in">
-      <div className="bg-[#1e293b] rounded-3xl shadow-2xl border border-slate-600 w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] text-white">
-        {/* Header */}
-        <div className="p-5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-black/20 border border-white/20 flex items-center justify-center font-black">
-              <IoCreateOutline className="text-2xl" />
+    <div className="fixed inset-0 z-50 flex flex-col bg-stone-100 text-gray-900 w-screen h-screen overflow-hidden animate-in fade-in select-none">
+      {/* HEADER PRINCIPAL */}
+      <header className="bg-white px-4 py-2 border-b-2 border-yellow-400 flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="p-1.5 rounded-xl bg-yellow-400 text-black text-lg font-black shadow-xs">
+            ✏️
+          </span>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-black text-base sm:text-lg text-gray-900 leading-tight">
+                EDITAR COMANDA #{cleanOrderNumber}
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-lg bg-yellow-400 text-black font-black text-xs border border-yellow-500 shadow-xs">
+                {type === 'mesa' ? `Mesa #${tableNumber || order.tableNumber}` : type.toUpperCase()}
+              </span>
+              <span className="text-xs text-gray-600 font-bold">
+                👤 Cliente: <strong className="text-black">{customerName || order.customerName || 'General'}</strong>
+              </span>
+              {hasPaymentHistory && (
+                <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-black text-xs border border-amber-300">
+                  💳 {paymentHistory?.length} Pago(s) Registrado(s)
+                </span>
+              )}
             </div>
-            <div>
-              <h3 className="text-xl font-black tracking-tight">Edición Completa - Comanda #{order.orderNumber}</h3>
-              <p className="text-xs text-emerald-100 font-bold">Modo Caja / Administrador: Modifica datos, productos o anula pagos</p>
-            </div>
+            <span className="text-[11px] text-gray-500 font-bold uppercase block mt-0.5">
+              Modo Caja / Administrador: Modifica datos, productos, notas o anula pagos
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-black/20 hover:bg-black/30 text-white flex items-center justify-center transition-colors"
-          >
-            <IoClose className="text-xl" />
-          </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-[#0f172a]">
-          {/* Metadata Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-2xl bg-[#1e293b] border border-slate-700">
-            <div>
-              <label className="block text-[11px] font-black text-slate-400 uppercase mb-1">Nombre Cliente</label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Cliente General"
-                className="w-full px-3 py-2 rounded-xl border border-slate-600 bg-[#0f172a] font-bold text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors flex items-center gap-1.5 font-black text-xs cursor-pointer border border-gray-200"
+          title="Cerrar ventana de edición"
+        >
+          <IoClose className="text-xl" />
+          <span>Cerrar</span>
+        </button>
+      </header>
+
+      {/* MENSAJES DE ERROR / ÉXITO */}
+      {error && (
+        <div className="bg-red-50 text-red-700 px-3 py-1.5 text-xs font-bold border-b border-red-200 flex items-center gap-1.5 shrink-0">
+          <IoAlertCircleOutline className="text-lg text-red-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successToast && (
+        <div className="bg-emerald-50 text-emerald-800 px-3 py-1 text-xs font-black border-b border-emerald-200 flex items-center gap-1.5 shrink-0 animate-in fade-in">
+          <IoCheckmarkCircle className="text-base text-emerald-600 shrink-0" />
+          <span>{successToast}</span>
+        </div>
+      )}
+
+      {/* CUERPO PRINCIPAL (2 COLUMNAS) */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-stone-100">
+        
+        {/* COLUMNA IZQUIERDA: CATÁLOGO, BUILDER O HISTORIAL DE PAGOS (65%) */}
+        <div className={`flex-1 md:w-[65%] ${selectedBurger || selectedDrink || (showDeliveryConfig && isDeliveryOrder) ? 'p-1 sm:p-1.5' : 'p-2.5 sm:p-3'} border-r border-gray-200 flex flex-col overflow-hidden min-h-0`}>
+          
+          {selectedBurger ? (
+            /* SECCIÓN INLINE DE PERSONALIZACIÓN DE HAMBURGUESAS */
+            <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <BurgerBuilderModal
+                burger={selectedBurger}
+                availableExtras={availableExtras}
+                availableProteins={availableProteins}
+                availableFreeToppings={availableFreeToppings}
+                isOpen={true}
+                inline={true}
+                onClose={() => {
+                  setSelectedBurger(null);
+                  setEditingItemIndex(null);
+                }}
+                onConfirm={(config) => {
+                  handleConfirmBurgerAdd(config);
+                  setSelectedBurger(null);
+                }}
+                defaultTakeaway={type === 'pickup'}
+                defaultDelivery={type === 'delivery'}
+                exchangeRates={exchangeRates}
+                initialEditItem={editingItemIndex !== null ? items[editingItemIndex] : null}
               />
             </div>
-            <div>
-              <label className="block text-[11px] font-black text-slate-400 uppercase mb-1">Mesa / Ubicación</label>
-              <input
-                type="number"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value ? Number(e.target.value) : '')}
-                placeholder="Nº Mesa"
-                className="w-full px-3 py-2 rounded-xl border border-slate-600 bg-[#0f172a] font-bold text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+          ) : selectedDrink ? (
+            /* SECCIÓN INLINE DE BEBIDAS / SABORES */
+            <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <DrinkSelectorModal
+                drink={selectedDrink}
+                isOpen={true}
+                inline={true}
+                initialEditItem={editingItemIndex !== null ? items[editingItemIndex] : null}
+                onClose={() => {
+                  setSelectedDrink(null);
+                  setEditingItemIndex(null);
+                }}
+                onConfirm={(config) => {
+                  handleConfirmDrinkAdd(config);
+                  setSelectedDrink(null);
+                  setEditingItemIndex(null);
+                }}
+                defaultTakeaway={type === 'pickup'}
+                defaultDelivery={type === 'delivery'}
+                exchangeRates={exchangeRates}
               />
             </div>
-            <div>
-              <label className="block text-[11px] font-black text-slate-400 uppercase mb-1">Tipo de Pedido</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as 'mesa' | 'llevar' | 'delivery')}
-                className="w-full px-3 py-2 rounded-xl border border-slate-600 bg-[#0f172a] font-bold text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none capitalize"
-              >
-                <option value="mesa">Mesa (Comer Aquí)</option>
-                <option value="llevar">Para Llevar</option>
-                <option value="delivery">Delivery</option>
-              </select>
+          ) : showDeliveryConfig && isDeliveryOrder ? (
+            /* SECCIÓN INLINE DE DELIVERY CONFIG */
+            <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <DeliveryConfigPanel
+                customerName={customerName}
+                onCustomerNameChange={setCustomerName}
+                kitchenNotes={kitchenNotes}
+                onKitchenNotesChange={setKitchenNotes}
+                deliveryFeeUSD={deliveryFeeUSD}
+                onDeliveryFeeChange={setDeliveryFeeUSD}
+                cartItems={items}
+                onSetItemPackaging={(id, mode) => {
+                  setItems((prev) =>
+                    prev.map((it) =>
+                      it.id === id
+                        ? { ...it, isDelivery: mode === 'delivery', isTakeaway: mode === 'llevar' }
+                        : it
+                    )
+                  );
+                }}
+                onSetAllDelivery={(isDel) => {
+                  setItems((prev) => prev.map((it) => ({ ...it, isDelivery: isDel, isTakeaway: false })));
+                }}
+                exchangeRates={exchangeRates}
+                onClose={() => setShowDeliveryConfig(false)}
+                onClearAllDelivery={() => {
+                  setItems((prev) => prev.map((it) => ({ ...it, isDelivery: false })));
+                }}
+              />
             </div>
-            {type === 'delivery' && (
-              <div>
-                <label className="block text-[11px] font-black text-emerald-400 uppercase mb-1">Costo Delivery ($ USD)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={deliveryFeeUSD}
-                  onChange={(e) => setDeliveryFeeUSD(e.target.value ? parseFloat(e.target.value) : '')}
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 rounded-xl border border-emerald-500/50 bg-emerald-900/20 font-bold text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-            )}
-          </div>
+          ) : (
+            /* CATÁLOGO DE PRODUCTOS O HISTORIAL DE PAGOS */
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {/* Selector de Pestaña Superior Izquierda si hay pagos */}
+              {hasPaymentHistory && (
+                <div className="flex items-center gap-2 mb-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setLeftTab('catalogo')}
+                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all border cursor-pointer ${
+                      leftTab === 'catalogo'
+                        ? 'bg-yellow-400 text-black border-yellow-500 shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    🍔 Menú / Catálogo de Productos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeftTab('pagos')}
+                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all border cursor-pointer flex items-center gap-1.5 ${
+                      leftTab === 'pagos'
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                        : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                    }`}
+                  >
+                    <span>💳 Historial de Pagos ({paymentHistory?.length})</span>
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                  </button>
+                </div>
+              )}
 
-          {/* Item List Management */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">Modificar Productos del Pedido</h4>
-              <span className="text-xs font-bold text-emerald-300 bg-emerald-900/40 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                Nuevo Total Calculado: ${currentTotal.toFixed(2)} USD
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {items.map((item, idx) => {
-                const isExpanded = expandedItemId === item.id;
-                const prod = products.find(p => p.id === item.productId);
-                const isPizza = prod?.category === 'Pizzas';
-                const isJugo = prod?.category === 'Bebidas' && prod?.drinkType === 'jugo';
-
-                return (
-                  <div key={item.id || idx} className="rounded-2xl bg-[#1e293b] border border-slate-700 shadow-sm overflow-hidden transition-all">
-                    {/* Header Row */}
-                    <div className="p-3.5 flex items-center justify-between gap-3 bg-[#1e293b] hover:bg-slate-800 cursor-pointer" onClick={() => toggleExpanded(item.id)}>
-                      <div className="flex items-center gap-2">
-                        {isExpanded ? <IoChevronUpOutline className="text-slate-400" /> : <IoChevronDownOutline className="text-slate-400" />}
-                        <div>
-                          <div className="font-black text-white text-sm">
-                            {item.productName} {item.isTakeaway && <span className="text-amber-400 ml-1">(📦 LLEVAR)</span>}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            ${(item.price || 0).toFixed(2)} c/u
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleQuantityChange(idx, -1)}
-                          className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-black text-base flex items-center justify-center"
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center font-black text-sm text-white">{item.quantity}</span>
-                        <button
-                          onClick={() => handleQuantityChange(idx, 1)}
-                          className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-black text-base flex items-center justify-center"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => handleRemoveItem(idx)}
-                          className="p-2 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 transition-colors ml-2"
-                          title="Eliminar producto"
-                        >
-                          <IoTrashOutline className="text-lg" />
-                        </button>
-                      </div>
+              {leftTab === 'pagos' && hasPaymentHistory ? (
+                /* TABLA FORENSE DE HISTORIAL DE PAGOS PARA ANULAR */
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0 bg-white rounded-2xl border-2 border-amber-400 p-4 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                    <div>
+                      <h4 className="font-black text-sm text-gray-900 flex items-center gap-2">
+                        <span>💳 MOVIMIENTOS FINANCIEROS REGISTRADOS</span>
+                      </h4>
+                      <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                        Anula los pagos o vueltos para poder modificar los productos y montos de la comanda con total seguridad contable.
+                      </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setLeftTab('catalogo')}
+                      className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs cursor-pointer border border-gray-200"
+                    >
+                      ← Volver al Catálogo
+                    </button>
+                  </div>
 
-                    {/* Expanded Content */}
-                    {isExpanded && (
-                      <div className="p-4 bg-[#0f172a] border-t border-slate-700 space-y-4">
-                        {/* Common Controls */}
-                        <div className="flex flex-wrap items-center gap-4">
-                          <label className="flex items-center gap-2 text-sm font-bold text-slate-300 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={!!item.isTakeaway}
-                              onChange={(e) => updateItem(idx, it => ({ ...it, isTakeaway: e.target.checked }))}
-                              className="w-4 h-4 accent-emerald-500 rounded bg-[#1e293b] border-slate-600"
-                            />
-                            📦 Empacar para llevar
-                          </label>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-[11px] font-black text-slate-400 uppercase mb-1">Notas del ítem</label>
-                          <input
-                            type="text"
-                            value={item.notes || ''}
-                            onChange={(e) => updateItem(idx, it => ({ ...it, notes: e.target.value }))}
-                            placeholder="Instrucciones específicas..."
-                            className="w-full px-3 py-1.5 rounded-xl border border-slate-600 bg-[#1e293b] font-medium text-xs text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                          />
-                        </div>
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {paymentHistory?.map((pm) => {
+                      const isChange = (pm.changeGivenUSD || 0) > 0 || (pm.changeGivenCOP || 0) > 0 || (pm.changeGivenBs || 0) > 0;
+                      const amount = isChange
+                        ? pm.changeGivenUSD || pm.changeGivenCOP || pm.changeGivenBs || 0
+                        : pm.cashTenderedUSD || pm.cashTenderedCOP || pm.cashTenderedBs || pm.amountPaidUSD || 0;
+                      const currency = isChange
+                        ? pm.changeGivenUSD ? 'USD' : pm.changeGivenCOP ? 'COP' : 'Bs'
+                        : pm.cashTenderedUSD ? 'USD' : pm.cashTenderedCOP ? 'COP' : pm.cashTenderedBs ? 'Bs' : 'USD';
+                      const amountStr = `${amount.toLocaleString()} ${currency}`;
 
-                        {/* Pizza Editor */}
-                        {isPizza && (
-                          <div className="space-y-4 pt-2 border-t border-slate-700">
-                            <div className="flex flex-wrap gap-4">
-                                <div>
-                                  <label className="block text-[11px] font-black text-emerald-400 uppercase mb-1">Tamaño</label>
-                                  <select
-                                    value={item.size || 'Grande'}
-                                    onChange={(e) => {
-                                      const newSize = e.target.value as 'Grande' | 'Pequeña';
-                                      updateItem(idx, (it) => {
-                                        const updatedExtras = (it.extras || []).map((ex) => {
-                                          const ing = ingredients.find((i) => i.name === ex.name);
-                                          return { name: ex.name, price: getIngredientExtraPrice(ing, newSize, false) };
-                                        });
-                                        const updatedHalf1Extras = (it.halfDetails?.half1Extras || []).map((ex) => {
-                                          const ing = ingredients.find((i) => i.name === ex.name);
-                                          return { name: ex.name, price: getIngredientExtraPrice(ing, newSize, true) };
-                                        });
-                                        const updatedHalf2Extras = (it.halfDetails?.half2Extras || []).map((ex) => {
-                                          const ing = ingredients.find((i) => i.name === ex.name);
-                                          return { name: ex.name, price: getIngredientExtraPrice(ing, newSize, true) };
-                                        });
-                                        return {
-                                          ...it,
-                                          size: newSize,
-                                          extras: updatedExtras,
-                                          halfDetails: it.halfDetails
-                                            ? {
-                                                ...it.halfDetails,
-                                                half1Extras: updatedHalf1Extras,
-                                                half2Extras: updatedHalf2Extras,
-                                              }
-                                            : undefined,
-                                        };
-                                      });
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl border border-emerald-500/50 bg-[#1e293b] font-bold text-xs text-white outline-none"
-                                  >
-                                    <option value="Grande">Grande</option>
-                                    <option value="Pequeña">Pequeña</option>
-                                  </select>
-                                </div>
-
-                              {!item.isHalfHalf && (
-                                <div>
-                                  <label className="block text-[11px] font-black text-emerald-400 uppercase mb-1">Pizza</label>
-                                  <select
-                                    value={item.productId}
-                                    onChange={(e) => {
-                                      const selectedPizza = allPizzaProducts.find((pizza) => pizza.id === e.target.value);
-                                      if (!selectedPizza) return;
-                                      updateItem(idx, (currentItem) => ({
-                                        ...currentItem,
-                                        productId: selectedPizza.id,
-                                        productName: selectedPizza.name,
-                                        removedIngredients: [],
-                                        extras: [],
-                                        isHalfHalf: false,
-                                        halfDetails: undefined,
-                                      }));
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl border border-emerald-500/50 bg-[#1e293b] font-bold text-xs text-white outline-none"
-                                  >
-                                    {allPizzaProducts.map((pizza) => <option key={pizza.id} value={pizza.id}>{pizza.name}</option>)}
-                                  </select>
-                                </div>
-                              )}
-                              
-                              <div>
-                                <label className="block text-[11px] font-black text-emerald-400 uppercase mb-1">Tipo de Pizza</label>
-                                <select
-                                  value={item.isHalfHalf ? 'mitad' : 'entera'}
-                                  onChange={(e) => {
-                                    const isHalf = e.target.value === 'mitad';
-                                    updateItem(idx, it => {
-                                      if (isHalf && !it.halfDetails) {
-                                        return {
-                                          ...it,
-                                          isHalfHalf: true,
-                                          halfDetails: {
-                                            half1Name: prod?.name || '',
-                                            half2Name: prod?.name || '',
-                                            half1Removed: [],
-                                            half2Removed: [],
-                                            half1Extras: [],
-                                            half2Extras: []
-                                          }
-                                        };
-                                      } else if (!isHalf) {
-                                        return {
-                                          ...it,
-                                          isHalfHalf: false,
-                                          halfDetails: undefined
-                                        };
-                                      }
-                                      return it;
-                                    });
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl border border-emerald-500/50 bg-[#1e293b] font-bold text-xs text-white outline-none"
-                                >
-                                  <option value="entera">Entera</option>
-                                  <option value="mitad">Mitad y Mitad</option>
-                                </select>
-                              </div>
+                      return (
+                        <div
+                          key={pm.id}
+                          className="p-3 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3 hover:bg-white transition-colors"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[11px] font-black uppercase ${
+                                  isChange
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                    : 'bg-green-100 text-green-900 border border-green-300'
+                                }`}
+                              >
+                                {isChange ? 'VUELTO' : 'PAGO'}
+                              </span>
+                              <span className="font-black text-base text-gray-900">{amountStr}</span>
+                              <span className="text-xs font-bold text-gray-600">({pm.paymentMethod})</span>
                             </div>
-
-                            {!item.isHalfHalf ? (
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-[11px] font-black text-slate-400 uppercase mb-2">Ingredientes Base (Click para quitar/poner)</label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {(prod?.baseIngredients || ['Salsa de Tomate', 'Queso Mozzarella', 'Orégano']).map(ing => {
-                                      const isRemoved = item.removedIngredients?.includes(ing);
-                                      return (
-                                        <button
-                                          key={ing}
-                                          onClick={() => updateItem(idx, it => {
-                                            const removed = it.removedIngredients || [];
-                                            return {
-                                              ...it,
-                                              removedIngredients: isRemoved ? removed.filter(i => i !== ing) : [...removed, ing]
-                                            };
-                                          })}
-                                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                            isRemoved ? 'bg-red-900/30 border-red-500/50 text-red-400 line-through' : 'bg-[#1e293b] border-slate-600 text-slate-300 hover:bg-slate-700'
-                                          }`}
-                                        >
-                                          {ing}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-[11px] font-black text-emerald-400 uppercase mb-2">Extras Adicionales</label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {availableExtras.map(ext => {
-                                      const hasExtra = item.extras?.some(e => e.name === ext.name);
-                                      const extraPrice = getIngredientExtraPrice(ext, item.size === 'Pequeña' ? 'Pequeña' : 'Grande', false);
-                                      return (
-                                        <button
-                                          key={ext.id}
-                                          onClick={() => updateItem(idx, it => {
-                                            const extras = it.extras || [];
-                                            return {
-                                              ...it,
-                                              extras: hasExtra 
-                                                ? extras.filter(e => e.name !== ext.name)
-                                                : [...extras, { name: ext.name, price: extraPrice }]
-                                            };
-                                          })}
-                                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                            hasExtra ? 'bg-emerald-900/50 border-emerald-500 text-emerald-400' : 'bg-[#1e293b] border-slate-600 text-slate-300 hover:bg-slate-700'
-                                          }`}
-                                        >
-                                          {ext.name} (+${extraPrice.toFixed(2)})
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {[1, 2].map(halfNum => {
-                                  const halfKeyName = `half${halfNum}Name` as keyof typeof item.halfDetails;
-                                  const halfKeyRemoved = `half${halfNum}Removed` as keyof typeof item.halfDetails;
-                                  const halfKeyExtras = `half${halfNum}Extras` as keyof typeof item.halfDetails;
-                                  
-                                  const currentPizzaName = item.halfDetails?.[halfKeyName] as string || '';
-                                  const currentPizzaProd = products.find(p => p.name === currentPizzaName);
-                                  const currentRemoved = (item.halfDetails?.[halfKeyRemoved] as string[]) || [];
-                                  const currentExtras = (item.halfDetails?.[halfKeyExtras] as {name: string, price: number}[]) || [];
-
-                                  return (
-                                    <div key={halfNum} className="p-3 bg-[#1e293b] rounded-xl border border-slate-700 space-y-3">
-                                      <label className="block text-[11px] font-black text-amber-400 uppercase mb-1">Mitad {halfNum}</label>
-                                      <select
-                                        value={currentPizzaName}
-                                        onChange={(e) => updateItem(idx, it => {
-                                          const updatedHalfDetails: NonNullable<OrderItem['halfDetails']> = {
-                                            ...it.halfDetails!,
-                                            [halfKeyName]: e.target.value,
-                                            [halfKeyRemoved]: [],
-                                            [halfKeyExtras]: [],
-                                          };
-                                          return {
-                                            ...it,
-                                            productName: `Pizza 1/2 ${updatedHalfDetails.half1Name.replace('Pizza ', '')} + 1/2 ${updatedHalfDetails.half2Name.replace('Pizza ', '')} (${it.size})`,
-                                            halfDetails: updatedHalfDetails,
-                                          };
-                                        })}
-                                        className="w-full px-2 py-1.5 rounded-lg border border-slate-600 bg-[#0f172a] font-bold text-xs text-white outline-none mb-2"
-                                      >
-                                        {allPizzaProducts.map(p => (
-                                          <option key={p.id} value={p.name}>{p.name}</option>
-                                        ))}
-                                      </select>
-                                      
-                                      <div>
-                                        <div className="text-[10px] text-slate-400 font-bold mb-1">Ingredientes Base</div>
-                                        <div className="flex flex-wrap gap-1">
-                                          {(currentPizzaProd?.baseIngredients || ['Salsa de Tomate', 'Queso Mozzarella', 'Orégano']).map(ing => {
-                                            const isRemoved = currentRemoved.includes(ing);
-                                            return (
-                                              <button
-                                                key={ing}
-                                                onClick={() => updateItem(idx, it => {
-                                                  const newRemoved = isRemoved ? currentRemoved.filter(i => i !== ing) : [...currentRemoved, ing];
-                                                  return { ...it, halfDetails: { ...it.halfDetails!, [halfKeyRemoved]: newRemoved } };
-                                                })}
-                                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors ${
-                                                  isRemoved ? 'bg-red-900/30 border-red-500/50 text-red-400 line-through' : 'bg-[#0f172a] border-slate-600 text-slate-300'
-                                                }`}
-                                              >
-                                                {ing}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-
-                                      <div>
-                                        <div className="text-[10px] text-emerald-400 font-bold mb-1">Extras</div>
-                                        <div className="flex flex-wrap gap-1">
-                                          {availableExtras.map(ext => {
-                                            const hasExtra = currentExtras.some(e => e.name === ext.name);
-                                            const extraPrice = getIngredientExtraPrice(ext, item.size === 'Pequeña' ? 'Pequeña' : 'Grande', true);
-                                            return (
-                                              <button
-                                                key={ext.id}
-                                                onClick={() => updateItem(idx, it => {
-                                                  const newExtras = hasExtra 
-                                                    ? currentExtras.filter(e => e.name !== ext.name)
-                                                    : [...currentExtras, { name: ext.name, price: extraPrice }];
-                                                  return { ...it, halfDetails: { ...it.halfDetails!, [halfKeyExtras]: newExtras } };
-                                                })}
-                                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors ${
-                                                  hasExtra ? 'bg-emerald-900/50 border-emerald-500 text-emerald-400' : 'bg-[#0f172a] border-slate-600 text-slate-300'
-                                                }`}
-                                              >
-                                                {ext.name} (+${extraPrice.toFixed(2)})
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Jugo Editor */}
-                        {isJugo && (
-                          <div className="pt-2 border-t border-slate-700">
-                            <label className="block text-[11px] font-black text-cyan-400 uppercase mb-2">Preferencia de Azúcar</label>
-                            <div className="flex flex-wrap gap-2">
-                              {['Con azúcar', 'Poca azúcar', 'Sin azúcar'].map(pref => {
-                                const isSelected = item.sugarPreference === pref ||
-                                  (pref === 'Con azúcar' && (item.sugarPreference === 'Normal' || !item.sugarPreference)) ||
-                                  (pref === 'Poca azúcar' && item.sugarPreference === 'Poco azúcar');
-                                return (
-                                  <button
-                                    key={pref}
-                                    type="button"
-                                    onClick={() => updateItem(idx, it => ({ ...it, sugarPreference: pref as any }))}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                                      isSelected
-                                        ? 'bg-cyan-900/50 border-cyan-500 text-cyan-300 ring-1 ring-cyan-500'
-                                        : 'bg-[#1e293b] border-slate-600 text-slate-300 hover:bg-slate-700'
-                                    }`}
-                                  >
-                                    {pref === 'Con azúcar' ? '🍬 Con azúcar' : pref === 'Poca azúcar' ? '🥄 Poca azúcar' : '🍋 Sin azúcar'}
-                                  </button>
-                                );
-                              })}
+                            <div className="text-[11px] text-gray-500 font-semibold">
+                              Por: <strong className="text-gray-800">{pm.payerName || 'Cliente General'}</strong>
+                              {pm.createdAt && ` • ${new Date(pm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                             </div>
                           </div>
-                        )}
+
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleAnularPago(pm.id, isChange, amountStr)}
+                            className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-600 text-red-700 hover:text-white border border-red-300 hover:border-red-600 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                            title={`Anular y eliminar este ${isChange ? 'vuelto' : 'pago'}`}
+                          >
+                            <IoTrashOutline className="text-base" />
+                            <span>Anular {isChange ? 'Vuelto' : 'Pago'}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <ProductTextCatalog
+                  products={activeProducts}
+                  onSelectProduct={handleSelectProduct}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  exchangeRates={exchangeRates}
+                  salsas={availableSalsas}
+                  onSelectSalsa={handleSelectSalsa}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* COLUMNA DERECHA: METADATOS Y LISTA DE ÍTEMS (35%) */}
+        <div className="md:w-[35%] p-2.5 sm:p-3 flex flex-col justify-between bg-gray-50 overflow-hidden min-h-0 border-l border-gray-200">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-2">
+            
+            {/* CONFIGURACIÓN RÁPIDA DE METADATOS */}
+            <div className="p-3 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2 shrink-0">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase mb-0.5">Tipo de Pedido</label>
+                  <select
+                    value={type}
+                    onChange={(e) => {
+                      const newType = e.target.value as 'mesa' | 'pickup' | 'delivery';
+                      setType(newType);
+                      if (newType === 'delivery' && deliveryFeeUSD <= 0) {
+                        setDeliveryFeeUSD(1.0);
+                      }
+                      if (newType === 'delivery') {
+                        setShowDeliveryConfig(true);
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-gray-300 bg-white font-bold text-xs text-gray-900 outline-none cursor-pointer"
+                  >
+                    <option value="mesa">🍽️ Mesa</option>
+                    <option value="pickup">🛍️ Pickup / Llevar</option>
+                    <option value="delivery">🛵 Delivery</option>
+                  </select>
+                </div>
+
+                {type === 'mesa' ? (
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase mb-0.5">Nº Mesa</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value ? Number(e.target.value) : '')}
+                      placeholder="Mesa #"
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-gray-300 bg-white font-bold text-xs text-gray-900 outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[10px] font-black text-blue-600 uppercase mb-0.5">
+                      {type === 'delivery' ? 'Costo Delivery ($)' : 'Servicio'}
+                    </label>
+                    {type === 'delivery' ? (
+                      <input
+                        type="number"
+                        step="0.5"
+                        min={0}
+                        value={deliveryFeeUSD}
+                        onChange={(e) => setDeliveryFeeUSD(parseFloat(e.target.value) || 0)}
+                        placeholder="1.00"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-blue-300 bg-blue-50 font-bold text-xs text-blue-900 outline-none"
+                      />
+                    ) : (
+                      <div className="px-2.5 py-1.5 rounded-xl bg-gray-100 font-bold text-xs text-gray-600">
+                        🛍️ Mostrador
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
 
-            {/* Add Product Selector */}
-            <div className="flex gap-2 pt-1">
-              <select
-                value={selectedProductToAdd}
-                onChange={(e) => setSelectedProductToAdd(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-600 bg-[#1e293b] font-medium text-xs text-white outline-none"
-              >
-                <option value="">-- Añadir nuevo producto del menú --</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} (${(p.priceSmall || p.price || 0).toFixed(2)})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleAddProduct}
-                disabled={!selectedProductToAdd}
-                className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors ${
-                  selectedProductToAdd
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                    : 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                <IoAddCircleOutline className="text-lg" />
-                Añadir
-              </button>
-            </div>
-          </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-0.5">
+                  Nombre del Cliente {type !== 'mesa' && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Nombre o referencia del cliente..."
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-gray-300 bg-white font-bold text-xs text-gray-900 outline-none"
+                />
+              </div>
 
-          {/* Kitchen Notes */}
-          <div>
-            <label className="block text-[11px] font-black text-slate-400 uppercase mb-1">Notas de Cocina / Observaciones</label>
-            <textarea
-              rows={2}
-              value={kitchenNotes}
-              onChange={(e) => setKitchenNotes(e.target.value)}
-              placeholder="Instrucciones especiales para cocina..."
-              className="w-full p-3 rounded-2xl border border-slate-600 bg-[#1e293b] font-medium text-xs text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-            />
-          </div>
-
-          {/* Payment History Audit & Correction Section */}
-          {paymentHistory && paymentHistory.length > 0 && onDeletePaymentEntry && (
-            <div className="p-4 rounded-2xl bg-amber-900/20 border border-amber-500/50 space-y-2">
-              <h4 className="text-xs font-black uppercase text-amber-400 tracking-wider">Historial de Pagos y Vueltos</h4>
-              <p className="text-[11px] text-amber-200/80">Anula primero cada pago o vuelto para poder cambiar los productos sin alterar el historial financiero.</p>
-
-              <div className="space-y-1.5 pt-1">
-                {paymentHistory.map((pm) => {
-                  const isChange = (pm.changeGivenUSD || 0) > 0 || (pm.changeGivenCOP || 0) > 0 || (pm.changeGivenBs || 0) > 0;
-                  const amount = isChange
-                    ? pm.changeGivenUSD || pm.changeGivenCOP || pm.changeGivenBs || 0
-                    : pm.cashTenderedUSD || pm.cashTenderedCOP || pm.cashTenderedBs || pm.amountPaidUSD || 0;
-                  const currency = isChange
-                    ? pm.changeGivenUSD ? 'USD' : pm.changeGivenCOP ? 'COP' : 'Bs'
-                    : pm.cashTenderedUSD ? 'USD' : pm.cashTenderedCOP ? 'COP' : pm.cashTenderedBs ? 'Bs' : 'USD';
-                  return (
-                    <div key={pm.id} className="p-2.5 rounded-xl bg-[#0f172a] border border-amber-500/30 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-black text-white mr-2">{isChange ? 'Vuelto' : 'Pago'}: {amount.toLocaleString()} {currency}</span>
-                        <span className="text-slate-400">({pm.paymentMethod})</span>
-                        <span className="text-slate-500 block text-[10px]">Por: {pm.payerName || 'Cliente'}</span>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm(`¿Seguro que deseas anular este ${isChange ? 'vuelto' : 'pago'}?`)) return;
-                          setPaymentHistory((prev) => (prev || []).filter((p) => p.id !== pm.id));
-                          try {
-                            const updated = await onDeletePaymentEntry(order.id, pm.id);
-                            if (updated && updated.paymentHistory) {
-                              setPaymentHistory(updated.paymentHistory);
-                            }
-                          } catch (deletionError) {
-                            if (order?.paymentHistory) {
-                              setPaymentHistory(order.paymentHistory);
-                            }
-                            setError(deletionError instanceof Error ? deletionError.message : 'No se pudo anular el movimiento.');
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 font-bold text-[11px] flex items-center gap-1 transition-colors"
-                      >
-                        <IoTrashOutline /> Anular {isChange ? 'vuelto' : 'pago'}
-                      </button>
-                    </div>
-                  );
-                })}
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-0.5">Notas de Cocina</label>
+                <input
+                  type="text"
+                  value={kitchenNotes}
+                  onChange={(e) => setKitchenNotes(e.target.value)}
+                  placeholder="Observaciones generales para cocina..."
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-gray-300 bg-white font-medium text-xs text-gray-900 outline-none"
+                />
               </div>
             </div>
-          )}
 
-          {error && <p className="rounded-xl border border-red-500/40 bg-red-900/20 p-3 text-xs font-bold text-red-300">{error}</p>}
-        </div>
+            {/* AVISO SI HAY PAGOS REGISTRADOS */}
+            {hasPaymentHistory && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex items-center justify-between gap-2 shrink-0">
+                <div className="text-[11px] font-bold leading-tight">
+                  ⚠️ <strong>{paymentHistory?.length} pago(s) registrado(s).</strong> Anula los pagos para poder editar productos.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLeftTab('pagos')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] shrink-0 cursor-pointer shadow-2xs"
+                >
+                  Ver Pagos
+                </button>
+              </div>
+            )}
 
-        {/* Footer */}
-        <div className="p-4 bg-[#1e293b] border-t border-slate-700 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs transition-colors"
-            >
-              Cancelar
-            </button>
-            {onDeleteOrder && (
+            {/* RESUMEN DE PRODUCTOS */}
+            <div className="flex items-center justify-between pb-1 border-b border-gray-200 shrink-0">
+              <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                <IoRestaurantOutline className="text-yellow-600 text-base" />
+                <span>Productos en Comanda ({items.reduce((s, it) => s + (it.quantity || 1), 0)})</span>
+              </span>
+              <span className="text-xs font-black text-gray-700 bg-white px-2 py-0.5 rounded-lg border border-gray-200 shadow-xs">
+                ${itemsSubtotalUSD.toFixed(2)} USD
+              </span>
+            </div>
+
+            {/* LISTA SCROLLABLE DE ÍTEMS */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {items.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 font-bold text-xs">
+                  No hay productos en la comanda. Agrega productos desde el menú.
+                </div>
+              ) : (
+                items.map((it, idx) => {
+                  const unitPrice = Number(it.price) || 0;
+                  const itemTotalUSD = unitPrice * (it.quantity || 1);
+
+                  return (
+                    <div
+                      key={it.id || idx}
+                      className="p-2.5 rounded-xl bg-white border border-gray-200 shadow-2xs space-y-1.5 hover:border-yellow-400 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-black text-xs text-gray-900 leading-tight">
+                            {it.productName}
+                          </div>
+                          <div className="text-[11px] text-gray-500 font-bold mt-0.5">
+                            ${unitPrice.toFixed(2)} c/u • <strong className="text-black">${itemTotalUSD.toFixed(2)} USD</strong>
+                          </div>
+                        </div>
+
+                        {/* Controles de Cantidad y Acciones */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(idx, -1)}
+                            className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-black font-black text-xs flex items-center justify-center cursor-pointer border border-gray-200 active:scale-95"
+                            title="Restar 1"
+                          >
+                            -
+                          </button>
+                          <span className="w-5 text-center font-black text-xs text-black">
+                            {it.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(idx, 1)}
+                            className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-black font-black text-xs flex items-center justify-center cursor-pointer border border-gray-200 active:scale-95"
+                            title="Sumar 1"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditItem(idx)}
+                            className="p-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-black text-xs cursor-pointer border border-blue-200 transition-colors ml-1"
+                            title="Editar personalización de este producto"
+                          >
+                            <IoPencilOutline className="text-sm" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="p-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-black text-xs cursor-pointer border border-red-200 transition-colors"
+                            title="Eliminar este producto"
+                          >
+                            <IoTrashOutline className="text-sm" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Detalles y Modificaciones */}
+                      <div className="flex flex-wrap gap-1 text-[10px]">
+                        {it.isTakeaway && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300">
+                            📦 LLEVAR
+                          </span>
+                        )}
+                        {it.isDelivery && (
+                          <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 font-black border border-blue-300">
+                            🛵 DELIVERY
+                          </span>
+                        )}
+                        {it.isCut && (
+                          <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-900 font-black border border-purple-300">
+                            ✂️ {it.cutPreference || 'Picada'}
+                          </span>
+                        )}
+                        {it.flavor && (
+                          <span className="px-1.5 py-0.2 rounded bg-cyan-100 text-cyan-900 font-black border border-cyan-300">
+                            Sabor: {it.flavor}
+                          </span>
+                        )}
+                        {it.sugarPreference && (
+                          <span className="px-1.5 py-0.2 rounded bg-pink-100 text-pink-900 font-black border border-pink-300">
+                            {it.sugarPreference}
+                          </span>
+                        )}
+                        {it.proteins && it.proteins.length > 0 && !areProteinsDefault(it.productName, it.proteins, it.defaultProteins) && (
+                          <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300">
+                            🥩 {it.proteins.join(', ')}
+                          </span>
+                        )}
+                        {it.removedIngredients && it.removedIngredients.length > 0 && (
+                          <span className="px-1.5 py-0.2 rounded bg-red-100 text-red-800 font-bold border border-red-200 line-through">
+                            🚫 SIN: {formatRemovedIngredients(it.removedIngredients).join(', ')}
+                          </span>
+                        )}
+                        {it.extras && it.extras.length > 0 && (
+                          <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                            ➕ {it.extras.map((e) => `${(e.quantity || 1) > 1 ? `${e.quantity}x ` : ''}${e.name}`).join(', ')}
+                          </span>
+                        )}
+                        {it.notes && (
+                          <span className="text-gray-600 font-medium italic block w-full">
+                            📝 {it.notes}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* TOTALES Y ACCIONES INFERIORES */}
+          <div className="pt-2 border-t border-gray-200 shrink-0 space-y-2">
+            {/* Barra de Totales Multi-Moneda */}
+            <div className="p-2.5 rounded-xl bg-white border border-gray-200 shadow-2xs flex items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] text-gray-500 font-black uppercase block">Total a Pagar</span>
+                <span className="text-lg font-black text-black leading-tight">${totalUSD.toFixed(2)} USD</span>
+              </div>
+              <div className="text-right text-[11px] font-bold text-gray-600 leading-tight">
+                <div>🇨🇴 <strong className="text-sky-700">{totalCOP.toLocaleString('es-CO')} COP</strong></div>
+                <div>🇻🇪 <strong className="text-amber-700">{totalBs} Bs</strong></div>
+              </div>
+            </div>
+
+            {/* Botones de Acción */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="px-3 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 font-black text-xs cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                {onDeleteOrder && (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={async () => {
+                      if (!window.confirm(`¿Seguro que deseas anular y eliminar completamente la comanda #${cleanOrderNumber}? Se liberará su número correlativo y se borrarán todos sus registros.`)) {
+                        return;
+                      }
+                      try {
+                        setIsSubmitting(true);
+                        await onDeleteOrder(order.id);
+                        onClose();
+                      } catch (err: any) {
+                        setError(err?.message || 'No se pudo anular la comanda');
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    className="px-2.5 py-2 rounded-xl bg-red-50 hover:bg-red-600 text-red-700 hover:text-white border border-red-300 font-black text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Anular y eliminar comanda completamente"
+                  >
+                    <IoTrashOutline />
+                    <span>Anular Comanda</span>
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={async () => {
-                  if (!window.confirm(`¿Seguro que deseas anular y eliminar completamente la comanda #${order.orderNumber}? Se liberará su número correlativo y se borrarán todos sus registros.`)) return;
-                  try {
-                    setIsSubmitting(true);
-                    await onDeleteOrder(order.id);
-                    onClose();
-                  } catch (delError) {
-                    setError(delError instanceof Error ? delError.message : 'No se pudo anular la comanda');
-                    setIsSubmitting(false);
-                  }
-                }}
-                className="px-4 py-2.5 rounded-xl bg-red-950/50 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                title="Anular y eliminar comanda completamente"
+                disabled={isSubmitting || hasPaymentHistory}
+                onClick={handleSave}
+                className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-black font-black text-xs border border-yellow-500 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                title={hasPaymentHistory ? 'Debes anular los pagos primero para guardar cambios en productos' : 'Guardar todos los cambios en la comanda'}
               >
-                <IoTrashOutline /> Anular Comanda
+                <IoSaveOutline className="text-base" />
+                <span>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</span>
               </button>
-            )}
+            </div>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={isSubmitting || hasPaymentHistory}
-            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-black text-xs shadow-md transition-colors flex items-center gap-2"
-          >
-            <IoCheckmarkCircleOutline className="text-lg" />
-            {isSubmitting ? 'Guardando...' : 'Guardar Cambios de Comanda'}
-          </button>
         </div>
       </div>
     </div>

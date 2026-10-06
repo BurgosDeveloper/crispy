@@ -460,7 +460,7 @@ module.exports = function(io) {
       await assertOrderAccess({ query: (text, params) => client.query(text, params) }, req.user, id);
 
       const { rows: orderRows } = await client.query(
-        `SELECT id, paid_amount_usd FROM orders WHERE id = $1 FOR UPDATE`,
+        `SELECT id, paid_amount_usd, type, table_number, delivery_fee_usd FROM orders WHERE id = $1 FOR UPDATE`,
         [id]
       );
       if (!orderRows[0]) {
@@ -483,19 +483,29 @@ module.exports = function(io) {
         }
       }
 
+      const oldType = orderRows[0]?.type;
+      const oldTableNumber = orderRows[0]?.table_number;
+      const finalType = type !== undefined ? type : oldType;
+      const finalTableNumber = finalType === 'mesa'
+        ? (tableNumber !== undefined ? (tableNumber ? parseInt(tableNumber, 10) : null) : oldTableNumber)
+        : null;
+      const finalDeliveryFee = finalType === 'delivery'
+        ? (deliveryFeeUSD !== undefined ? Number(deliveryFeeUSD) || 0 : Number(orderRows[0]?.delivery_fee_usd) || 0)
+        : 0;
+
       await client.query(
         `UPDATE orders SET 
            kitchen_notes = COALESCE($1, kitchen_notes), 
            total_usd = COALESCE($2, total_usd), 
-           delivery_fee_usd = COALESCE($3, delivery_fee_usd),
+           delivery_fee_usd = $3,
            customer_name = COALESCE($4, customer_name),
-           table_number = COALESCE($5, table_number),
-           type = COALESCE($6, type),
+           table_number = $5,
+           type = $6,
            payment_status = COALESCE($7, payment_status),
            is_edited = true, 
            updated_at = CURRENT_TIMESTAMP 
          WHERE id = $8`,
-        [kitchenNotes ?? null, totalUSD ?? null, deliveryFeeUSD ?? null, customerName ?? null, tableNumber ?? null, type ?? null, paymentStatus ?? null, id]
+        [kitchenNotes ?? null, totalUSD ?? null, finalDeliveryFee, customerName ?? null, finalTableNumber, finalType, paymentStatus ?? null, id]
       );
 
       let oldItemsSummary = '';
@@ -564,15 +574,31 @@ module.exports = function(io) {
         console.warn('Aviso: No se pudo registrar edición en historial:', editErr.message);
       }
 
+      // Sincronizar estado de mesas si cambió la mesa o el tipo de servicio
+      if (finalType === 'mesa' && finalTableNumber) {
+        await client.query("UPDATE tables_config SET status = 'ocupada' WHERE number = $1", [finalTableNumber]);
+      }
+      if (oldType === 'mesa' && oldTableNumber && (oldTableNumber !== finalTableNumber || finalType !== 'mesa')) {
+        const { rows: otherOrders } = await client.query(
+          "SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'pagado' AND archived_at IS NULL",
+          [oldTableNumber, id]
+        );
+        if (otherOrders.length === 0) {
+          await client.query("UPDATE tables_config SET status = 'libre' WHERE number = $1", [oldTableNumber]);
+        }
+      }
+
       await client.query('COMMIT');
       client.release();
       client = null;
 
       const allOrders = await fetchAllOrders(req.user);
+      const allTables = await fetchAllTables(req.user);
       const updatedOrder = allOrders.find((o) => o.id === id);
 
       io.emit('order:edited', updatedOrder);
       io.emit('orders:sync', allOrders);
+      io.emit('tables:sync', allTables);
 
       console.log(`✏️ [COMANDA EDITADA] ${updatedOrder?.orderNumber} actualizada`);
       res.json(updatedOrder);

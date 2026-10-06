@@ -784,3 +784,23 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
       - En `server/db.js`, la migración ejecuta la conversión automática a MAYÚSCULAS de todos los productos (`UPDATE products SET name = UPPER(name)`), ingredientes (`UPDATE ingredients SET name = UPPER(name)`), y los arrays de recetas (`default_proteins` y `base_ingredients`).
       - En los endpoints de creación y edición (`server/routes/products.js`, `server/routes/ingredients.js`), todo nuevo producto, ingrediente o receta se persiste de forma normalizada en MAYÚSCULAS.
 
+## 14. Regla Estricta: Pre-cuenta Térmica en Euros (€) y Tratamiento Contable Integral de Comandas a Crédito
+
+1. **Pre-cuenta Impresa y Térmica: Signo Estricto de Euro (€ / EUR)**:
+   - En la pre-cuenta impresa (tanto en ticket térmico ESC/POS como en el formato web/HTML), **debe figurar estrictamente el signo de Euro (€ / EUR)** y nunca el signo de dólar ($).
+   - **Naturaleza Estrictamente Visual**: En la base de datos PostgreSQL y en la contabilidad interna del sistema los valores se gestionan y calculan en dólares ($ USD) con sus tasas oficiales para COP y Bs. El signo de euro en la pre-cuenta es **únicamente visual para que el cliente final vea su cuenta en euros**.
+   - **Codificación ESC/POS en Térmica de Cable USB y LAN**:
+     - Las funciones térmicas (`server/helpers/thermalPrinter.js` -> `buildReceiptTicket`) inicializan la codificación con la secuencia ESC/POS `\x1Bt\x10` (página de códigos WPC1252 / Windows-1252) y transforman el símbolo `€` al byte `0x80`, garantizando que en el papel de 80mm o 58mm se imprima el carácter oficial del Euro `€` nítido y legible.
+     - En la pre-visualización web (`reportService.ts` -> `generatePreCuentaTicket`), las descripciones, desgloses de ítems, adicionales, servicio delivery y el total a pagar se representan como `€X.XX EUR`.
+
+2. **Tratamiento Contable y Operativo de Comandas a Crédito (`payment_status = 'credito'`)**:
+   - **Liberación Inmediata de Mesas**: Cuando una comanda se marca a crédito (`PATCH /api/payments/:id/credito`), la mesa física asociada queda liberada de inmediato en `tables_config` (`status = 'libre'`), asignándole a la orden `type = 'credito'` y `table_number = NULL`. Las comandas a crédito nunca bloquean ni ocupan mesas del restaurante.
+   - **Identificación Obligatoria del Deudor**: Es estrictamente obligatorio ingresar el nombre o referencia del deudor (`debtorName`). Este dato se persiste en `customer_name` y en las notas de la orden para auditoría directa de cuentas por cobrar.
+   - **Cero Dinero Físico en Caja Chica**: Al registrarse el crédito, el sistema elimina cualquier movimiento provisional de efectivo de `caja_chica_transactions`. Las órdenes a crédito **no suman como dinero recibido en la gaveta física**, evitando descuadres o sobrantes falsos durante el arqueo de billetes y monedas.
+   - **Cuentas por Cobrar en Reportes y Cierres**:
+     - En el reporte de intervalo contable y en el ticket de cierre de turno (`buildCrispysCierreTicket`), los créditos se contabilizan y listan bajo `CREDITOS TURNO` detallando cada deudor y su monto en $ USD.
+     - Suman a las ventas brutas del turno pero no a `expectedUSD` ni a `expectedCOP` de dinero en gaveta física.
+   - **Archivado Automático en Arqueo**: Al ejecutar el arqueo de caja (`/api/caja/cierre`), las comandas a crédito se archivan junto con las pagadas de contado (`archived_at = CURRENT_TIMESTAMP`), garantizando que la pantalla de mesas y comandas activas quede 100% limpia y reiniciada para el siguiente día.
+   - **Protección contra Modificaciones Indebidas**: Una comanda ya finalizada o a crédito solo puede editarse o anularse desde `Editar Comanda` con clave PIN de Administrador (para cajeros) o directamente por el Administrador, registrando toda modificación en la tabla forense `order_edits`.
+
+

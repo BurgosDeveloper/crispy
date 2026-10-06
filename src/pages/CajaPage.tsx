@@ -11,6 +11,8 @@ import { PrinterSelectModal } from '../components/PrinterSelectModal';
 import { TableCompactGrid } from '../modules/mesero/TableCompactGrid';
 import { OrderCreateView, OrderTarget } from '../modules/mesero/OrderCreateView';
 import { OrderTargetSelectorModal } from '../components/OrderTargetSelectorModal';
+import { StandbyOrdersModal } from '../components/StandbyOrdersModal';
+import { useStandbyOrders, StandbyOrder } from '../utils/standbyOrders';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
@@ -84,6 +86,17 @@ export const CajaPage: React.FC = () => {
   // Toma de Pedidos Nativa en Caja
   const [activeOrderTarget, setActiveOrderTarget] = useState<OrderTarget | null>(null);
   const [isTargetSelectorOpen, setIsTargetSelectorOpen] = useState<boolean>(false);
+
+  // Standby (Pedidos en Espera)
+  const { standbyOrders } = useStandbyOrders();
+  const [isStandbyModalOpen, setIsStandbyModalOpen] = useState<boolean>(false);
+  const [activeStandbyDraft, setActiveStandbyDraft] = useState<StandbyOrder | null>(null);
+
+  const handleSelectStandbyOrder = (standbyOrder: StandbyOrder) => {
+    setActiveStandbyDraft(standbyOrder);
+    setActiveOrderTarget(standbyOrder.target);
+    setIsStandbyModalOpen(false);
+  };
 
   const filteredCajaTransactions = cajaChicaTransactions.filter(t => !t.shift || t.shift === 'ambos' || t.shift === userSession?.shift);
   const filteredApertura = cajaChicaApertura.shift && cajaChicaApertura.shift !== 'ambos' && cajaChicaApertura.shift !== userSession?.shift ? { usdCash: 0, copCash: 0 } : cajaChicaApertura;
@@ -489,8 +502,25 @@ export const CajaPage: React.FC = () => {
             <span>REPORTES & CIERRE</span>
           </button>
 
+          {standbyOrders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsStandbyModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-black border border-amber-500 shadow-xs cursor-pointer animate-pulse"
+              title="Ver pedidos en espera (Standby)"
+            >
+              <span>⏸️ STANDBY</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-black text-yellow-300 text-[10px] font-black leading-none">
+                {standbyOrders.length}
+              </span>
+            </button>
+          )}
+
           <button
-            onClick={() => setIsTargetSelectorOpen(true)}
+            onClick={() => {
+              setActiveStandbyDraft(null);
+              setIsTargetSelectorOpen(true);
+            }}
             className="px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-black border border-yellow-500 shadow-xs cursor-pointer"
             title="Crear y tomar nuevos pedidos para mesas, delivery o pick-up"
           >
@@ -517,19 +547,32 @@ export const CajaPage: React.FC = () => {
           {activeOrderTarget ? (
             <OrderCreateView
               target={activeOrderTarget}
-              onClose={() => setActiveOrderTarget(null)}
+              initialStandbyOrder={activeStandbyDraft}
+              onClose={() => {
+                setActiveOrderTarget(null);
+                setActiveStandbyDraft(null);
+              }}
+              onOrderCreated={() => {
+                setActiveStandbyDraft(null);
+              }}
+              onStandbySaved={() => {
+                setActiveStandbyDraft(null);
+              }}
             />
           ) : cajaViewMode === 'tablero' ? (
             <TableCompactGrid
               tables={tables}
               orders={orders}
               onSelectTarget={(type, tableNumber) => {
+                setActiveStandbyDraft(null);
                 setActiveOrderTarget({
                   type,
                   tableNumber,
                   title: type === 'mesa' ? `Mesa #${tableNumber}` : (type === 'delivery' ? 'Delivery' : 'Para Llevar (Pick-Up)')
                 });
               }}
+              onOpenStandby={() => setIsStandbyModalOpen(true)}
+              standbyCount={standbyOrders.length}
               onViewActiveOrder={(ord) => setOrderDetailModalOrder(ord)}
               onAppendOrder={(ord) => setOrderAppendModalOrder(ord)}
               canPay={true}
@@ -2671,6 +2714,14 @@ export const CajaPage: React.FC = () => {
             title: title || (type === 'mesa' ? `Mesa #${tableNumber}` : (type === 'delivery' ? 'Delivery' : 'Para Llevar (Pick-Up)'))
           });
         }}
+      />
+
+      {/* Modal de Pedidos en Espera (Standby) */}
+      <StandbyOrdersModal
+        isOpen={isStandbyModalOpen}
+        onClose={() => setIsStandbyModalOpen(false)}
+        onSelectOrder={handleSelectStandbyOrder}
+        exchangeRates={exchangeRates}
       />
 
     </div>
