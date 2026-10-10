@@ -20,6 +20,7 @@ import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
 import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
+import { HistoricalOrdersSearch } from '../components/HistoricalOrdersSearch';
 import {
   IoCard,
   IoCashOutline,
@@ -35,6 +36,7 @@ import {
   IoSwapHorizontal,
   IoTrashOutline,
   IoPrintOutline,
+  IoSearchOutline,
 } from 'react-icons/io5';
 
 const HISTORIC_PAYMENT_METHODS: PaymentMethod[] = [
@@ -82,6 +84,7 @@ export const CajaPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'comandas';
   const [cajaViewMode, setCajaViewMode] = useState<'tablero' | 'lista'>('tablero');
+  const [reportesViewMode, setReportesViewMode] = useState<'arqueo' | 'comandas_historicas'>('arqueo');
 
   // Toma de Pedidos Nativa en Caja
   const [activeOrderTarget, setActiveOrderTarget] = useState<OrderTarget | null>(null);
@@ -1846,25 +1849,58 @@ export const CajaPage: React.FC = () => {
                 <IoBarChartOutline className="text-yellow-600 text-xl" />
                 <span>REPORTE DIARIO DE VENTAS & ARQUEO DE CAJA</span>
               </h2>
-              <p className="text-xs text-gray-500 font-semibold mt-0.5">Genera reportes de cierre de turno y cuadre de dinero.</p>
+              <p className="text-xs text-gray-500 font-semibold mt-0.5">Genera reportes de cierre de turno y consulta comandas de días anteriores.</p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => {
-                  setCierreError('');
-                  setIsCierreModalOpen(true);
-                }}
-                className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs transition-all cursor-pointer"
-              >
-                <IoCashOutline className="text-base" />
-                <span>ARQUEO DIARIO DE EFECTIVO</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Selector de Vista: Reportes y Arqueo vs Buscar Comandas Históricas */}
+              <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setReportesViewMode('arqueo')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    reportesViewMode === 'arqueo'
+                      ? 'bg-yellow-400 text-black shadow-xs border border-yellow-500'
+                      : 'text-gray-600 hover:text-black'
+                  }`}
+                >
+                  <IoBarChartOutline />
+                  <span>REPORTES Y CIERRES</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportesViewMode('comandas_historicas')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    reportesViewMode === 'comandas_historicas'
+                      ? 'bg-yellow-400 text-black shadow-xs border border-yellow-500'
+                      : 'text-gray-600 hover:text-black'
+                  }`}
+                >
+                  <IoSearchOutline />
+                  <span>BUSCAR COMANDAS ANTERIORES</span>
+                </button>
+              </div>
+
+              {reportesViewMode === 'arqueo' && (
+                <button
+                  onClick={() => {
+                    setCierreError('');
+                    setIsCierreModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center gap-2 border border-yellow-500 shadow-xs transition-all cursor-pointer"
+                >
+                  <IoCashOutline className="text-base" />
+                  <span>ARQUEO DIARIO DE EFECTIVO</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Panel de Reporte Contable por Intervalo */}
-          <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-4">
+          {reportesViewMode === 'comandas_historicas' ? (
+            <HistoricalOrdersSearch />
+          ) : (
+            /* Panel de Reporte Contable por Intervalo */
+            <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-4">
               <h3 className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
                 <IoBarChartOutline className="text-base text-yellow-600" />
                 <span>REPORTE CONTABLE POR INTERVALO DE FECHAS</span>
@@ -2106,8 +2142,8 @@ export const CajaPage: React.FC = () => {
                   </div>
                 </div>
               )}
-
           </div>
+        )}
 
         </div>
       )}

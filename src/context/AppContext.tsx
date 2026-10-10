@@ -107,6 +107,15 @@ interface AppContextType {
   realizarCierreCaja: (actualUSD?: number, actualCOP?: number, notes?: string) => Promise<any>;
   obtenerReporteDiario: () => Promise<any>;
   fetchReporteIntervalo: (from: string, to: string) => Promise<any>;
+  searchHistoricalOrders: (filters: {
+    from?: string;
+    to?: string;
+    orderNumber?: string;
+    search?: string;
+    type?: string;
+    paymentStatus?: string;
+    limit?: number;
+  }) => Promise<Order[]>;
   printReporteIntervalo: (reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted', data: any, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
   printOrderReceipt: (orderId: string, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
   reprintKitchenOrder: (orderId: string, targetPrinter?: 'cocina' | 'caja' | 'ambas') => Promise<void>;
@@ -788,6 +797,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const searchHistoricalOrders = async (filters: {
+    from?: string;
+    to?: string;
+    orderNumber?: string;
+    search?: string;
+    type?: string;
+    paymentStatus?: string;
+    limit?: number;
+  }): Promise<Order[]> => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      if (filters.orderNumber) params.set('orderNumber', filters.orderNumber);
+      if (filters.search) params.set('search', filters.search);
+      if (filters.type && filters.type !== 'all') params.set('type', filters.type);
+      if (filters.paymentStatus && filters.paymentStatus !== 'all') params.set('paymentStatus', filters.paymentStatus);
+      if (filters.limit) params.set('limit', String(filters.limit));
+
+      const res = await apiFetch(`${backendUrl}/api/orders/historico-search?${params.toString()}`);
+      if (res.ok) return await res.json();
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al consultar comandas históricas.');
+    } catch (e: any) {
+      setSyncError(e.message || 'Error al consultar comandas históricas.');
+      throw e;
+    }
+  };
+
   const printReporteIntervalo = async (
     reportType: 'contable' | 'pizzas' | 'ingresos' | 'egresos' | 'cocina' | 'audit_deleted',
     data: any,
@@ -1050,6 +1088,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         realizarCierreCaja,
         obtenerReporteDiario,
         fetchReporteIntervalo,
+        searchHistoricalOrders,
         printReporteIntervalo,
         printOrderReceipt,
         reprintKitchenOrder,

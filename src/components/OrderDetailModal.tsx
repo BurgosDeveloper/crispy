@@ -418,6 +418,50 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Historial Detallado de Pagos y Vueltos Registrados */}
+          {order.paymentHistory && order.paymentHistory.length > 0 && (
+            <div className="p-4 rounded-2xl bg-white border border-gray-200 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                  <IoCashOutline className="text-base text-yellow-600" />
+                  <span>HISTORIAL DE PAGOS REGISTRADOS ({order.paymentHistory.length})</span>
+                </h4>
+                <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                  Total Cubierto: ${(order.paidAmountUSD || 0).toFixed(2)} USD
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {order.paymentHistory.map((p, idx) => (
+                  <div key={p.id || idx} className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-black">
+                        #{idx + 1} {p.payerName || 'Cliente General'} &bull; <span className="text-gray-600 font-bold">{p.paymentMethod}</span>
+                      </span>
+                      <span className="font-black text-emerald-700 text-sm">
+                        ${(p.amountPaidUSD || 0).toFixed(2)} USD
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-600 font-semibold pt-1 border-t border-gray-200">
+                      {(p.cashTenderedUSD || 0) > 0 && <span>💵 Entregó: ${p.cashTenderedUSD!.toFixed(2)} USD</span>}
+                      {(p.cashTenderedCOP || 0) > 0 && <span>🇨🇴 Entregó: {p.cashTenderedCOP!.toLocaleString()} COP</span>}
+                      {(p.cashTenderedBs || 0) > 0 && <span>🇻🇪 Entregó: {p.cashTenderedBs!.toFixed(2)} Bs</span>}
+                      {(p.changeGivenUSD || 0) > 0 && <span className="text-amber-800 font-bold">↩️ Vuelto: ${p.changeGivenUSD!.toFixed(2)} USD</span>}
+                      {(p.changeGivenCOP || 0) > 0 && <span className="text-amber-800 font-bold">↩️ Vuelto: {p.changeGivenCOP!.toLocaleString()} COP</span>}
+                      {(p.changeGivenBs || 0) > 0 && <span className="text-amber-800 font-bold">↩️ Vuelto: {p.changeGivenBs!.toFixed(2)} Bs</span>}
+                      {p.createdAt && (
+                        <span className="text-gray-400 ml-auto">
+                          🕒 {new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer / Barra de Acciones de Comanda */}

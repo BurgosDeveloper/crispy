@@ -55,6 +55,217 @@ module.exports = function(io) {
     }
   });
 
+  router.get('/historico-search', requireRole('caja', 'admin'), async (req, res) => {
+    try {
+      const { from, to, orderNumber, search, type, paymentStatus, limit = 100 } = req.query;
+
+      const conditions = [];
+      const params = [];
+
+      // 1. Filtro por número de comanda
+      if (orderNumber && String(orderNumber).trim()) {
+        const cleanNum = String(orderNumber).trim().replace(/^#+/, '');
+        params.push(`%${cleanNum}%`);
+        const pIdx1 = params.length;
+        params.push(cleanNum);
+        const pIdx2 = params.length;
+        conditions.push(`(orders.order_number ILIKE $${pIdx1} OR regexp_replace(orders.order_number, '\\D', '', 'g') = $${pIdx2})`);
+      }
+
+      // 2. Filtro por búsqueda de texto (cliente, deudor, mesero, notas)
+      if (search && String(search).trim()) {
+        const searchStr = `%${String(search).trim()}%`;
+        params.push(searchStr);
+        const pIdx = params.length;
+        conditions.push(`(orders.customer_name ILIKE $${pIdx} OR orders.debtor_name ILIKE $${pIdx} OR orders.waiter_name ILIKE $${pIdx} OR orders.kitchen_notes ILIKE $${pIdx} OR orders.notes ILIKE $${pIdx})`);
+      }
+
+      // 3. Filtro de fechas (Desde / Hasta)
+      if (from && String(from).trim()) {
+        let fromClean = String(from).trim().replace('T', ' ');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fromClean)) fromClean += ' 00:00:00';
+        else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(fromClean)) fromClean += ':00';
+        params.push(fromClean);
+        conditions.push(`orders.created_at >= $${params.length}`);
+      }
+
+      if (to && String(to).trim()) {
+        let toClean = String(to).trim().replace('T', ' ');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(toClean)) toClean += ' 23:59:59.999';
+        else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(toClean)) toClean += ':59.999';
+        else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(toClean)) toClean += '.999';
+        params.push(toClean);
+        conditions.push(`orders.created_at <= $${params.length}`);
+      }
+
+      // 4. Filtro por Tipo de Servicio
+      if (type && type !== 'all') {
+        params.push(type);
+        conditions.push(`orders.type = $${params.length}`);
+      }
+
+      // 5. Filtro por Estado de Pago / Cancelado
+      if (paymentStatus && paymentStatus !== 'all') {
+        if (paymentStatus === 'cancelado') {
+          conditions.push(`orders.status = 'cancelado'`);
+        } else {
+          params.push(paymentStatus);
+          conditions.push(`orders.payment_status = $${params.length} AND orders.status != 'cancelado'`);
+        }
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
+      params.push(safeLimit);
+      const limitIdx = params.length;
+
+      const { rows: orderRows } = await query(
+        `SELECT orders.* 
+         FROM orders 
+         ${whereClause} 
+         ORDER BY orders.created_at DESC 
+         LIMIT $${limitIdx}`,
+        params
+      );
+
+      if (orderRows.length === 0) {
+        return res.json([]);
+      }
+
+      const orderIds = orderRows.map((o) => o.id);
+
+      // Obtener ítems completos con productos
+      const { rows: itemRows } = await query(
+        `SELECT oi.*, p.default_proteins 
+         FROM order_items oi 
+         LEFT JOIN products p ON (oi.product_id = p.id OR LOWER(oi.product_name) = LOWER(p.name))
+         WHERE oi.order_id = ANY($1::text[])`,
+        [orderIds]
+      );
+
+      // Obtener historial de pagos
+      const { rows: paymentRows } = await query(
+        `SELECT * FROM order_payments 
+         WHERE order_id = ANY($1::text[]) 
+         ORDER BY created_at ASC`,
+        [orderIds]
+      );
+
+      // Obtener historial forense de modificaciones si las hubo
+      const { rows: editRows } = await query(
+        `SELECT * FROM order_edits 
+         WHERE order_id = ANY($1::text[]) 
+         ORDER BY created_at ASC`,
+        [orderIds]
+      );
+
+      // Mapear al modelo Order completo de Crispy POS
+      const mappedOrders = orderRows.map((ord) => {
+        const orderItems = itemRows
+          .filter((it) => it.order_id === ord.id)
+          .map((it) => ({
+            id: it.id,
+            productId: it.product_id,
+            productName: it.product_name,
+            price: parseFloat(it.price) || 0,
+            quantity: it.quantity,
+            size: it.size || 'Estándar',
+            isHalfHalf: !!it.is_half_half,
+            halfDetails: safeJsonParseObj(it.half_details),
+            removedIngredients: it.removed_ingredients || [],
+            proteins: it.proteins || [],
+            defaultProteins: it.default_proteins || [],
+            extras: safeJsonParse(it.extras_json),
+            sugarPreference: it.sugar_preference || undefined,
+            drinkType: it.drink_type || undefined,
+            flavor: it.flavor || undefined,
+            category: it.category || undefined,
+            isTakeaway: !!it.is_takeaway,
+            isDelivery: !!it.is_delivery,
+            isCut: !!it.is_cut,
+            cutPreference: it.cut_preference || (it.is_cut ? 'Picada' : 'Entera'),
+            notes: it.notes || '',
+            isNewOrModified: !!it.is_new_or_modified,
+            isPaidIndividually: !!it.is_paid_individually,
+            paidByName: it.paid_by_name || undefined,
+          }));
+
+        const orderPayments = paymentRows
+          .filter((pm) => pm.order_id === ord.id)
+          .map((pm) => ({
+            id: pm.id,
+            orderId: pm.order_id,
+            payerName: pm.payer_name || 'Cliente General',
+            paymentMethod: pm.payment_method,
+            method: pm.payment_method,
+            entryType: (parseFloat(pm.change_given_usd || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0) ? 'change' : 'payment',
+            currency: (parseFloat(pm.cash_tendered_cop || 0) > 0 || parseFloat(pm.change_given_cop || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('COP') || pm.payment_method.includes('Bancolombia') || pm.payment_method.includes('Nequi'))))
+              ? 'COP'
+              : (parseFloat(pm.cash_tendered_bs || 0) > 0 || parseFloat(pm.change_given_bs || 0) > 0 || (pm.payment_method && (pm.payment_method.includes('Bs') || pm.payment_method.includes('Movil') || pm.payment_method.includes('Debito') || pm.payment_method.includes('Tarjeta de Crédito'))))
+              ? 'Bs'
+              : 'USD',
+            amountPaidUSD: parseFloat(pm.amount_paid_usd) || 0,
+            cashTenderedUSD: parseFloat(pm.cash_tendered_usd) || 0,
+            cashTenderedCOP: parseFloat(pm.cash_tendered_cop) || 0,
+            cashTenderedBs: parseFloat(pm.cash_tendered_bs) || 0,
+            changeGivenUSD: parseFloat(pm.change_given_usd) || 0,
+            changeGivenCOP: parseFloat(pm.change_given_cop) || 0,
+            changeGivenBs: parseFloat(pm.change_given_bs) || 0,
+            copRate: parseFloat(pm.cop_rate) || parseFloat(ord.cop_rate_at_payment) || 3950,
+            bsRate: parseFloat(pm.bs_rate) || parseFloat(ord.bs_rate_at_payment) || 36.5,
+            itemIds: pm.item_ids || [],
+            createdAt: pm.created_at,
+          }));
+
+        const orderEdits = editRows
+          .filter((ed) => ed.order_id === ord.id)
+          .map((ed) => ({
+            id: ed.id,
+            orderId: ed.order_id,
+            orderNumber: ed.order_number,
+            editedBy: ed.edited_by || 'admin',
+            editType: ed.edit_type || 'modificacion',
+            editDetails: ed.edit_details || '',
+            createdAt: ed.created_at,
+          }));
+
+        return {
+          id: ord.id,
+          orderNumber: ord.order_number,
+          type: ord.type,
+          tableNumber: ord.table_number,
+          customerName: ord.customer_name,
+          status: ord.status,
+          paymentStatus: ord.payment_status,
+          paymentMethod: ord.payment_method,
+          totalUSD: parseFloat(ord.total_usd) || 0,
+          paidAmountUSD: parseFloat(ord.paid_amount_usd) || (ord.payment_status === 'pagado' || ord.payment_status === 'credito' ? parseFloat(ord.total_usd) : 0),
+          copRateAtPayment: parseFloat(ord.cop_rate_at_payment) || 3950,
+          bsRateAtPayment: parseFloat(ord.bs_rate_at_payment) || 36.5,
+          waiterName: ord.waiter_name || 'Mesero',
+          kitchenNotes: ord.kitchen_notes,
+          notes: ord.notes || undefined,
+          debtorName: ord.debtor_name || undefined,
+          isEdited: !!ord.is_edited,
+          mergedFromOrders: ord.merged_from_orders || [],
+          deliveryFeeUSD: parseFloat(ord.delivery_fee_usd) || 0,
+          shift: ord.shift || 'ambos',
+          archivedAt: ord.archived_at || null,
+          createdAt: ord.created_at,
+          updatedAt: ord.updated_at,
+          items: orderItems,
+          paymentHistory: orderPayments,
+          edits: orderEdits,
+        };
+      });
+
+      res.json(mappedOrders);
+    } catch (err) {
+      console.error('Error buscando comandas históricas:', err);
+      res.status(500).json({ error: 'Error al buscar comandas en el histórico.' });
+    }
+  });
+
   router.post('/', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     let client;
     try {

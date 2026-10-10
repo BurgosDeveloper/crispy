@@ -803,4 +803,44 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - **Archivado Automático en Arqueo**: Al ejecutar el arqueo de caja (`/api/caja/cierre`), las comandas a crédito se archivan junto con las pagadas de contado (`archived_at = CURRENT_TIMESTAMP`), garantizando que la pantalla de mesas y comandas activas quede 100% limpia y reiniciada para el siguiente día.
    - **Protección contra Modificaciones Indebidas**: Una comanda ya finalizada o a crédito solo puede editarse o anularse desde `Editar Comanda` con clave PIN de Administrador (para cajeros) o directamente por el Administrador, registrando toda modificación en la tabla forense `order_edits`.
 
+## 15. Módulo de Búsqueda y Auditoría Forense de Comandas Históricas (Reportes & Cierre)
+
+1. **Aislamiento Contable Estricto y Naturaleza de Solo Lectura**:
+   - El módulo se encuentra dentro de **Reportes y Cierre** bajo el sub-navegador `[ 🔍 BUSCAR COMANDAS ANTERIORES ]`.
+   - Opera mediante el endpoint de solo lectura `GET /api/orders/historico-search`. No ejecuta transacciones de escritura, no modifica balances de caja chica, no afecta las mesas activas en salón ni emite eventos de Socket.IO que perturben la operativa de otros terminales.
+   - La base de datos PostgreSQL nunca borra físicamente las comandas al hacer arqueo/cierre; simplemente les asigna una marca de tiempo en `archived_at`. Este módulo permite consultar con total libertad tanto las órdenes archivadas como las del día actual.
+
+2. **Detalle Forense 100% Completo Conservado**:
+   - Cada orden histórica devuelta mantiene toda la estructura de ítems con sus modificadores:
+     - Carnes/proteínas seleccionadas dinámicamente (`protein`, `proteins`).
+     - Ingredientes retirados (`removedIngredients`, ej. "SIN TOMATE", "SIN CEBOLLA").
+     - Adicionales y extras con sus cobros (`extras`).
+     - Sabores de bebidas (`flavor`) y notas individuales de preparación.
+     - Monto del delivery (`delivery_fee_usd`) y notas generales.
+   - **Historial Completo de Pagos Registrados**: Al abrir `👁️ Ver Detalle Completo`, la modal incorpora la sección especial de auditoría de pagos que desglosa:
+     - Cada movimiento individual (`payment` / `change`) de la tabla `order_payments`.
+     - Moneda y método utilizado (Efectivo USD/COP/Bs, Pago Móvil, Punto, Zelle, etc.).
+     - Dinero entregado en mano (recibido con tasa) y vuelto exacto devuelto al cliente.
+     - Fecha, hora y cajero responsable de la transacción.
+
+3. **Criterios y Modos de Búsqueda Disponibles**:
+   - **Botones de Rango Rápido**:
+     - `📅 Hoy`: Filtra desde las 00:00:00 hasta las 23:59:59 del día actual.
+     - `⏪ Ayer`: Filtra exactamente la jornada de ayer.
+     - `🕒 Últimos 3 Días`: Filtra los últimos 3 días calendario.
+     - `📆 Últimos 7 Días` (Predeterminado): Rango semanal inmediato.
+     - `📊 Este Mes`: Desde el 1 del mes en curso hasta hoy.
+     - `♾️ Todo el Historial`: Sin límite de fecha (trae hasta 150 registros por lote).
+   - **Rango Personalizado**: Dos selectores de fecha y hora (`Desde` / `Hasta`) para buscar cualquier intervalo exacto.
+   - **Número de Comanda Específico**: Campo para ingresar el número de comanda (ej. `#12` o `12`), localizando inmediatamente el pedido sin importar cuándo fue emitido.
+   - **Búsqueda por Texto Libre**: Coincidencia parcial insensible a mayúsculas/minúsculas en nombre del cliente, deudor de crédito, mesero o notas de la orden.
+   - **Filtros por Tipo de Servicio**: Todas, 🍽️ Mesa, 🛵 Delivery, 🛍️ Para Llevar, 📋 Crédito.
+   - **Filtros por Estado de Pago**: Todos, 🟢 Pagadas, 🟡 Pendientes / Créditos.
+
+4. **Acciones Operativas en Comandas Históricas**:
+   - `👁️ Ver Detalle Completo`: Abre la vista enriquecida de auditoría con la lista de productos y el desglose de pagos.
+   - `🖨️ Reimprimir Ticket`: Permite reimprimir el comprobante térmico o de caja en caso de reclamos de clientes o auditoría de recibos.
+   - Las comandas archivadas se visualizan protegidas contra ediciones accidentales directas para salvaguardar los cierres contables ya ejecutados.
+
+
 
