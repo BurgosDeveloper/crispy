@@ -293,6 +293,20 @@ module.exports = function(io) {
 
       client = await getClient();
       await client.query('BEGIN');
+
+      // Si viene de un borrador en espera (Standby), consumirlo atómicamente primero.
+      // Si otra terminal o doble clic ya lo consumió, rowCount será 0 y abortamos
+      // evitando cualquier duplicación de comanda o cobro.
+      if (standbyDraftId) {
+        const deleteRes = await client.query('DELETE FROM standby_orders WHERE id = $1', [standbyDraftId]);
+        if (deleteRes.rowCount === 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(409).json({ error: 'Este pedido en espera ya fue procesado o eliminado por otro terminal.' });
+        }
+      }
+
       const orderId = `ord-${Date.now()}`;
 
       let nextNum = 1;
@@ -352,10 +366,6 @@ module.exports = function(io) {
 
       if (type === 'mesa' && tableNumber) {
         await client.query("UPDATE tables_config SET status = 'ocupada' WHERE number = $1", [tableNumber]);
-      }
-
-      if (standbyDraftId) {
-        await client.query("DELETE FROM standby_orders WHERE id = $1", [standbyDraftId]);
       }
 
       await client.query('COMMIT');
