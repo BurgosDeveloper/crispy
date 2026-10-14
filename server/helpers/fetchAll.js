@@ -191,6 +191,43 @@ async function fetchAllTables() {
   }));
 }
 
+async function fetchAllStandbyOrders() {
+  try {
+    const { rows } = await query(`SELECT * FROM standby_orders ORDER BY created_at DESC`);
+    return rows.map((r) => {
+      let items = [];
+      if (typeof r.cart_items === 'string') {
+        items = safeJsonParse(r.cart_items);
+      } else if (Array.isArray(r.cart_items)) {
+        items = r.cart_items;
+      }
+
+      return {
+        id: r.id,
+        target: {
+          type: r.target_type || 'mesa',
+          tableNumber: r.table_number || undefined,
+          title: r.title || (r.target_type === 'mesa' ? `Mesa ${r.table_number}` : (r.target_type === 'delivery' ? 'Delivery' : 'Para Llevar')),
+        },
+        cartItems: items,
+        customerName: r.customer_name || '',
+        kitchenNotes: r.kitchen_notes || '',
+        deliveryFeeUSD: parseFloat(r.delivery_fee_usd) || 0,
+        targetPrinter: r.target_printer || 'cocina',
+        totalUSD: parseFloat(r.total_usd) || 0,
+        itemCount: parseInt(r.item_count, 10) || items.reduce((acc, it) => acc + (it.quantity || 1), 0),
+        shift: r.shift || 'ambos',
+        createdBy: r.created_by || 'mesero',
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    console.error('Error en fetchAllStandbyOrders:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   safeJsonParse,
   safeJsonParseObj,
@@ -199,4 +236,6 @@ module.exports = {
   fetchAllProducts,
   fetchAllIngredients,
   fetchAllTables,
+  fetchAllStandbyOrders,
 };
+

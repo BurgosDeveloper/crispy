@@ -526,6 +526,7 @@ export const MeseroPage: React.FC = () => {
         deliveryFeeUSD: effectiveDeliveryFee,
         shift: userSession?.shift || 'ambos',
         targetPrinter,
+        standbyDraftId: activeStandbyDraftId || undefined,
       } as any);
 
       if (activeStandbyDraftId) {

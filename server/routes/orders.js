@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../db');
-const { fetchAllOrders, fetchAllTables, safeJsonParse, safeJsonParseObj } = require('../helpers/fetchAll');
+const { fetchAllOrders, fetchAllTables, fetchAllStandbyOrders, safeJsonParse, safeJsonParseObj } = require('../helpers/fetchAll');
 const { postCompletedOrderCashMovements } = require('../helpers/cashLedger');
 const { requireRole } = require('../helpers/sessionAuth');
 const { assertShiftAccess } = require('../helpers/shiftScope');
@@ -30,6 +30,7 @@ module.exports = function(io) {
         'caja_chica_cierres',
         'caja_chica_apertura',
         'exchange_rate_history',
+        'standby_orders',
       ];
       for (const t of pgTables) {
         await query(`TRUNCATE TABLE ${t} CASCADE`);
@@ -37,6 +38,7 @@ module.exports = function(io) {
       await query("UPDATE tables_config SET status = 'libre'");
       io.emit('orders:sync', []);
       io.emit('tables:sync', await fetchAllTables());
+      io.emit('standby:sync', []);
       io.emit('caja:updated');
       res.json({ message: 'Todos los datos de comandas, pagos, caja y mesas han sido purgados exitosamente.' });
     } catch (err) {
@@ -269,7 +271,7 @@ module.exports = function(io) {
   router.post('/', requireRole('mesero', 'caja', 'admin'), async (req, res) => {
     let client;
     try {
-      const { type, tableNumber, customerName, kitchenNotes, items, totalUSD, deliveryFeeUSD, targetPrinter } = req.body;
+      const { type, tableNumber, customerName, kitchenNotes, items, totalUSD, deliveryFeeUSD, targetPrinter, standbyDraftId } = req.body;
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'La comanda debe incluir al menos un ítem.' });
       }
@@ -352,6 +354,10 @@ module.exports = function(io) {
         await client.query("UPDATE tables_config SET status = 'ocupada' WHERE number = $1", [tableNumber]);
       }
 
+      if (standbyDraftId) {
+        await client.query("DELETE FROM standby_orders WHERE id = $1", [standbyDraftId]);
+      }
+
       await client.query('COMMIT');
       client.release();
       client = null;
@@ -377,6 +383,11 @@ module.exports = function(io) {
       io.emit('order:created', createdOrder);
       io.emit('orders:sync', allOrders);
       io.emit('tables:sync', allTables);
+
+      if (standbyDraftId) {
+        const allStandby = await fetchAllStandbyOrders();
+        io.emit('standby:sync', allStandby);
+      }
 
       console.log(`✅ [COMANDA REGISTRADA OK] ${createdOrder.orderNumber} enviada a WebSocket`);
       if (requiresKitchen && targetPrinter !== 'ninguna') {

@@ -18,13 +18,54 @@ export interface StandbyOrder {
   totalUSD: number;
   createdAt: string;
   itemCount: number;
+  shift?: string;
+  createdBy?: string;
 }
 
 const STANDBY_STORAGE_KEY = 'crispy_standby_orders';
 const STANDBY_EVENT = 'crispy_standby_updated';
 
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw =
+      sessionStorage.getItem('crispy_user_session') ||
+      localStorage.getItem('crispy_user_session') ||
+      localStorage.getItem('basilico_user_session');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.sessionToken || null;
+    }
+  } catch {}
+  return null;
+}
+
+function getApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['x-crispy-token'] = token;
+    headers['x-basilico-session'] = token;
+  }
+  return headers;
+}
+
+function getBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.origin;
+  }
+  try {
+    const lanConfig = require('../config/lanConfig.json');
+    if (lanConfig && lanConfig.backendUrl) return lanConfig.backendUrl;
+  } catch {}
+  return '';
+}
+
 /**
- * Obtener todos los pedidos en espera guardados en localStorage
+ * Obtener todos los pedidos en espera guardados en cache local
  */
 export function getStandbyOrders(): StandbyOrder[] {
   try {
@@ -39,7 +80,43 @@ export function getStandbyOrders(): StandbyOrder[] {
 }
 
 /**
- * Guardar o actualizar un pedido en Standby
+ * Actualizar el estado local (usado por WebSocket y sync del servidor)
+ */
+export function setLocalStandbyOrders(orders: StandbyOrder[]): void {
+  try {
+    localStorage.setItem(STANDBY_STORAGE_KEY, JSON.stringify(orders || []));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(STANDBY_EVENT));
+    }
+  } catch (err) {
+    console.error('Error al guardar pedidos en standby en localStorage:', err);
+  }
+}
+
+/**
+ * Consultar los pedidos en standby del servidor PostgreSQL
+ */
+export async function fetchServerStandbyOrders(): Promise<StandbyOrder[]> {
+  try {
+    const url = `${getBaseUrl()}/api/standby`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: getApiHeaders(),
+    });
+    if (res.ok) {
+      const data: StandbyOrder[] = await res.json();
+      setLocalStandbyOrders(data);
+      return data;
+    }
+  } catch (err) {
+    // Si falla la red, conserva el estado local
+    console.warn('No se pudo sincronizar standby con el servidor central:', err);
+  }
+  return getStandbyOrders();
+}
+
+/**
+ * Guardar o actualizar un pedido en Standby en tiempo real (PostgreSQL + WebSockets)
  */
 export function saveStandbyOrder(data: {
   id?: string;
@@ -84,27 +161,50 @@ export function saveStandbyOrder(data: {
     updated = [standbyOrder, ...current];
   }
 
-  localStorage.setItem(STANDBY_STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event(STANDBY_EVENT));
+  // Actualización optimista local
+  setLocalStandbyOrders(updated);
+
+  // Sincronización en red con el servidor central
+  fetch(`${getBaseUrl()}/api/standby`, {
+    method: 'POST',
+    headers: getApiHeaders(),
+    body: JSON.stringify(standbyOrder),
+  }).catch((err) => {
+    console.warn('Error enviando standby al servidor:', err);
+  });
+
   return standbyOrder;
 }
 
 /**
- * Eliminar un pedido individual de Standby
+ * Eliminar un pedido individual de Standby en tiempo real
  */
 export function removeStandbyOrder(id: string): void {
   const current = getStandbyOrders();
   const updated = current.filter((o) => o.id !== id);
-  localStorage.setItem(STANDBY_STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event(STANDBY_EVENT));
+  setLocalStandbyOrders(updated);
+
+  // Notificar al servidor central para broadcast por WebSocket
+  fetch(`${getBaseUrl()}/api/standby/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getApiHeaders(),
+  }).catch((err) => {
+    console.warn('Error eliminando standby en el servidor:', err);
+  });
 }
 
 /**
- * Vaciar todos los pedidos en Standby
+ * Vaciar todos los pedidos en Standby en tiempo real
  */
 export function clearAllStandbyOrders(): void {
-  localStorage.removeItem(STANDBY_STORAGE_KEY);
-  window.dispatchEvent(new Event(STANDBY_EVENT));
+  setLocalStandbyOrders([]);
+
+  fetch(`${getBaseUrl()}/api/standby`, {
+    method: 'DELETE',
+    headers: getApiHeaders(),
+  }).catch((err) => {
+    console.warn('Error vaciando standby en el servidor:', err);
+  });
 }
 
 /**
@@ -114,11 +214,16 @@ export function useStandbyOrders() {
   const [standbyOrders, setStandbyOrders] = useState<StandbyOrder[]>(() => getStandbyOrders());
 
   useEffect(() => {
+    // Sincronizar con el servidor al montar
+    fetchServerStandbyOrders().catch(() => {});
+
     const handleUpdate = () => {
       setStandbyOrders(getStandbyOrders());
     };
+
     window.addEventListener(STANDBY_EVENT, handleUpdate);
     window.addEventListener('storage', handleUpdate);
+
     return () => {
       window.removeEventListener(STANDBY_EVENT, handleUpdate);
       window.removeEventListener('storage', handleUpdate);
@@ -130,5 +235,6 @@ export function useStandbyOrders() {
     saveStandbyOrder,
     removeStandbyOrder,
     clearAllStandbyOrders,
+    refreshStandbyOrders: fetchServerStandbyOrders,
   };
 }

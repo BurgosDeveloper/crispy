@@ -15,6 +15,7 @@ import {
   CajaChicaCierre,
   DualPrintersConfig,
 } from '../data/mockData';
+import { StandbyOrder, setLocalStandbyOrders, getStandbyOrders } from '../utils/standbyOrders';
 
 export type UserRole = 'mesero' | 'caja' | 'cocina' | 'admin';
 
@@ -35,6 +36,7 @@ interface AppContextType {
   extras: Ingredient[]; // alias para ingredientes con isExtraForPizza === true
   tables: Table[];
   orders: Order[];
+  standbyOrders: StandbyOrder[];
   exchangeRates: ExchangeRates;
   
   cajaChicaApertura: CajaChicaApertura;
@@ -42,6 +44,7 @@ interface AppContextType {
   ultimoCierre: CajaChicaCierre | null;
   
   // Actions
+  fetchStandbyOrders: () => Promise<void>;
   createOrder: (orderData: {
     type: 'mesa' | 'delivery' | 'pickup';
     tableNumber?: number;
@@ -51,6 +54,7 @@ interface AppContextType {
     totalUSD: number;
     deliveryFeeUSD?: number;
     targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna';
+    standbyDraftId?: string;
   }) => Promise<void>;
   
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
@@ -250,6 +254,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [standbyOrders, setStandbyOrders] = useState<StandbyOrder[]>(() => getStandbyOrders());
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ COP: 3950, Bs: 36.50 });
   
   const [cajaChicaApertura, setCajaChicaApertura] = useState<CajaChicaApertura>({ usdCash: 0, copCash: 0 });
@@ -332,6 +337,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
   }, [apiFetch, backendUrl]);
 
+  const fetchStandbyOrders = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${backendUrl}/api/standby`);
+      if (res.ok) {
+        const data = await res.json();
+        setStandbyOrders(data);
+        setLocalStandbyOrders(data);
+      }
+    } catch (e) {}
+  }, [apiFetch, backendUrl]);
+
   const refreshAllState = useCallback(() => {
     fetchProducts();
     fetchIngredients();
@@ -339,7 +355,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchOrders();
     fetchCajaChica();
     fetchRates();
-  }, [fetchProducts, fetchIngredients, fetchTables, fetchOrders, fetchCajaChica, fetchRates]);
+    fetchStandbyOrders();
+  }, [fetchProducts, fetchIngredients, fetchTables, fetchOrders, fetchCajaChica, fetchRates, fetchStandbyOrders]);
 
   const requireApiSuccess = async (response: Response, fallbackMessage: string) => {
     const payload = await response.json().catch(() => ({}));
@@ -497,6 +514,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setExchangeRates(newRates);
     });
 
+    socket.on('standby:sync', (allStandby: StandbyOrder[]) => {
+      setStandbyOrders(allStandby);
+      setLocalStandbyOrders(allStandby);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -511,6 +533,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     totalUSD: number;
     deliveryFeeUSD?: number;
     targetPrinter?: 'cocina' | 'caja' | 'ambas' | 'ninguna';
+    standbyDraftId?: string;
   }) => {
     const res = await apiFetch(`${backendUrl}/api/orders`, {
       method: 'POST',
@@ -1062,11 +1085,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         extras,
         tables,
         orders,
+        standbyOrders,
         exchangeRates,
         cajaChicaApertura,
         cajaChicaTransactions,
         ultimoCierre,
         syncError,
+        fetchStandbyOrders,
         createOrder,
         updateOrderStatus,
         cancelOrder,

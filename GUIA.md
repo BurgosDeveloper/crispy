@@ -842,5 +842,21 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - `🖨️ Reimprimir Ticket`: Permite reimprimir el comprobante térmico o de caja en caso de reclamos de clientes o auditoría de recibos.
    - Las comandas archivadas se visualizan protegidas contra ediciones accidentales directas para salvaguardar los cierres contables ya ejecutados.
 
+## 16. Sistema de Pedidos en Espera (Standby) Sincronizado en Tiempo Real Multi-Terminal
+
+1. **Arquitectura y Fuente de Verdad Centralizada**:
+   - Los pedidos en espera (Standby) se persisten en la tabla `standby_orders` en PostgreSQL central, desacoplándose del almacenamiento exclusivo en `localStorage` de cada dispositivo.
+   - Sincronización en tiempo real vía WebSockets con el canal `standby:sync`. Al crear, actualizar, retomar o descartar un borrador, el servidor difunde de inmediato la instantánea actualizada a todos los terminales conectados (Meseros en Android/tablets, Cajero en PC de mostrador y Administradores).
+   - En caso de desconexión temporal de la red local, se mantiene persistencia en memoria y cache local (`localStorage`) como fallback de resiliencia, reconciliándose con el servidor central al restablecerse la conexión.
+
+2. **Aislamiento Contable Estricto y Prevención de Duplicados**:
+   - Un pedido en Standby **NO es una comanda activa**: no consume numeración de orden (`order_number`), no ocupa mesas en `tables_config`, no envía tickets a las impresoras térmicas ni genera asientos contables en `orders` ni en `caja_chica`.
+   - **Consumo Atómico al Confirmar Comanda**: Cuando un mesero o cajero retoma un Standby y lo envía a cocina o cobro (`POST /api/orders`), se incluye el identificador `standbyDraftId`. El backend ejecuta la inserción de la comanda y la eliminación del borrador en la misma transacción de PostgreSQL (`DELETE FROM standby_orders WHERE id = $1`), garantizando cero duplicados y emitiendo `standby:sync` para que desaparezca al unísono de todas las pantallas.
+
+3. **Operativa y Visibilidad en Salón y Caja**:
+   - Tanto en el panel de **Caja** como en la cuadrícula de **Mesero**, el indicador amarillo `⏳ STANDBY` se ilumina con animación pulsante y el conteo de borradores pendientes cuando `standbyOrders.length > 0`.
+   - Cualquier terminal puede abrir la modal `StandbyOrdersModal`, visualizar el desglose de productos con carnes, ingredientes quitados y adicionales, y pulsar `Retomar Pedido` para transferirlo a la toma activa de pedidos o `Descartar` si el cliente canceló la espera.
+
+
 
 
