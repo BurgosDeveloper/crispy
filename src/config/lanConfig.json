@@ -2,5 +2,5 @@
   "lanIp": "192.168.1.10",
   "backendUrl": "http://192.168.1.10:3001",
   "interfaceName": "Ethernet",
-  "detectedAt": "2026-10-16T04:26:09.919Z"
+  "detectedAt": "2026-10-16T04:28:50.615Z"
 }
