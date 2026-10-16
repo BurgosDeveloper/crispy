@@ -137,7 +137,9 @@ async function runTest() {
         shift: 'ambos',
       }),
     });
+    const pay2Order = await pay2Res.json();
     assert(pay2Res.status === 200, 'Persona 2 pagó $7 USD correctamente');
+    assert(pay2Order.paymentStatus === 'pagado', 'Al completar los pagos por personas en el ledger, paymentStatus pasa automáticamente a "pagado"');
 
     console.log('\n📦 3. Finalizando/Entregando comanda pagada por personas...');
     const finalizeRes = await fetch(`${baseUrl}/${actualOrderId}/finalize`, {
@@ -182,11 +184,24 @@ async function runTest() {
     const { rows: tableRows4 } = await query(`SELECT status FROM tables_config WHERE number = $1`, [testTableNumber]);
     assert(tableRows4[0]?.status === 'libre', 'Mesa #8 se LIBERÓ DE NUEVO automáticamente tras marcar como entregada');
 
-    // Verificar que en frontend filter se excluye
+    // Verificar que en frontend filter se excluye de activas Y SE INCLUYE en paidOrdersToday (Histórico)
     const ordersAfterDeliver = await fetchAllOrders(adminUser);
     const ordCheck2 = ordersAfterDeliver.find((o) => o.id === actualOrderId);
     const isActive2 = !(ordCheck2.status === 'entregada' && (ordCheck2.paymentStatus === 'pagado' || ordCheck2.paymentStatus === 'credito' || ((ordCheck2.paidAmountUSD || 0) > 0 && Math.max(0, ordCheck2.totalUSD - (ordCheck2.paidAmountUSD || 0)) <= 0.05)));
     assert(!isActive2, 'La comanda se quitó de nuevo de la mesa en el salón y de activas en caja');
+
+    const paidOrdersToday = ordersAfterDeliver.filter(
+      (o) =>
+        (o.paymentStatus === 'pagado' ||
+          o.paymentStatus === 'credito' ||
+          ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05))
+    );
+    assert(paidOrdersToday.some((o) => o.id === actualOrderId), 'La comanda entregada APARECE CORRECTAMENTE en paidOrdersToday (Pestaña HISTÓRICO en Caja)');
+
+    // Verificar en endpoint de búsqueda de histórico
+    const historicoSearchRes = await fetch(`${baseUrl}/historico-search?paymentStatus=pagado&searchText=Familia`);
+    const historicoList = await historicoSearchRes.json();
+    assert(historicoList.some((o) => o.id === actualOrderId), 'La comanda aparece en la búsqueda de histórico con filtro paymentStatus=pagado');
 
     console.log('\n🧪 6. Caso Límite: Comanda que tenía payment_status = "no_pagado" pero con pagos completos...');
     // Forzamos manualmente payment_status = 'no_pagado' y status = 'preparada' para simular órdenes pre-existentes

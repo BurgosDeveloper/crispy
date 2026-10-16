@@ -312,6 +312,19 @@ async function initDb() {
       console.log(`ℹ️ Ingredientes existentes detectados (${ingCount} ingredientes). Se conserva intacta la data actual (precios, nombres y categorías).`);
     }
 
+    try {
+      await client.query(`
+        UPDATE orders 
+        SET payment_status = 'pagado' 
+        WHERE payment_status = 'no_pagado' 
+          AND status = 'entregada' 
+          AND CAST(paid_amount_usd AS NUMERIC) >= (CAST(total_usd AS NUMERIC) - 0.05) 
+          AND CAST(paid_amount_usd AS NUMERIC) > 0
+      `);
+    } catch (reconcileErr) {
+      console.warn('Aviso en reconciliación de órdenes pagadas:', reconcileErr.message);
+    }
+
     client.release();
     console.log('✅ Base de datos PostgreSQL configurada y lista.');
   }

@@ -225,7 +225,13 @@ export const CajaPage: React.FC = () => {
   const activeComandas = orders.filter(
     (o) => o.status !== 'cancelado' && o.status !== 'fusionada' && !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05))) && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
   );
-  const paidOrdersToday = orders.filter((o) => (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito') && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift));
+  const paidOrdersToday = orders.filter(
+    (o) =>
+      (o.paymentStatus === 'pagado' ||
+        o.paymentStatus === 'credito' ||
+        ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)) &&
+      (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
+  );
 
   // Historico Filters
   const [historicoSearch, setHistoricoSearch] = useState<string>('');

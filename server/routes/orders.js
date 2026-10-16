@@ -111,6 +111,8 @@ module.exports = function(io) {
       if (paymentStatus && paymentStatus !== 'all') {
         if (paymentStatus === 'cancelado') {
           conditions.push(`orders.status = 'cancelado'`);
+        } else if (paymentStatus === 'pagado') {
+          conditions.push(`(orders.payment_status = 'pagado' OR (CAST(orders.paid_amount_usd AS NUMERIC) >= (CAST(orders.total_usd AS NUMERIC) - 0.05) AND CAST(orders.paid_amount_usd AS NUMERIC) > 0 AND orders.payment_status != 'credito')) AND orders.status != 'cancelado'`);
         } else {
           params.push(paymentStatus);
           conditions.push(`orders.payment_status = $${params.length} AND orders.status != 'cancelado'`);
@@ -232,6 +234,12 @@ module.exports = function(io) {
             createdAt: ed.created_at,
           }));
 
+        const totalUSD = parseFloat(ord.total_usd) || 0;
+        const rawPaidUSD = parseFloat(ord.paid_amount_usd) || 0;
+        const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05);
+        const resolvedPaymentStatus = (isCovered && ord.payment_status !== 'credito') ? 'pagado' : ord.payment_status;
+        const paidAmountUSD = rawPaidUSD || (resolvedPaymentStatus === 'pagado' || resolvedPaymentStatus === 'credito' ? totalUSD : 0);
+
         return {
           id: ord.id,
           orderNumber: ord.order_number,
@@ -239,10 +247,10 @@ module.exports = function(io) {
           tableNumber: ord.table_number,
           customerName: ord.customer_name,
           status: ord.status,
-          paymentStatus: ord.payment_status,
+          paymentStatus: resolvedPaymentStatus,
           paymentMethod: ord.payment_method,
-          totalUSD: parseFloat(ord.total_usd) || 0,
-          paidAmountUSD: parseFloat(ord.paid_amount_usd) || (ord.payment_status === 'pagado' || ord.payment_status === 'credito' ? parseFloat(ord.total_usd) : 0),
+          totalUSD,
+          paidAmountUSD,
           copRateAtPayment: parseFloat(ord.cop_rate_at_payment) || 3950,
           bsRateAtPayment: parseFloat(ord.bs_rate_at_payment) || 36.5,
           waiterName: ord.waiter_name || 'Mesero',
@@ -462,16 +470,18 @@ module.exports = function(io) {
       if (status === 'entregada') {
         const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
         const totals = paymentHistoryTotals(paymentRows);
-        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status FROM orders WHERE id = $1', [id]);
+        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status, paid_amount_usd FROM orders WHERE id = $1', [id]);
         const ord = currentOrd[0];
         const totalUSD = Number(ord?.total_usd) || 0;
+        const currentPaidUSD = Number(ord?.paid_amount_usd) || 0;
+        const effectivePaid = Math.max(totals.paidUSD, currentPaidUSD);
 
         // Si la comanda ya tiene cubierto el total de su cuenta en pagos registrados (ej: pagada por personas o antes de reactivar),
         // asegurar que su payment_status sea 'pagado' para que se retire de la mesa y pase al histórico
-        if (totals.paidUSD >= (totalUSD - 0.05) && totals.paidUSD > 0) {
+        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0) {
           await client.query(
             `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1 WHERE id = $2`,
-            [Math.min(totals.paidUSD, totalUSD), id]
+            [Math.min(effectivePaid, totalUSD), id]
           );
         }
       }
@@ -877,7 +887,7 @@ module.exports = function(io) {
       await assertOrderAccess(client, req.user, id);
 
       const { rows: orderRows } = await client.query(
-        `SELECT id, order_number, type, table_number, payment_status, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
+        `SELECT id, order_number, type, table_number, payment_status, total_usd, shift, paid_amount_usd FROM orders WHERE id = $1 FOR UPDATE`,
         [id]
       );
       if (orderRows.length === 0) {
@@ -894,6 +904,8 @@ module.exports = function(io) {
       const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
       const totals = paymentHistoryTotals(paymentRows);
       const totalUSD = Number(ord.total_usd) || 0;
+      const currentPaid = Number(ord.paid_amount_usd) || 0;
+      const effectivePaid = Math.max(totals.paidUSD, currentPaid);
 
       let nextPaymentStatus = 'no_pagado';
       let nextPaidAmount = 0;
@@ -911,12 +923,12 @@ module.exports = function(io) {
           [id]
         );
       } else {
-        if (totals.paidUSD >= (totalUSD - 0.05) && totals.paidUSD > 0) {
+        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0) {
           nextPaymentStatus = 'pagado';
-          nextPaidAmount = Math.min(totals.paidUSD, totalUSD);
-        } else if (totals.paidUSD > 0.05) {
+          nextPaidAmount = Math.min(effectivePaid, totalUSD);
+        } else if (effectivePaid > 0.05) {
           nextPaymentStatus = 'parcial';
-          nextPaidAmount = totals.paidUSD;
+          nextPaidAmount = effectivePaid;
         }
 
         await client.query(

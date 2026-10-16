@@ -46,17 +46,24 @@ async function fetchAllOrders() {
   );
   const { rows: payments } = await query(`SELECT * FROM order_payments WHERE order_id = ANY($1::text[]) ORDER BY created_at ASC`, [orderIds]);
 
-  return orders.map((ord) => ({
-    id: ord.id,
-    orderNumber: ord.order_number,
-    type: ord.type,
-    tableNumber: ord.table_number,
-    customerName: ord.customer_name,
-    status: ord.status,
-    paymentStatus: ord.payment_status,
-    paymentMethod: ord.payment_method,
-    totalUSD: parseFloat(ord.total_usd) || 0,
-    paidAmountUSD: parseFloat(ord.paid_amount_usd) || (ord.payment_status === 'pagado' || ord.payment_status === 'credito' ? parseFloat(ord.total_usd) : 0),
+  return orders.map((ord) => {
+    const totalUSD = parseFloat(ord.total_usd) || 0;
+    const rawPaidUSD = parseFloat(ord.paid_amount_usd) || 0;
+    const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05);
+    const resolvedPaymentStatus = (isCovered && ord.payment_status !== 'credito') ? 'pagado' : ord.payment_status;
+    const paidAmountUSD = rawPaidUSD || (resolvedPaymentStatus === 'pagado' || resolvedPaymentStatus === 'credito' ? totalUSD : 0);
+
+    return {
+      id: ord.id,
+      orderNumber: ord.order_number,
+      type: ord.type,
+      tableNumber: ord.table_number,
+      customerName: ord.customer_name,
+      status: ord.status,
+      paymentStatus: resolvedPaymentStatus,
+      paymentMethod: ord.payment_method,
+      totalUSD,
+      paidAmountUSD,
     copRateAtPayment: parseFloat(ord.cop_rate_at_payment) || 3950,
     bsRateAtPayment: parseFloat(ord.bs_rate_at_payment) || 36.5,
     waiterName: ord.waiter_name || 'Mesero',
@@ -121,7 +128,8 @@ async function fetchAllOrders() {
         flavor: it.flavor || undefined,
         notes: it.notes || '',
       })),
-  }));
+    };
+  });
 }
 
 async function fetchAllProducts() {

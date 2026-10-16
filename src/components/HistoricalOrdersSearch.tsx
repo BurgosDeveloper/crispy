@@ -405,7 +405,7 @@ export const HistoricalOrdersSearch: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {results.map((ord) => {
-              const isPaid = ord.paymentStatus === 'pagado';
+              const isPaid = ord.paymentStatus === 'pagado' || ((ord.paidAmountUSD || 0) > 0 && Math.max(0, (ord.totalUSD || 0) - (ord.paidAmountUSD || 0)) <= 0.05);
               const isCredito = ord.paymentStatus === 'credito';
               const isCancelado = ord.status === 'cancelado';
               const cleanNum = String(ord.orderNumber || '').replace(/^#+/, '');
