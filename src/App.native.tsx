@@ -419,7 +419,7 @@ const NativeAppContent: React.FC = () => {
   const readyKitchenOrders = kitchenOrdersNative.filter((o) => o.status === 'preparada');
   const displayedKitchenOrders = kitchenTab === 'listas' ? readyKitchenOrders : pendingKitchenOrders;
 
-  const activeComandas = orders.filter((o) => !(o.status === 'entregada' && o.paymentStatus === 'pagado') && o.status !== 'fusionada');
+  const activeComandas = orders.filter((o) => !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05))) && o.status !== 'fusionada');
 
   return (
     <SafeAreaView style={styles.safeArea}>

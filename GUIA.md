@@ -857,6 +857,21 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
    - Tanto en el panel de **Caja** como en la cuadrícula de **Mesero**, el indicador amarillo `⏳ STANDBY` se ilumina con animación pulsante y el conteo de borradores pendientes cuando `standbyOrders.length > 0`.
    - Cualquier terminal puede abrir la modal `StandbyOrdersModal`, visualizar el desglose de productos con carnes, ingredientes quitados y adicionales, y pulsar `Retomar Pedido` para transferirlo a la toma activa de pedidos o `Descartar` si el cliente canceló la espera.
 
+## 17. Ciclo de Vida, Reactivación y Cierre de Mesas Pagadas por Personas / Completo
+
+1. **Preservación del Estado Contable en Reaperturas**:
+   - Al reactivar una comanda (desde el historial o tablero), el backend consulta los registros reales en `order_payments` en lugar de sobreescribir ciegamente `payment_status = 'no_pagado'`.
+   - Si la comanda ya tiene cubierto el 100% de su saldo (`paidAmountUSD >= totalUSD - 0.05`), su estado de pago se preserva como `'pagado'`. Si tiene abonos parciales, se preserva como `'parcial'`.
+   - Esto previene que una mesa saldada muestre deuda ficticia o bloquee la liberación física del salón.
+
+2. **Cierre Automático y Liberación de Mesa al Marcar como Entregada**:
+   - Cuando una comanda que ya tiene su total cubierto en pagos registrados (sea por cobro general o cobro dividido por comensales/personas) se marca como `'entregada'` (`PATCH /api/orders/:id/status`), el backend sincroniza atómicamente `payment_status = 'pagado'` y actualiza la mesa en `tables_config` a `'libre'` (siempre que no existan otras comandas activas en la misma mesa).
+   - En el frontend (`TableCompactGrid`, `CajaPage`, `OrderTargetSelectorModal`), toda comanda entregada con su saldo cubierto se excluye automáticamente de la lista activa, liberando el indicador de mesa en verde sin requerir pasos redundantes.
+
+3. **Flujo de Cobro Dividido por Persona (X Personas)**:
+   - En la modal `SplitPaymentSelectionModal`, si todos los ítems de la orden ya fueron pagados individualmente, se presenta un banner informativo y el botón de acción rápida `✅ FINALIZAR COMANDA`, permitiendo liquidar la orden directamente en caso de ser abierta.
+
+
 
 
 

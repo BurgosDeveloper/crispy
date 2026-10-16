@@ -3,6 +3,7 @@ const router = express.Router();
 const { query, getClient } = require('../db');
 const { fetchAllOrders, fetchAllTables, fetchAllStandbyOrders, safeJsonParse, safeJsonParseObj } = require('../helpers/fetchAll');
 const { postCompletedOrderCashMovements } = require('../helpers/cashLedger');
+const { paymentHistoryTotals } = require('../helpers/paymentLedger');
 const { requireRole } = require('../helpers/sessionAuth');
 const { assertShiftAccess } = require('../helpers/shiftScope');
 const { getRatesForShift } = require('../helpers/exchangeRates');
@@ -458,6 +459,23 @@ module.exports = function(io) {
         client = null;
         return res.status(404).json({ error: 'Comanda no encontrada.' });
       }
+      if (status === 'entregada') {
+        const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
+        const totals = paymentHistoryTotals(paymentRows);
+        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status FROM orders WHERE id = $1', [id]);
+        const ord = currentOrd[0];
+        const totalUSD = Number(ord?.total_usd) || 0;
+
+        // Si la comanda ya tiene cubierto el total de su cuenta en pagos registrados (ej: pagada por personas o antes de reactivar),
+        // asegurar que su payment_status sea 'pagado' para que se retire de la mesa y pase al histórico
+        if (totals.paidUSD >= (totalUSD - 0.05) && totals.paidUSD > 0) {
+          await client.query(
+            `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1 WHERE id = $2`,
+            [Math.min(totals.paidUSD, totalUSD), id]
+          );
+        }
+      }
+
       if (status === 'entregada' || status === 'cancelado') {
         const { rows: ordRows } = await client.query('SELECT table_number, type FROM orders WHERE id = $1', [id]);
         if (ordRows[0]?.type === 'mesa' && ordRows[0]?.table_number) {
@@ -468,6 +486,11 @@ module.exports = function(io) {
           if (otherOrders.length === 0) {
             await client.query(`UPDATE tables_config SET status = 'libre' WHERE number = $1`, [ordRows[0].table_number]);
           }
+        }
+      } else if (status === 'en_preparacion' || status === 'preparada') {
+        const { rows: ordRows } = await client.query('SELECT table_number, type FROM orders WHERE id = $1', [id]);
+        if (ordRows[0]?.type === 'mesa' && ordRows[0]?.table_number) {
+          await client.query(`UPDATE tables_config SET status = 'ocupada' WHERE number = $1`, [ordRows[0].table_number]);
         }
       }
 
@@ -854,7 +877,7 @@ module.exports = function(io) {
       await assertOrderAccess(client, req.user, id);
 
       const { rows: orderRows } = await client.query(
-        `SELECT id, order_number, type, table_number, payment_status, shift FROM orders WHERE id = $1 FOR UPDATE`,
+        `SELECT id, order_number, type, table_number, payment_status, total_usd, shift FROM orders WHERE id = $1 FOR UPDATE`,
         [id]
       );
       if (orderRows.length === 0) {
@@ -866,6 +889,14 @@ module.exports = function(io) {
       const ord = orderRows[0];
 
       const isCreditOrder = ord.payment_status === 'credito' || ord.type === 'credito';
+
+      // Consultar pagos registrados para preservar el estado contable real y no destruir pagos previos
+      const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
+      const totals = paymentHistoryTotals(paymentRows);
+      const totalUSD = Number(ord.total_usd) || 0;
+
+      let nextPaymentStatus = 'no_pagado';
+      let nextPaidAmount = 0;
 
       if (isCreditOrder) {
         // Al reactivar una comanda que estaba a crédito, su tipo pasa a ser 'credito' permanente sin ocupar mesa física
@@ -880,13 +911,22 @@ module.exports = function(io) {
           [id]
         );
       } else {
+        if (totals.paidUSD >= (totalUSD - 0.05) && totals.paidUSD > 0) {
+          nextPaymentStatus = 'pagado';
+          nextPaidAmount = Math.min(totals.paidUSD, totalUSD);
+        } else if (totals.paidUSD > 0.05) {
+          nextPaymentStatus = 'parcial';
+          nextPaidAmount = totals.paidUSD;
+        }
+
         await client.query(
           `UPDATE orders SET
             status = 'preparada',
-            payment_status = 'no_pagado',
+            payment_status = $1,
+            paid_amount_usd = $2,
             updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
-          [id]
+           WHERE id = $3`,
+          [nextPaymentStatus, nextPaidAmount, id]
         );
 
         // Si es comanda de mesa normal, marcar la mesa como ocupada

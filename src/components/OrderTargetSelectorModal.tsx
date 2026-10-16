@@ -24,7 +24,7 @@ export const OrderTargetSelectorModal: React.FC<OrderTargetSelectorModalProps> =
     (o) =>
       o.status !== 'cancelado' &&
       o.status !== 'fusionada' &&
-      !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito'))
+      !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)))
   );
 
   const occupiedTableNumbers = new Set(

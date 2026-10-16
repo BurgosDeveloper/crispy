@@ -76,6 +76,7 @@ export const CajaPage: React.FC = () => {
     editOrder,
     deletePaymentEntry,
     reopenOrder,
+    finalizeOrder,
     expandOrderItemsForSplit,
     products,
     ingredients,
@@ -222,7 +223,7 @@ export const CajaPage: React.FC = () => {
 
   // Comandas activas no finalizadas/pagadas totalmente (excluye canceladas, fusionadas, pagadas y créditos ya entregados)
   const activeComandas = orders.filter(
-    (o) => o.status !== 'cancelado' && o.status !== 'fusionada' && !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito')) && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
+    (o) => o.status !== 'cancelado' && o.status !== 'fusionada' && !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05))) && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
   );
   const paidOrdersToday = orders.filter((o) => (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito') && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift));
 
@@ -705,13 +706,13 @@ export const CajaPage: React.FC = () => {
           ) : isCompactView ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
               {activeComandas.map((ord) => {
+                const paid = ord.paidAmountUSD || 0;
+                const remaining = Math.max(0, ord.totalUSD - paid);
                 const isPrepared = ord.status === 'preparada' || ord.status === 'entregada';
-                const isPaid = ord.paymentStatus === 'pagado';
+                const isPaid = ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05);
                 const isDelivered = ord.status === 'entregada';
                 const isSelectedForMultiPay = selectedOrderIdsForMultiPay.includes(ord.id);
                 const isExpanded = expandedOrderIds.includes(ord.id);
-                const paid = ord.paidAmountUSD || 0;
-                const remaining = Math.max(0, ord.totalUSD - paid);
                 const isDelivery = ord.type === 'delivery';
                 const titleText = ord.type === 'mesa'
                   ? `Mesa #${ord.tableNumber}`
@@ -1140,8 +1141,10 @@ export const CajaPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {activeComandas.map((ord) => {
+                const paid = ord.paidAmountUSD || 0;
+                const remaining = Math.max(0, ord.totalUSD - paid);
                 const isPrepared = ord.status === 'preparada' || ord.status === 'entregada';
-                const isPaid = ord.paymentStatus === 'pagado';
+                const isPaid = ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05);
                 const isDelivered = ord.status === 'entregada';
                 const isSelectedForMultiPay = selectedOrderIdsForMultiPay.includes(ord.id);
 
@@ -2166,6 +2169,15 @@ export const CajaPage: React.FC = () => {
           initialItemIds={splitPaymentScope?.itemIds}
           onCancel={handleCancelSplitPaymentSelection}
           onConfirm={handleConfirmSplitPaymentSelection}
+          onFinalize={async () => {
+            try {
+              await finalizeOrder(splitPaymentSelectionOrder.id);
+              setSplitPaymentSelectionOrder(null);
+              setSplitPaymentScope(null);
+            } catch (err: any) {
+              alert(err?.message || 'Error al finalizar la comanda.');
+            }
+          }}
           exchangeRates={exchangeRates}
         />
       )}

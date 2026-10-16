@@ -11,6 +11,7 @@ interface SplitPaymentSelectionModalProps {
   initialItemIds?: string[];
   onCancel: () => void;
   onConfirm: (payerName: string, itemIds: string[]) => void;
+  onFinalize?: () => void;
   exchangeRates?: { COP: number; Bs: number };
 }
 
@@ -20,6 +21,7 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
   initialItemIds = [],
   onCancel,
   onConfirm,
+  onFinalize,
   exchangeRates = { COP: 3950, Bs: 36.5 },
 }) => {
   const [payerName, setPayerName] = useState(initialPayerName);
@@ -51,6 +53,9 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
 
   const normalizedPayerName = payerName.trim();
   const canContinue = normalizedPayerName.length > 0 && selectedItemIds.length > 0;
+
+  const unpaidItemsCount = order ? order.items.filter((it) => !it.isPaidIndividually).length : 0;
+  const allItemsPaid = order ? (order.items.length > 0 && unpaidItemsCount === 0) : false;
 
   const copRate = exchangeRates?.COP || 3950;
   const bsRate = exchangeRates?.Bs || 36.5;
@@ -86,6 +91,28 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
 
       {/* 2. BODY SCROLLABLE - AMPLIO Y ESPACIOSO */}
       <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-5xl mx-auto w-full">
+        {/* BANNER SI TODOS LOS ÍTEMS YA FUERON PAGADOS */}
+        {allItemsPaid && (
+          <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">✅</span>
+              <div>
+                <h4 className="font-black text-sm sm:text-base">¡Todos los productos de esta comanda ya fueron pagados!</h4>
+                <p className="text-xs text-emerald-800 font-semibold">No quedan ítems pendientes por cobrar. Puedes finalizar la comanda y liberar la mesa.</p>
+              </div>
+            </div>
+            {onFinalize && (
+              <button
+                type="button"
+                onClick={onFinalize}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm border border-emerald-700 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                ✅ FINALIZAR COMANDA
+              </button>
+            )}
+          </div>
+        )}
+
         {/* INPUT DE NOMBRE DE LA PERSONA */}
         <div className="bg-stone-50 p-5 rounded-3xl border-2 border-gray-200 shadow-xs space-y-2">
           <label className="block text-sm sm:text-base font-black uppercase text-gray-800 tracking-wider flex items-center gap-2">
@@ -257,15 +284,26 @@ export const SplitPaymentSelectionModal: React.FC<SplitPaymentSelectionModalProp
           >
             CANCELAR
           </button>
-          <button
-            type="button"
-            onClick={() => onConfirm(normalizedPayerName, selectedItemIds)}
-            disabled={!canContinue}
-            className="px-6 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm sm:text-base border-2 border-yellow-500 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
-          >
-            <IoReceiptOutline className="text-xl" />
-            <span>CONTINUAR AL COBRO</span>
-          </button>
+          {allItemsPaid && onFinalize ? (
+            <button
+              type="button"
+              onClick={onFinalize}
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base border-2 border-emerald-700 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <IoCheckmarkCircle className="text-xl" />
+              <span>FINALIZAR COMANDA</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onConfirm(normalizedPayerName, selectedItemIds)}
+              disabled={!canContinue}
+              className="px-6 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm sm:text-base border-2 border-yellow-500 flex items-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:bg-gray-200 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              <IoReceiptOutline className="text-xl" />
+              <span>CONTINUAR AL COBRO</span>
+            </button>
+          )}
         </div>
       </footer>
     </div>,

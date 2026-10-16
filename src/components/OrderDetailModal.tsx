@@ -114,7 +114,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const totalCOP = roundCOP(totalUSD * exchangeRates.COP);
   const totalBs = (totalUSD * exchangeRates.Bs).toFixed(2);
 
-  const isPaid = order.paymentStatus === 'pagado';
+  const isPaid = order.paymentStatus === 'pagado' || (paidAmountUSD > 0 && remainingUSD <= 0.05);
   const isCredito = order.paymentStatus === 'credito';
   const isDelivered = order.status === 'entregada';
   const isPrepared = order.status === 'preparada';
