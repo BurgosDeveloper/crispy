@@ -114,12 +114,45 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const totalCOP = roundCOP(totalUSD * exchangeRates.COP);
   const totalBs = (totalUSD * exchangeRates.Bs).toFixed(2);
 
-  const isPaid = order.paymentStatus === 'pagado' || (paidAmountUSD > 0 && remainingUSD <= 0.05);
+  const payments = order.paymentHistory || [];
+  const pendingChangeUSD = (() => {
+    if (payments.length === 0) return 0;
+    let tenderedUSD = 0;
+    let changeGivenUSD = 0;
+    for (const item of payments) {
+      const rateCOP = item.copRate || order.copRateAtPayment || exchangeRates.COP || 3950;
+      const rateBs = item.bsRate || order.bsRateAtPayment || exchangeRates.Bs || 36.5;
+      let entryTendered = item.cashTenderedUSD || 0;
+      if ((item.cashTenderedCOP || 0) > 0) {
+        if ((item.amountPaidUSD || 0) > 0 && rateCOP > 0) {
+          const requiredCOP = roundCOP((item.amountPaidUSD || 0) * rateCOP);
+          const excessCOP = Math.max(0, (item.cashTenderedCOP || 0) - requiredCOP);
+          entryTendered += (item.amountPaidUSD || 0) + excessCOP / rateCOP;
+        } else if (rateCOP > 0) {
+          entryTendered += (item.cashTenderedCOP || 0) / rateCOP;
+        }
+      }
+      if ((item.cashTenderedBs || 0) > 0 && rateBs > 0) {
+        entryTendered += (item.cashTenderedBs || 0) / rateBs;
+      }
+      tenderedUSD += entryTendered;
+      changeGivenUSD +=
+        (item.changeGivenUSD || 0) +
+        (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
+        (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0);
+    }
+    const hasCop = payments.some((p) => (p.cashTenderedCOP || 0) > 0 || (p.changeGivenCOP || 0) > 0);
+    const rateCOPOrd = order.copRateAtPayment || exchangeRates.COP || 3950;
+    const maxTol = Math.max(0.05, hasCop && rateCOPOrd > 0 ? 1000 / rateCOPOrd : 0.05);
+    const rawPendingChange = Math.max(0, tenderedUSD - totalUSD - changeGivenUSD);
+    return rawPendingChange > maxTol ? rawPendingChange : 0;
+  })();
+
+  const isPaid = pendingChangeUSD <= 0 && (order.paymentStatus === 'pagado' || (paidAmountUSD > 0 && remainingUSD <= 0.05));
   const isCredito = order.paymentStatus === 'credito';
   const isDelivered = order.status === 'entregada';
   const isPrepared = order.status === 'preparada';
 
-  const payments = order.paymentHistory || [];
   const hasIndividualPayments = payments.some((p) => (p.itemIds?.length || 0) > 0) || (order.items && order.items.some((it) => it.isPaidIndividually));
   const hasGeneralPayments = payments.some((p) => (!p.itemIds || p.itemIds.length === 0) && (p.amountPaidUSD || 0) > 0);
 
@@ -512,17 +545,36 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                         onPayOrder(order);
                       }}
                       className="py-2.5 px-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all cursor-pointer active:scale-95"
-                      title="Proceder al cobro de la comanda"
+                      title="Proceder al cobro o entrega de vuelto de la comanda"
                     >
                       <IoCashOutline className="text-base" />
-                      <span>COBRAR (${remainingUSD > 0 ? remainingUSD.toFixed(2) : totalUSD.toFixed(2)})</span>
+                      <span>
+                        {pendingChangeUSD > 0
+                          ? `DAR VUELTO ($${pendingChangeUSD.toFixed(2)})`
+                          : `COBRAR ($${remainingUSD > 0 ? remainingUSD.toFixed(2) : totalUSD.toFixed(2)})`}
+                      </span>
                     </button>
                   )
                 ) : isPaid ? (
-                  <div className="py-2.5 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
-                    <IoCashOutline className="text-base text-green-700" />
-                    <span>PAGADO COMPLETO</span>
-                  </div>
+                  onPayOrder && !isDelivered ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onPayOrder(order);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-green-100 hover:bg-green-200 border border-green-300 text-green-900 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                      title="Abrir registro de cobros y vueltos de la comanda"
+                    >
+                      <IoCashOutline className="text-base text-green-700" />
+                      <span>PAGADO COMPLETO</span>
+                    </button>
+                  ) : (
+                    <div className="py-2.5 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
+                      <IoCashOutline className="text-base text-green-700" />
+                      <span>PAGADO COMPLETO</span>
+                    </div>
+                  )
                 ) : null}
 
                 {/* 2. ADICIONAR PRODUCTOS */}

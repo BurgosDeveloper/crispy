@@ -1,4 +1,5 @@
 const { query } = require('../db');
+const { paymentHistoryTotals } = require('./paymentLedger');
 
 function safeJsonParse(val, fallback = []) {
   if (!val) return fallback;
@@ -47,10 +48,21 @@ async function fetchAllOrders() {
   const { rows: payments } = await query(`SELECT * FROM order_payments WHERE order_id = ANY($1::text[]) ORDER BY created_at ASC`, [orderIds]);
 
   return orders.map((ord) => {
+    const orderRawPayments = payments.filter((pm) => pm.order_id === ord.id);
+    const totals = paymentHistoryTotals(orderRawPayments);
     const totalUSD = parseFloat(ord.total_usd) || 0;
     const rawPaidUSD = parseFloat(ord.paid_amount_usd) || 0;
-    const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05);
-    const resolvedPaymentStatus = (isCovered && ord.payment_status !== 'credito') ? 'pagado' : ord.payment_status;
+    const copRateOrd = parseFloat(ord.cop_rate_at_payment) || 3950;
+    const hasCop = orderRawPayments.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
+    const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
+    const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
+    const hasPendingChange = pendingChangeUSD > maxChangeToleranceUSD;
+    const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05) && !hasPendingChange;
+    const resolvedPaymentStatus = ord.payment_status === 'credito'
+      ? 'credito'
+      : hasPendingChange
+      ? (rawPaidUSD > 0.05 ? 'parcial' : 'no_pagado')
+      : (isCovered ? 'pagado' : ord.payment_status);
     const paidAmountUSD = rawPaidUSD || (resolvedPaymentStatus === 'pagado' || resolvedPaymentStatus === 'credito' ? totalUSD : 0);
 
     return {

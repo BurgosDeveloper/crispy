@@ -1,6 +1,42 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+const { execFileSync, execSync } = require('child_process');
 
 let pool = null;
+
+function tryStartLocalPostgres() {
+  if (process.platform !== 'win32') return false;
+  try {
+    const pgBase = path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'PostgreSQL');
+    if (!fs.existsSync(pgBase)) return false;
+    const versions = fs.readdirSync(pgBase).sort((a, b) => Number(b) - Number(a));
+    for (const ver of versions) {
+      const pgCtl = path.join(pgBase, ver, 'bin', 'pg_ctl.exe');
+      const dataDir = path.join(pgBase, ver, 'data');
+      if (fs.existsSync(pgCtl) && fs.existsSync(dataDir)) {
+        try {
+          console.log(`🔄 Iniciando motor PostgreSQL local (${ver}) automáticamente...`);
+          execFileSync(pgCtl, ['start', '-D', dataDir, '-w'], {
+            stdio: 'ignore',
+            windowsHide: true,
+            timeout: 15000,
+          });
+          console.log(`✅ Motor PostgreSQL (${ver}) iniciado correctamente.`);
+          return true;
+        } catch (ctlErr) {
+          try {
+            execSync(`net start postgresql-x64-${ver}`, { stdio: 'ignore', windowsHide: true, timeout: 10000 });
+            return true;
+          } catch (_) {}
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ No se pudo auto-iniciar PostgreSQL local:', err.message);
+  }
+  return false;
+}
 
 async function tryPgPool(dbName, dbPassword) {
   const p = new Pool({
@@ -28,6 +64,7 @@ async function initDb() {
 
   let connectionObj = null;
   let lastError = null;
+  let attemptedAutoStart = false;
 
   // 1. Intentar conectar a la base de datos principal con las contraseñas posibles
   for (const pass of passwordsToTry) {
@@ -36,7 +73,18 @@ async function initDb() {
       if (connectionObj) break;
     } catch (err) {
       lastError = err;
-      if (err.message && err.message.includes(`database "${targetDbName}" does not exist`)) {
+      if (!attemptedAutoStart && (err.code === 'ECONNREFUSED' || (err.message && err.message.includes('ECONNREFUSED')))) {
+        attemptedAutoStart = true;
+        if (tryStartLocalPostgres()) {
+          try {
+            connectionObj = await tryPgPool(targetDbName, pass);
+            if (connectionObj) break;
+          } catch (retryErr) {
+            lastError = retryErr;
+          }
+        }
+      }
+      if (lastError && lastError.message && lastError.message.includes(`database "${targetDbName}" does not exist`)) {
         // La BD no existe pero la contraseña es correcta, intentar crearla
         try {
           console.log(`ℹ️ La base de datos "${targetDbName}" no existe. Creándola automáticamente en PostgreSQL...`);

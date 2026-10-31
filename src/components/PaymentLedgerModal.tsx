@@ -236,8 +236,27 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     if (pendingDebtUSD <= 0.01 && pendingChangeUSD > 0.01 && entryType === 'payment') {
       setEntryType('change');
       setAmountLocal('');
+      const lastCashPayment = [...scopedHistory]
+        .reverse()
+        .find(
+          (m) =>
+            m.entryType !== 'change' &&
+            ((m.cashTenderedCOP || 0) > 0 || (m.cashTenderedUSD || 0) > 0 || (m.cashTenderedBs || 0) > 0)
+        );
+      if (lastCashPayment) {
+        if ((lastCashPayment.cashTenderedCOP || 0) > 0) {
+          setCurrency('COP');
+          setPaymentMethod('Efectivo COP');
+        } else if ((lastCashPayment.cashTenderedBs || 0) > 0) {
+          setCurrency('Bs');
+          setPaymentMethod('Pago Móvil');
+        } else if ((lastCashPayment.cashTenderedUSD || 0) > 0) {
+          setCurrency('USD');
+          setPaymentMethod('Efectivo USD');
+        }
+      }
     }
-  }, [order, pendingDebtUSD, pendingChangeUSD, entryType]);
+  }, [order, pendingDebtUSD, pendingChangeUSD, entryType, scopedHistory]);
 
   if (!order) return null;
 
@@ -263,6 +282,47 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     const val = Number(amountLocal);
     if (!val || val <= 0 || isSubmitting) return;
 
+    if (entryType === 'payment') {
+      if (currency === 'USD') {
+        if (paymentMethod !== 'Efectivo USD' && val > pendingDebtUSD + 0.05) {
+          setError(
+            `Los pagos por ${paymentMethod} no generan vuelto y no pueden exceder el saldo pendiente ($${pendingDebtUSD.toFixed(2)} USD). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`
+          );
+          return;
+        }
+        if (paymentMethod === 'Efectivo USD' && (val > pendingDebtUSD + 100 || (val >= 500 && pendingDebtUSD < 400))) {
+          setError(
+            `El monto ingresado en Dólares ($${val.toLocaleString()} USD) excede el límite permitido para el saldo pendiente de $${pendingDebtUSD.toFixed(2)} USD (máximo $100 USD de vuelto). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`
+          );
+          return;
+        }
+      } else if (currency === 'Bs' && entryUSD > pendingDebtUSD + 100) {
+        setError(
+          `El monto en Bolívares (${val.toLocaleString()} Bs ≈ $${entryUSD.toFixed(2)} USD) excede el límite válido para el saldo pendiente ($${pendingDebtUSD.toFixed(2)} USD). Verifica si la moneda correcta es PESOS (COP).`
+        );
+        return;
+      }
+    } else {
+      if (currency === 'USD' && val >= 100) {
+        setError(
+          `El vuelto en Dólares ($${val.toLocaleString()} USD) es inválido (no puede ser igual o mayor a $100 USD). Si el vuelto es en Pesos Colombianos (ej. ${val.toLocaleString()} COP), selecciona la moneda PESOS (COP).`
+        );
+        return;
+      }
+      if (currency === 'Bs' && entryUSD >= 100) {
+        setError(
+          `El vuelto en Bolívares (${val.toLocaleString()} Bs ≈ $${entryUSD.toFixed(2)} USD) excede el límite permitido. Si el vuelto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`
+        );
+        return;
+      }
+      if (currency === 'USD' && val > pendingChangeUSD + 0.02) {
+        setError(
+          `El vuelto ($${val.toFixed(2)} USD) excede el vuelto pendiente por entregar ($${pendingChangeUSD.toFixed(2)} USD). Si deseas registrar el vuelto en Pesos Colombianos, selecciona la moneda PESOS (COP).`
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setError('');
 
@@ -286,7 +346,8 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
     }
   };
 
-  const isComandaFinalizada = liveOrder?.paymentStatus === 'pagado' || order?.paymentStatus === 'pagado';
+  // Mientras la ventana de cobro esté abierta antes de cerrar/entregar la comanda, siempre permitir eliminar movimientos registrados por error
+  const isComandaFinalizada = false;
 
   const handleRemoveEntry = async (paymentId: string) => {
     if (isSubmitting) return;

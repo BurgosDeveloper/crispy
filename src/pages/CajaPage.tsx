@@ -221,15 +221,57 @@ export const CajaPage: React.FC = () => {
   const [isLoadingReporte, setIsLoadingReporte] = useState<boolean>(false);
   const [reporteError, setReporteError] = useState<string>('');
 
+  const getOrderPendingChangeUSD = (ord: Order): number => {
+    const history = ord.paymentHistory || [];
+    if (history.length === 0) return 0;
+    let tenderedUSD = 0;
+    let changeGivenUSD = 0;
+    for (const item of history) {
+      const rateCOP = item.copRate || ord.copRateAtPayment || exchangeRates.COP || 3950;
+      const rateBs = item.bsRate || ord.bsRateAtPayment || exchangeRates.Bs || 36.5;
+      let entryTendered = item.cashTenderedUSD || 0;
+      if ((item.cashTenderedCOP || 0) > 0) {
+        if ((item.amountPaidUSD || 0) > 0 && rateCOP > 0) {
+          const requiredCOP = roundCOP((item.amountPaidUSD || 0) * rateCOP);
+          const excessCOP = Math.max(0, (item.cashTenderedCOP || 0) - requiredCOP);
+          entryTendered += (item.amountPaidUSD || 0) + excessCOP / rateCOP;
+        } else if (rateCOP > 0) {
+          entryTendered += (item.cashTenderedCOP || 0) / rateCOP;
+        }
+      }
+      if ((item.cashTenderedBs || 0) > 0 && rateBs > 0) {
+        entryTendered += (item.cashTenderedBs || 0) / rateBs;
+      }
+      tenderedUSD += entryTendered;
+      changeGivenUSD +=
+        (item.changeGivenUSD || 0) +
+        (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
+        (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0);
+    }
+    const totalUSD = ord.totalUSD || 0;
+    const hasCop = history.some((p) => (p.cashTenderedCOP || 0) > 0 || (p.changeGivenCOP || 0) > 0);
+    const rateCOPOrd = ord.copRateAtPayment || exchangeRates.COP || 3950;
+    const maxTol = Math.max(0.05, hasCop && rateCOPOrd > 0 ? 1000 / rateCOPOrd : 0.05);
+    const rawPendingChange = Math.max(0, tenderedUSD - totalUSD - changeGivenUSD);
+    return rawPendingChange > maxTol ? rawPendingChange : 0;
+  };
+
+  const isOrderSettled = (o: Order): boolean => {
+    if (getOrderPendingChangeUSD(o) > 0) return false;
+    return (
+      o.paymentStatus === 'pagado' ||
+      o.paymentStatus === 'credito' ||
+      ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)
+    );
+  };
+
   // Comandas activas no finalizadas/pagadas totalmente (excluye canceladas, fusionadas, pagadas y créditos ya entregados)
   const activeComandas = orders.filter(
-    (o) => o.status !== 'cancelado' && o.status !== 'fusionada' && !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05))) && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
+    (o) => o.status !== 'cancelado' && o.status !== 'fusionada' && !(o.status === 'entregada' && isOrderSettled(o)) && (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
   );
   const paidOrdersToday = orders.filter(
     (o) =>
-      (o.paymentStatus === 'pagado' ||
-        o.paymentStatus === 'credito' ||
-        ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)) &&
+      isOrderSettled(o) &&
       (!o.shift || o.shift === 'ambos' || o.shift === userSession?.shift)
   );
 
@@ -369,6 +411,13 @@ export const CajaPage: React.FC = () => {
   const handleManualTxSubmit = async () => {
     const amount = parseFloat(manualAmountUSD);
     if (!Number.isFinite(amount) || amount <= 0) return;
+
+    if (manualCurrency === 'USD' && (amount >= 1000 || (manualType === 'egreso' && amount > 500))) {
+      alert(
+        `⚠️ El monto ingresado en Dólares ($${amount.toLocaleString()} USD) excede el límite permitido y parece corresponder a Pesos Colombianos (COP). Si el movimiento es en Pesos, selecciona la moneda COP.`
+      );
+      return;
+    }
 
     const doSubmit = async () => {
       await addCajaTransaction({
@@ -714,8 +763,9 @@ export const CajaPage: React.FC = () => {
               {activeComandas.map((ord) => {
                 const paid = ord.paidAmountUSD || 0;
                 const remaining = Math.max(0, ord.totalUSD - paid);
+                const pendingChangeUSD = getOrderPendingChangeUSD(ord);
                 const isPrepared = ord.status === 'preparada' || ord.status === 'entregada';
-                const isPaid = ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05);
+                const isPaid = pendingChangeUSD <= 0 && (ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05));
                 const isDelivered = ord.status === 'entregada';
                 const isSelectedForMultiPay = selectedOrderIdsForMultiPay.includes(ord.id);
                 const isExpanded = expandedOrderIds.includes(ord.id);
@@ -883,6 +933,8 @@ export const CajaPage: React.FC = () => {
                                 <IoCard />
                                 <span>💳 PAGADO</span>
                               </>
+                            ) : pendingChangeUSD > 0 ? (
+                              <span>💵 VUELTO PENDIENTE (${pendingChangeUSD.toFixed(2)})</span>
                             ) : (
                               <>
                                 <IoCloseCircle />
@@ -1016,7 +1068,11 @@ export const CajaPage: React.FC = () => {
                                   className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-sm flex items-center justify-center gap-2 border border-yellow-500 shadow-sm transition-all cursor-pointer"
                                 >
                                   <IoCashOutline className="text-base" />
-                                  <span>COBRAR (${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})</span>
+                                  <span>
+                                    {pendingChangeUSD > 0
+                                      ? `DAR VUELTO ($${pendingChangeUSD.toFixed(2)})`
+                                      : `COBRAR ($${remaining > 0 ? remaining.toFixed(2) : ord.totalUSD.toFixed(2)})`}
+                                  </span>
                                 </button>
                               )}
 
@@ -1041,10 +1097,15 @@ export const CajaPage: React.FC = () => {
                           );
                         })()
                       ) : (
-                        <div className="py-2 px-3 rounded-xl bg-green-100 border border-green-300 text-green-900 text-xs font-black flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPayModal(ord)}
+                          className="py-2 px-3 rounded-xl bg-green-100 hover:bg-green-200 border border-green-300 text-green-900 text-xs font-black flex items-center gap-1 cursor-pointer transition-all"
+                          title="Abrir registro de cobros y vueltos de la comanda"
+                        >
                           <IoCheckmarkCircle className="text-base text-green-700" />
                           <span>💳 PAGADO</span>
-                        </div>
+                        </button>
                       )}
 
                       {/* Botón Entregar / Reactivar (Quita la comanda si se cobró o la reactiva) */}
@@ -1149,8 +1210,9 @@ export const CajaPage: React.FC = () => {
               {activeComandas.map((ord) => {
                 const paid = ord.paidAmountUSD || 0;
                 const remaining = Math.max(0, ord.totalUSD - paid);
+                const pendingChangeUSD = getOrderPendingChangeUSD(ord);
                 const isPrepared = ord.status === 'preparada' || ord.status === 'entregada';
-                const isPaid = ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05);
+                const isPaid = pendingChangeUSD <= 0 && (ord.paymentStatus === 'pagado' || (paid > 0 && remaining <= 0.05));
                 const isDelivered = ord.status === 'entregada';
                 const isSelectedForMultiPay = selectedOrderIdsForMultiPay.includes(ord.id);
 
@@ -1229,6 +1291,8 @@ export const CajaPage: React.FC = () => {
                               <IoCard />
                               <span>💳 PAGADO</span>
                             </>
+                          ) : pendingChangeUSD > 0 ? (
+                            <span>💵 VUELTO PENDIENTE (${pendingChangeUSD.toFixed(2)})</span>
                           ) : (
                             <>
                               <IoCloseCircle />
@@ -1410,7 +1474,11 @@ export const CajaPage: React.FC = () => {
                                     className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-black text-xs flex items-center justify-center gap-1.5 border border-yellow-500 shadow-sm transition-all cursor-pointer"
                                   >
                                     <IoCashOutline className="text-base" />
-                                    <span>💳 COBRAR (${(ord.totalUSD - (ord.paidAmountUSD || 0)).toFixed(2)})</span>
+                                    <span>
+                                      {pendingChangeUSD > 0
+                                        ? `💵 DAR VUELTO ($${pendingChangeUSD.toFixed(2)})`
+                                        : `💳 COBRAR ($${Math.max(0, ord.totalUSD - (ord.paidAmountUSD || 0)).toFixed(2)})`}
+                                    </span>
                                   </button>
                                 )}
 
@@ -1435,10 +1503,15 @@ export const CajaPage: React.FC = () => {
                           })()}
                         </>
                       ) : (
-                        <div className="p-2 rounded-xl bg-green-100 border border-green-300 text-green-900 text-[11px] font-black text-center flex items-center justify-center gap-1 sm:col-span-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPayModal(ord)}
+                          className="p-2 rounded-xl bg-green-100 hover:bg-green-200 border border-green-300 text-green-900 text-[11px] font-black text-center flex items-center justify-center gap-1 sm:col-span-2 cursor-pointer transition-all"
+                          title="Abrir registro de cobros y vueltos de la comanda"
+                        >
                           <IoCheckmarkCircle className="text-sm text-green-700" />
                           <span>💳 PAGADO</span>
-                        </div>
+                        </button>
                       )}
 
                       {!isDelivered ? (

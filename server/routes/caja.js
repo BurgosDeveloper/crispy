@@ -95,6 +95,12 @@ module.exports = function(io) {
         return res.status(400).json({ error: 'El movimiento debe tener tipo y un monto positivo válido.' });
       }
 
+      if (normalizedUSD >= 1000 || (type === 'egreso' && normalizedUSD > 500)) {
+        return res.status(400).json({
+          error: `El monto en Dólares ($${normalizedUSD.toLocaleString()} USD) excede el límite permitido y parece corresponder a Pesos Colombianos (COP). Si el movimiento es en Pesos, selecciona la moneda COP.`,
+        });
+      }
+
       if (typeof paymentMethod !== 'string' || !paymentMethod.trim()) {
         return res.status(400).json({ error: 'El movimiento debe indicar un método de pago.' });
       }

@@ -134,6 +134,32 @@ module.exports = function(io) {
           return res.status(409).json({ error: 'El monto a pagar para esta selección ya está cubierto. Registra únicamente el vuelto pendiente si aplica.' });
         }
 
+        if (currency === 'USD') {
+          if (paymentMethod !== 'Efectivo USD' && localAmount > scopePendingDebtUSD + 0.05) {
+            await client.query('ROLLBACK');
+            client.release();
+            client = null;
+            return res.status(400).json({
+              error: `Los pagos por ${paymentMethod} no generan vuelto y no pueden exceder el saldo pendiente ($${scopePendingDebtUSD.toFixed(2)} USD). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`,
+            });
+          }
+          if (paymentMethod === 'Efectivo USD' && (localAmount > scopePendingDebtUSD + 100 || (localAmount >= 500 && scopePendingDebtUSD < 400))) {
+            await client.query('ROLLBACK');
+            client.release();
+            client = null;
+            return res.status(400).json({
+              error: `El monto ingresado en Dólares ($${localAmount.toLocaleString()} USD) excede el límite permitido para el saldo pendiente de $${scopePendingDebtUSD.toFixed(2)} USD (máximo $100 USD de vuelto). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`,
+            });
+          }
+        } else if (currency === 'Bs' && amountUSD > scopePendingDebtUSD + 100) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(400).json({
+            error: `El monto en Bolívares (${localAmount.toLocaleString()} Bs ≈ $${amountUSD.toFixed(2)} USD) excede el límite válido para el saldo pendiente ($${scopePendingDebtUSD.toFixed(2)} USD). Verifica si la moneda correcta es PESOS (COP).`,
+          });
+        }
+
         // El monto imputado al pago (principal) es el mínimo entre lo entregado (amountUSD) y la deuda pendiente.
         // En COP, si el cliente paga el monto comercial redondeado, cubre la totalidad de la deuda.
         if (currency === 'COP') {
@@ -148,12 +174,32 @@ module.exports = function(io) {
         }
         tendered = paymentAmounts(localAmount, currency);
       } else {
+        if (currency === 'USD' && localAmount >= 100) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(400).json({
+            error: `El vuelto en Dólares ($${localAmount.toLocaleString()} USD) es inválido (no puede ser igual o mayor a $100 USD). Si el vuelto es en Pesos Colombianos (ej. ${localAmount.toLocaleString()} COP), selecciona la moneda PESOS (COP).`,
+          });
+        }
+        if (currency === 'Bs' && amountUSD >= 100) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(400).json({
+            error: `El vuelto en Bolívares (${localAmount.toLocaleString()} Bs ≈ $${amountUSD.toFixed(2)} USD) excede el límite permitido. Si el vuelto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`,
+          });
+        }
         const copToleranceUSD = currency === 'COP' && copRate > 0 ? (1000 / copRate) : 0.02;
         if (amountUSD > pendingChangeUSD + copToleranceUSD) {
           await client.query('ROLLBACK');
           client.release();
           client = null;
-          return res.status(400).json({ error: 'El vuelto excede el monto pendiente por entregar.' });
+          return res.status(400).json({
+            error: currency === 'USD'
+              ? `El vuelto ($${localAmount.toFixed(2)} USD) excede el vuelto pendiente por entregar ($${pendingChangeUSD.toFixed(2)} USD). Si deseas registrar el vuelto en Pesos Colombianos, selecciona la moneda PESOS (COP).`
+              : 'El vuelto excede el monto pendiente por entregar.',
+          });
         }
         change = changeAmounts(localAmount, currency);
       }
@@ -171,8 +217,27 @@ module.exports = function(io) {
         ]
       );
 
-      const paidAmountUSD = totals.paidUSD + amountPaidUSD;
-      const isFullPaid = paidAmountUSD >= (orderTotal - 0.05);
+      const updatedPaymentRows = [
+        ...paymentRows,
+        {
+          amount_paid_usd: amountPaidUSD,
+          cash_tendered_usd: tendered.cashTenderedUSD,
+          cash_tendered_cop: tendered.cashTenderedCOP,
+          cash_tendered_bs: tendered.cashTenderedBs,
+          change_given_usd: change.changeGivenUSD,
+          change_given_cop: change.changeGivenCOP,
+          change_given_bs: change.changeGivenBs,
+          cop_rate: copRate,
+          bs_rate: bsRate,
+        },
+      ];
+      const updatedTotals = paymentHistoryTotals(updatedPaymentRows);
+      const paidAmountUSD = updatedTotals.paidUSD;
+      const newPendingDebtUSD = Math.max(0, orderTotal - paidAmountUSD);
+      const newPendingChangeUSD = Math.max(0, updatedTotals.tenderedUSD - orderTotal - updatedTotals.changeGivenUSD);
+      const hasCopMovement = updatedPaymentRows.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
+      const maxChangeToleranceUSD = Math.max(0.05, hasCopMovement && copRate > 0 ? 1000 / copRate : 0.05);
+      const isFullPaid = newPendingDebtUSD <= 0.05 && newPendingChangeUSD <= maxChangeToleranceUSD && paidAmountUSD > 0;
       const nextPaymentStatus = isFullPaid ? 'pagado' : (paidAmountUSD > 0.05 ? 'parcial' : 'no_pagado');
       await client.query(
         `UPDATE orders SET payment_status = $1, payment_method = $2, paid_amount_usd = $3,
@@ -448,7 +513,7 @@ module.exports = function(io) {
       const total = parseFloat(order.total_usd || 0);
       const pendingDebtUSD = Math.max(0, total - newPaid);
       const pendingChangeUSD = Math.max(0, remainingTotals.tenderedUSD - total - remainingTotals.changeGivenUSD);
-      const newStatus = pendingDebtUSD <= 0.05 && pendingChangeUSD <= 0.05 ? 'pagado' : 'no_pagado';
+      const newStatus = newPaid > 0 && pendingDebtUSD <= 0.05 && pendingChangeUSD <= 0.05 ? 'pagado' : 'no_pagado';
 
       await client.query(`UPDATE orders SET paid_amount_usd = $1, payment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, [newPaid, newStatus, id]);
 

@@ -871,7 +871,19 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 3. **Flujo de Cobro Dividido por Persona (X Personas)**:
    - En la modal `SplitPaymentSelectionModal`, si todos los ítems de la orden ya fueron pagados individualmente, se presenta un banner informativo y el botón de acción rápida `✅ FINALIZAR COMANDA`, permitiendo liquidar la orden directamente en caso de ser abierta.
 
+## 18. Protección de Vueltos Pendientes, Anulación Directa antes de Cerrar y Guardas Moneda USD vs COP
 
+1. **Vueltos Pendientes (`pendingChangeUSD`) y Reingreso al Cobro**:
+   - Cuando se registra un pago en efectivo mayor al total de la comanda (`tenderedUSD > totalUSD`), la comanda **NO** pasa a estado `'pagado'` mientras exista vuelto pendiente por entregar (`pendingChangeUSD > tolerancia`), manteniéndose en `'parcial'`.
+   - Si el cajero cierra temporalmente la ventana de cobro (`PaymentLedgerModal`) antes de entregar el vuelto, la tarjeta en `CajaPage` y `OrderDetailModal` muestra el estado `💵 VUELTO PENDIENTE ($...)` y el botón activo `💵 DAR VUELTO ($...)` para reingresar de inmediato a registrar el vuelto o finalizar la comanda.
+   - Al cambiar automáticamente al modo `Vueltos` (`entryType = 'change'`), la ventana de cobro selecciona automáticamente la moneda del último pago en efectivo recibido (por ejemplo `PESOS (COP)` si el cliente pagó en pesos).
 
+2. **Eliminación Directa de Movimientos antes de Cerrar Comanda**:
+   - Mientras la ventana de cobro (`PaymentLedgerModal`) está abierta sobre una comanda activa, el botón de papelera (`🗑️ Anular este movimiento`) permanece siempre habilitado para corregir cualquier pago o vuelto registrado en la cuenta o moneda equivocada sin necesidad de salir a "Editar Comanda".
 
+3. **Guardas Contables contra Montos de Pesos (COP) Ingresados en Dólares (USD)**:
+   - Tanto en `PaymentLedgerModal` como en `POST /api/orders/:id/ledger` y en movimientos manuales de Caja Chica (`POST /api/caja-chica/transaction`), el sistema bloquea montos de denominación en Pesos (ej. `5000`) cuando la moneda seleccionada es `DÓLARES (USD)` (exceso de pago en efectivo mayor a `$100 USD`, pagos digitales que excedan la deuda, o vueltos en USD iguales o mayores a `$100 USD`), indicando al usuario cambiar la moneda a `PESOS (COP)`.
+
+4. **Auto-Arranque del Motor PostgreSQL en Windows**:
+   - Si el servicio `postgresql-x64-*` se encuentra detenido tras reiniciar el PC (modo de inicio `Manual`), tanto `scripts/launch-pos.js` como `server/db.js` ejecutan automáticamente `pg_ctl.exe start -D "<dataDir>" -w` para levantar PostgreSQL antes de iniciar el backend en el puerto `3001`.
 

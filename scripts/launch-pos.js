@@ -1,12 +1,45 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const { spawn, execSync, execFileSync } = require('child_process');
 
 const rootDir = path.join(__dirname, '..');
 const port = 3001;
-const startupTimeoutMs = 15000;
+const startupTimeoutMs = 20000;
 const retryDelayMs = 250;
+
+function ensurePostgresRunning() {
+  if (process.platform !== 'win32') return;
+  try {
+    const outNet = execSync('netstat -ano | findstr :5432', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    if (outNet && outNet.includes('LISTENING')) return;
+  } catch (_) {}
+
+  try {
+    const pgBase = path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'PostgreSQL');
+    if (!fs.existsSync(pgBase)) return;
+    const versions = fs.readdirSync(pgBase).sort((a, b) => Number(b) - Number(a));
+    for (const ver of versions) {
+      const pgCtl = path.join(pgBase, ver, 'bin', 'pg_ctl.exe');
+      const dataDir = path.join(pgBase, ver, 'data');
+      if (fs.existsSync(pgCtl) && fs.existsSync(dataDir)) {
+        try {
+          execFileSync(pgCtl, ['start', '-D', dataDir, '-w'], {
+            stdio: 'ignore',
+            windowsHide: true,
+            timeout: 15000,
+          });
+          return;
+        } catch (_) {
+          try {
+            execSync(`net start postgresql-x64-${ver}`, { stdio: 'ignore', windowsHide: true, timeout: 10000 });
+            return;
+          } catch (__) {}
+        }
+      }
+    }
+  } catch (_) {}
+}
 
 function killOldPosInstances() {
   try {
@@ -147,8 +180,9 @@ async function launch() {
     console.log('El servidor POS no está activo aún. Iniciando...');
   }
 
-  // 2. Si no responde, asegurar puerto 3001 e iniciar backend
+  // 2. Si no responde, asegurar PostgreSQL, liberar puerto 3001 e iniciar backend
   killOldPosInstances();
+  ensurePostgresRunning();
   startBackend();
 
   // 3. Esperar a que el backend esté listo

@@ -234,10 +234,21 @@ module.exports = function(io) {
             createdAt: ed.created_at,
           }));
 
+        const rawOrderPayments = paymentRows.filter((pm) => pm.order_id === ord.id);
+        const totals = paymentHistoryTotals(rawOrderPayments);
         const totalUSD = parseFloat(ord.total_usd) || 0;
         const rawPaidUSD = parseFloat(ord.paid_amount_usd) || 0;
-        const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05);
-        const resolvedPaymentStatus = (isCovered && ord.payment_status !== 'credito') ? 'pagado' : ord.payment_status;
+        const copRateOrd = parseFloat(ord.cop_rate_at_payment) || 3950;
+        const hasCop = rawOrderPayments.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
+        const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
+        const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
+        const hasPendingChange = pendingChangeUSD > maxChangeToleranceUSD;
+        const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05) && !hasPendingChange;
+        const resolvedPaymentStatus = ord.payment_status === 'credito'
+          ? 'credito'
+          : hasPendingChange
+          ? (rawPaidUSD > 0.05 ? 'parcial' : 'no_pagado')
+          : (isCovered ? 'pagado' : ord.payment_status);
         const paidAmountUSD = rawPaidUSD || (resolvedPaymentStatus === 'pagado' || resolvedPaymentStatus === 'credito' ? totalUSD : 0);
 
         return {
@@ -470,15 +481,19 @@ module.exports = function(io) {
       if (status === 'entregada') {
         const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
         const totals = paymentHistoryTotals(paymentRows);
-        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status, paid_amount_usd FROM orders WHERE id = $1', [id]);
+        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status, paid_amount_usd, cop_rate_at_payment FROM orders WHERE id = $1', [id]);
         const ord = currentOrd[0];
         const totalUSD = Number(ord?.total_usd) || 0;
         const currentPaidUSD = Number(ord?.paid_amount_usd) || 0;
         const effectivePaid = Math.max(totals.paidUSD, currentPaidUSD);
+        const copRateOrd = Number(ord?.cop_rate_at_payment) || 3950;
+        const hasCop = paymentRows.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
+        const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
+        const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
 
-        // Si la comanda ya tiene cubierto el total de su cuenta en pagos registrados (ej: pagada por personas o antes de reactivar),
+        // Si la comanda ya tiene cubierto el total de su cuenta en pagos registrados y NO tiene vuelto pendiente,
         // asegurar que su payment_status sea 'pagado' para que se retire de la mesa y pase al histórico
-        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0) {
+        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0 && pendingChangeUSD <= maxChangeToleranceUSD) {
           await client.query(
             `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1 WHERE id = $2`,
             [Math.min(effectivePaid, totalUSD), id]
@@ -923,7 +938,8 @@ module.exports = function(io) {
           [id]
         );
       } else {
-        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0) {
+        const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
+        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0 && pendingChangeUSD <= 0.05) {
           nextPaymentStatus = 'pagado';
           nextPaidAmount = Math.min(effectivePaid, totalUSD);
         } else if (effectivePaid > 0.05) {
