@@ -112,7 +112,7 @@ module.exports = function(io) {
         if (paymentStatus === 'cancelado') {
           conditions.push(`orders.status = 'cancelado'`);
         } else if (paymentStatus === 'pagado') {
-          conditions.push(`(orders.payment_status = 'pagado' OR (CAST(orders.paid_amount_usd AS NUMERIC) >= (CAST(orders.total_usd AS NUMERIC) - 0.05) AND CAST(orders.paid_amount_usd AS NUMERIC) > 0 AND orders.payment_status != 'credito')) AND orders.status != 'cancelado'`);
+          conditions.push(`(orders.payment_status = 'pagado' OR (CAST(orders.paid_amount_usd AS NUMERIC) >= (CAST(orders.total_usd AS NUMERIC) - 0.05) AND CAST(orders.paid_amount_usd AS NUMERIC) > 0 AND orders.payment_status NOT IN ('credito', 'parcial'))) AND orders.status != 'cancelado'`);
         } else {
           params.push(paymentStatus);
           conditions.push(`orders.payment_status = $${params.length} AND orders.status != 'cancelado'`);
@@ -241,8 +241,9 @@ module.exports = function(io) {
         const copRateOrd = parseFloat(ord.cop_rate_at_payment) || 3950;
         const hasCop = rawOrderPayments.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
         const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
-        const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
-        const hasPendingChange = pendingChangeUSD > maxChangeToleranceUSD;
+        const isAlreadyClosedPaid = Boolean(ord.archived_at) || (ord.status === 'entregada' && ord.payment_status === 'pagado');
+        const pendingChangeUSD = isAlreadyClosedPaid ? 0 : Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
+        const hasPendingChange = !isAlreadyClosedPaid && pendingChangeUSD > maxChangeToleranceUSD;
         const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05) && !hasPendingChange;
         const resolvedPaymentStatus = ord.payment_status === 'credito'
           ? 'credito'
@@ -281,7 +282,11 @@ module.exports = function(io) {
         };
       });
 
-      res.json(mappedOrders);
+      const finalOrders = paymentStatus === 'pagado'
+        ? mappedOrders.filter((o) => o.paymentStatus === 'pagado' && o.status !== 'cancelado')
+        : mappedOrders;
+
+      res.json(finalOrders);
     } catch (err) {
       console.error('Error buscando comandas históricas:', err);
       res.status(500).json({ error: 'Error al buscar comandas en el histórico.' });
@@ -468,44 +473,64 @@ module.exports = function(io) {
       client = await getClient();
       await client.query('BEGIN');
       await assertOrderAccess(client, req.user, id);
-      const { rows } = await client.query(
-        `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id`,
-        [status, id]
+      const { rows: currentOrd } = await client.query(
+        'SELECT id, total_usd, payment_status, paid_amount_usd, cop_rate_at_payment FROM orders WHERE id = $1',
+        [id]
       );
-      if (rows.length === 0) {
+      if (currentOrd.length === 0) {
         await client.query('ROLLBACK');
         client.release();
         client = null;
         return res.status(404).json({ error: 'Comanda no encontrada.' });
       }
-      if (status === 'entregada') {
+
+      const ord = currentOrd[0];
+      if (status === 'entregada' && ord.payment_status !== 'credito') {
         const { rows: paymentRows } = await client.query('SELECT * FROM order_payments WHERE order_id = $1', [id]);
         const totals = paymentHistoryTotals(paymentRows);
-        const { rows: currentOrd } = await client.query('SELECT total_usd, payment_status, paid_amount_usd, cop_rate_at_payment FROM orders WHERE id = $1', [id]);
-        const ord = currentOrd[0];
-        const totalUSD = Number(ord?.total_usd) || 0;
-        const currentPaidUSD = Number(ord?.paid_amount_usd) || 0;
+        const totalUSD = Number(ord.total_usd) || 0;
+        const currentPaidUSD = Number(ord.paid_amount_usd) || 0;
         const effectivePaid = Math.max(totals.paidUSD, currentPaidUSD);
-        const copRateOrd = Number(ord?.cop_rate_at_payment) || 3950;
+        const copRateOrd = Number(ord.cop_rate_at_payment) || 3950;
         const hasCop = paymentRows.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
         const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
+        const pendingDebtUSD = Math.max(0, totalUSD - effectivePaid);
         const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
 
-        // Si la comanda ya tiene cubierto el total de su cuenta en pagos registrados y NO tiene vuelto pendiente,
-        // asegurar que su payment_status sea 'pagado' para que se retire de la mesa y pase al histórico
-        if (effectivePaid >= (totalUSD - 0.05) && effectivePaid > 0 && pendingChangeUSD <= maxChangeToleranceUSD) {
-          await client.query(
-            `UPDATE orders SET payment_status = 'pagado', paid_amount_usd = $1 WHERE id = $2`,
-            [Math.min(effectivePaid, totalUSD), id]
-          );
+        if (pendingDebtUSD > 0.05 || (totalUSD > 0 && effectivePaid <= 0)) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(409).json({
+            error: `No se puede entregar la comanda porque aún tiene saldo pendiente por cobrar ($${pendingDebtUSD.toFixed(2)} USD). Primero debe cuadrarse el pago completo.`
+          });
         }
+
+        if (pendingChangeUSD > maxChangeToleranceUSD) {
+          await client.query('ROLLBACK');
+          client.release();
+          client = null;
+          return res.status(409).json({
+            error: `No se puede entregar la comanda porque aún tiene vuelto pendiente por entregar ($${pendingChangeUSD.toFixed(2)} USD). Primero debe registrarse el vuelto completo.`
+          });
+        }
+
+        await client.query(
+          `UPDATE orders SET status = 'entregada', payment_status = 'pagado', paid_amount_usd = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [Math.min(effectivePaid, totalUSD), id]
+        );
+      } else {
+        await client.query(
+          `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [status, id]
+        );
       }
 
       if (status === 'entregada' || status === 'cancelado') {
         const { rows: ordRows } = await client.query('SELECT table_number, type FROM orders WHERE id = $1', [id]);
         if (ordRows[0]?.type === 'mesa' && ordRows[0]?.table_number) {
           const { rows: otherOrders } = await client.query(
-            `SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL`,
+            `SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL AND NOT (status = 'entregada' AND payment_status = 'pagado')`,
             [ordRows[0].table_number, id]
           );
           if (otherOrders.length === 0) {

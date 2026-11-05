@@ -369,6 +369,15 @@ async function initDb() {
           AND CAST(paid_amount_usd AS NUMERIC) >= (CAST(total_usd AS NUMERIC) - 0.05) 
           AND CAST(paid_amount_usd AS NUMERIC) > 0
       `);
+      // Rescatar cualquier comanda activa (no archivada) que haya sido marcada como 'entregada'
+      // teniendo aún cobro parcial, vuelto pendiente o saldo sin pagar, para que jamás desaparezca del tablero
+      await client.query(`
+        UPDATE orders 
+        SET status = 'preparada' 
+        WHERE status = 'entregada' 
+          AND payment_status IN ('no_pagado', 'parcial') 
+          AND archived_at IS NULL
+      `);
     } catch (reconcileErr) {
       console.warn('Aviso en reconciliación de órdenes pagadas:', reconcileErr.message);
     }

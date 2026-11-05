@@ -58,6 +58,8 @@ async function runTests() {
   }
 
   let createdOrderId = null;
+  let deliveryOrderId = null;
+  let pickupOrderId = null;
   try {
     await query(`UPDATE tables_config SET status = 'libre' WHERE number = 7`);
 
@@ -79,6 +81,40 @@ async function runTests() {
     createdOrderId = order.id;
     assert(createRes.status === 201 && createdOrderId, 'Comanda creada exitosamente ($14.00 USD)');
 
+    console.log('\n🚫 1.B Validando que NO se permite marcar como ENTREGADA sin haber cobrado ni con abono parcial...');
+    const deliverUnpaidRes = await fetch(`${baseUrl}/orders/${createdOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(deliverUnpaidRes.status === 409, 'Bloqueado (HTTP 409) intento de entregar comanda sin pago');
+
+    // Registrar abono parcial ($5.00 USD de $14.00 USD) y minimizar con X
+    const partialRes = await fetch(`${baseUrl}/orders/${createdOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 5,
+        paymentMethod: 'Efectivo USD',
+        payerName: 'Cliente Prueba Vueltos',
+      }),
+    });
+    const orderAfterPartial = await partialRes.json();
+    assert(partialRes.status === 200 && orderAfterPartial.paymentStatus === 'parcial', 'Abono parcial de $5.00 USD registrado (estado parcial)');
+
+    const deliverPartialRes = await fetch(`${baseUrl}/orders/${createdOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(deliverPartialRes.status === 409, 'Bloqueado (HTTP 409) intento de entregar comanda con abono parcial ($9.00 USD pendientes)');
+
+    // Limpiar el abono parcial para continuar con la prueba de pago con excedente
+    const partialPayId = orderAfterPartial.paymentHistory[0]?.id;
+    await fetch(`${baseUrl}/orders/${createdOrderId}/payments/${partialPayId}`, { method: 'DELETE' });
+
     console.log('\n💵 2. [CASO A & B] Registrando pago con dinero de más ($20.00 Efectivo USD para dar $6.00 de vuelto)...');
     const payExcessRes = await fetch(`${baseUrl}/orders/${createdOrderId}/ledger`, {
       method: 'POST',
@@ -96,6 +132,16 @@ async function runTests() {
     assert(
       orderAfterExcess.paymentStatus !== 'pagado',
       `Comanda con vuelto pendiente ($6.00 USD) NO se marca como 'pagado' prematuramente (estado actual: '${orderAfterExcess.paymentStatus}')`
+    );
+
+    const deliverWithPendingChangeRes = await fetch(`${baseUrl}/orders/${createdOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(
+      deliverWithPendingChangeRes.status === 409,
+      'Bloqueado (HTTP 409) intento de entregar comanda mientras tenga vuelto pendiente ($6.00 USD) — jamás desaparece en un limbo'
     );
 
     const allOrdersSync = await fetchAllOrders(cajaUser);
@@ -217,16 +263,148 @@ async function runTests() {
     const egresosCOP = cajaRows.filter((r) => r.type === 'egreso').reduce((s, r) => s + Number(r.amount_cop), 0);
     assert(ingresosCOP === 70000 && egresosCOP === 14700 && (ingresosCOP - egresosCOP) === 55300, 'Contabilidad en Caja Chica exacta: +70,000 COP ingreso, -14,700 COP vuelto = +55,300 COP netos ($14.00 USD)');
 
+    console.log('\n🔄 6. Probando Reactivación de Mesa #7 ya cuadrada y cierre con botón Entregar...');
+    const reopenRes = await fetch(`${baseUrl}/orders/${createdOrderId}/reopen`, {
+      method: 'POST',
+    });
+    const reopenedOrder = await reopenRes.json();
+    assert(reopenRes.status === 200 && reopenedOrder.status === 'preparada' && reopenedOrder.paymentStatus === 'pagado', 'Mesa #7 reactivada correctamente manteniendo su cuenta cuadrada (pagado)');
+
+    const deliverReopenedRes = await fetch(`${baseUrl}/orders/${createdOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    const deliveredAgainOrder = await deliverReopenedRes.json();
+    assert(deliverReopenedRes.status === 200 && deliveredAgainOrder.status === 'entregada' && deliveredAgainOrder.paymentStatus === 'pagado', 'Al estar cuadrada, el botón Entregar cierra la Mesa #7 reactivada y la devuelve a Histórico');
+
+    console.log('\n🛵 7. Probando Delivery y PickUp: bloqueo de Entregar sin cuadrar y éxito al cuadrar...');
+    const createDelRes = await fetch(`${baseUrl}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'delivery',
+        customerName: 'Delivery Test',
+        deliveryFeeUSD: 1,
+        items: [{ productId: 'prod-bistro', productName: 'BISTRO', price: 9, quantity: 1 }],
+        totalUSD: 10,
+      }),
+    });
+    const delOrd = await createDelRes.json();
+    deliveryOrderId = delOrd.id;
+    assert(createDelRes.status === 201 && Boolean(deliveryOrderId), 'Orden Delivery creada exitosamente ($10.00 USD)');
+
+    await new Promise((r) => setTimeout(r, 15));
+    const createPickRes = await fetch(`${baseUrl}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'pickup',
+        customerName: 'PickUp Test',
+        items: [{ productId: 'prod-bistro', productName: 'BISTRO', price: 8, quantity: 1 }],
+        totalUSD: 8,
+      }),
+    });
+    const pickOrd = await createPickRes.json();
+    pickupOrderId = pickOrd.id;
+    assert(createPickRes.status === 201 && Boolean(pickupOrderId), 'Orden PickUp creada exitosamente ($8.00 USD)');
+
+    // Intento de entregar Delivery sin pagar -> 409
+    const delFail1 = await fetch(`${baseUrl}/orders/${deliveryOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(delFail1.status === 409, 'Delivery sin pagar NO permite Entregar (HTTP 409)');
+
+    // Pago con vuelto pendiente en Delivery ($20 para $10) -> 409 al intentar entregar
+    await fetch(`${baseUrl}/orders/${deliveryOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 20,
+        paymentMethod: 'Efectivo USD',
+        payerName: 'Delivery Test',
+      }),
+    });
+    const delFail2 = await fetch(`${baseUrl}/orders/${deliveryOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(delFail2.status === 409, 'Delivery con vuelto pendiente ($10 USD) NO permite Entregar (HTTP 409)');
+
+    // Registrar el vuelto de $10 USD en Delivery -> ahora SÍ permite Entregar
+    await fetch(`${baseUrl}/orders/${deliveryOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'change',
+        currency: 'USD',
+        amountLocal: 10,
+        paymentMethod: 'Efectivo USD',
+        payerName: 'Delivery Test',
+      }),
+    });
+    const delOk = await fetch(`${baseUrl}/orders/${deliveryOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    const delFinal = await delOk.json();
+    assert(delOk.status === 200 && delFinal.status === 'entregada' && delFinal.paymentStatus === 'pagado', 'Delivery 100% cuadrado en cobro y vuelto permite Entregar y pasa a Histórico');
+
+    // PickUp con abono parcial ($3 de $8) -> 409 al intentar entregar
+    await fetch(`${baseUrl}/orders/${pickupOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 3,
+        paymentMethod: 'Zelle',
+        payerName: 'PickUp Test',
+      }),
+    });
+    const pickFail = await fetch(`${baseUrl}/orders/${pickupOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(pickFail.status === 409, 'PickUp con abono parcial ($3 de $8) NO permite Entregar (HTTP 409)');
+
+    // Completar los $5 restantes en PickUp -> ahora SÍ permite Entregar
+    await fetch(`${baseUrl}/orders/${pickupOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 5,
+        paymentMethod: 'Efectivo USD',
+        payerName: 'PickUp Test',
+      }),
+    });
+    const pickOk = await fetch(`${baseUrl}/orders/${pickupOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    const pickFinal = await pickOk.json();
+    assert(pickOk.status === 200 && pickFinal.status === 'entregada' && pickFinal.paymentStatus === 'pagado', 'PickUp 100% cuadrado permite Entregar y pasa a Histórico');
+
     console.log(`\n🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE (${passed}/${total})`);
   } finally {
-    if (createdOrderId) {
-      await query(`DELETE FROM caja_chica_transactions WHERE order_id = $1`, [createdOrderId]);
-      await query(`DELETE FROM order_edits WHERE order_id = $1`, [createdOrderId]);
-      await query(`DELETE FROM order_payments WHERE order_id = $1`, [createdOrderId]);
-      await query(`DELETE FROM order_items WHERE order_id = $1`, [createdOrderId]);
-      await query(`DELETE FROM orders WHERE id = $1`, [createdOrderId]);
-      await query(`UPDATE tables_config SET status = 'libre' WHERE number = 7`);
+    for (const oid of [createdOrderId, deliveryOrderId, pickupOrderId].filter(Boolean)) {
+      await query(`DELETE FROM caja_chica_transactions WHERE order_id = $1`, [oid]);
+      await query(`DELETE FROM order_edits WHERE order_id = $1`, [oid]);
+      await query(`DELETE FROM order_payments WHERE order_id = $1`, [oid]);
+      await query(`DELETE FROM order_items WHERE order_id = $1`, [oid]);
+      await query(`DELETE FROM orders WHERE id = $1`, [oid]);
     }
+    await query(`UPDATE tables_config SET status = 'libre' WHERE number = 7`);
     server.close();
   }
 }

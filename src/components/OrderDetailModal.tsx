@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { roundCOP } from '../utils/currencyRounding';
+import { getOrderPendingChangeUSD, isOrderFullySettled } from '../utils/orderSettlement';
 import { areProteinsDefault, getCleanItemNote, formatRemovedIngredients } from '../utils/burgerProteins';
 import { PrinterSelectModal } from './PrinterSelectModal';
 import {
@@ -115,41 +116,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const totalBs = (totalUSD * exchangeRates.Bs).toFixed(2);
 
   const payments = order.paymentHistory || [];
-  const pendingChangeUSD = (() => {
-    if (payments.length === 0) return 0;
-    let tenderedUSD = 0;
-    let changeGivenUSD = 0;
-    for (const item of payments) {
-      const rateCOP = item.copRate || order.copRateAtPayment || exchangeRates.COP || 3950;
-      const rateBs = item.bsRate || order.bsRateAtPayment || exchangeRates.Bs || 36.5;
-      let entryTendered = item.cashTenderedUSD || 0;
-      if ((item.cashTenderedCOP || 0) > 0) {
-        if ((item.amountPaidUSD || 0) > 0 && rateCOP > 0) {
-          const requiredCOP = roundCOP((item.amountPaidUSD || 0) * rateCOP);
-          const excessCOP = Math.max(0, (item.cashTenderedCOP || 0) - requiredCOP);
-          entryTendered += (item.amountPaidUSD || 0) + excessCOP / rateCOP;
-        } else if (rateCOP > 0) {
-          entryTendered += (item.cashTenderedCOP || 0) / rateCOP;
-        }
-      }
-      if ((item.cashTenderedBs || 0) > 0 && rateBs > 0) {
-        entryTendered += (item.cashTenderedBs || 0) / rateBs;
-      }
-      tenderedUSD += entryTendered;
-      changeGivenUSD +=
-        (item.changeGivenUSD || 0) +
-        (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
-        (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0);
-    }
-    const hasCop = payments.some((p) => (p.cashTenderedCOP || 0) > 0 || (p.changeGivenCOP || 0) > 0);
-    const rateCOPOrd = order.copRateAtPayment || exchangeRates.COP || 3950;
-    const maxTol = Math.max(0.05, hasCop && rateCOPOrd > 0 ? 1000 / rateCOPOrd : 0.05);
-    const rawPendingChange = Math.max(0, tenderedUSD - totalUSD - changeGivenUSD);
-    return rawPendingChange > maxTol ? rawPendingChange : 0;
-  })();
+  const pendingChangeUSD = getOrderPendingChangeUSD(order, exchangeRates);
 
-  const isPaid = pendingChangeUSD <= 0 && (order.paymentStatus === 'pagado' || (paidAmountUSD > 0 && remainingUSD <= 0.05));
   const isCredito = order.paymentStatus === 'credito';
+  const isPaid = !isCredito && isOrderFullySettled(order, exchangeRates);
   const isDelivered = order.status === 'entregada';
   const isPrepared = order.status === 'preparada';
 
@@ -619,7 +589,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 )}
 
                 {/* 4. MARCAR ENTREGADA / REACTIVAR */}
-                {onToggleDelivered && (
+                {onToggleDelivered && (isDelivered || isPaid || isCredito) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -630,12 +600,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     }}
                     className={`py-2.5 px-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 ${
                       !isDelivered
-                        ? isPaid
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 animate-pulse'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 animate-pulse'
                         : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
                     }`}
-                    title={!isDelivered ? 'Marcar orden como entregada al cliente' : 'Reactivar comanda'}
+                    title={!isDelivered ? 'Cuenta cuadrada: marcar orden como entregada al cliente' : 'Reactivar comanda'}
                   >
                     {!isDelivered ? (
                       <>

@@ -16,6 +16,10 @@ import { useStandbyOrders, StandbyOrder } from '../utils/standbyOrders';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, Order } from '../data/mockData';
+import {
+  getOrderPendingChangeUSD as calcOrderPendingChangeUSD,
+  isOrderFullySettled,
+} from '../utils/orderSettlement';
 import { reportService } from '../services/reportService';
 import { exportToExcel, ReporteIntervaloData } from '../services/excelExportService';
 import { roundCOP } from '../utils/currencyRounding';
@@ -221,49 +225,11 @@ export const CajaPage: React.FC = () => {
   const [isLoadingReporte, setIsLoadingReporte] = useState<boolean>(false);
   const [reporteError, setReporteError] = useState<string>('');
 
-  const getOrderPendingChangeUSD = (ord: Order): number => {
-    const history = ord.paymentHistory || [];
-    if (history.length === 0) return 0;
-    let tenderedUSD = 0;
-    let changeGivenUSD = 0;
-    for (const item of history) {
-      const rateCOP = item.copRate || ord.copRateAtPayment || exchangeRates.COP || 3950;
-      const rateBs = item.bsRate || ord.bsRateAtPayment || exchangeRates.Bs || 36.5;
-      let entryTendered = item.cashTenderedUSD || 0;
-      if ((item.cashTenderedCOP || 0) > 0) {
-        if ((item.amountPaidUSD || 0) > 0 && rateCOP > 0) {
-          const requiredCOP = roundCOP((item.amountPaidUSD || 0) * rateCOP);
-          const excessCOP = Math.max(0, (item.cashTenderedCOP || 0) - requiredCOP);
-          entryTendered += (item.amountPaidUSD || 0) + excessCOP / rateCOP;
-        } else if (rateCOP > 0) {
-          entryTendered += (item.cashTenderedCOP || 0) / rateCOP;
-        }
-      }
-      if ((item.cashTenderedBs || 0) > 0 && rateBs > 0) {
-        entryTendered += (item.cashTenderedBs || 0) / rateBs;
-      }
-      tenderedUSD += entryTendered;
-      changeGivenUSD +=
-        (item.changeGivenUSD || 0) +
-        (rateCOP > 0 ? (item.changeGivenCOP || 0) / rateCOP : 0) +
-        (rateBs > 0 ? (item.changeGivenBs || 0) / rateBs : 0);
-    }
-    const totalUSD = ord.totalUSD || 0;
-    const hasCop = history.some((p) => (p.cashTenderedCOP || 0) > 0 || (p.changeGivenCOP || 0) > 0);
-    const rateCOPOrd = ord.copRateAtPayment || exchangeRates.COP || 3950;
-    const maxTol = Math.max(0.05, hasCop && rateCOPOrd > 0 ? 1000 / rateCOPOrd : 0.05);
-    const rawPendingChange = Math.max(0, tenderedUSD - totalUSD - changeGivenUSD);
-    return rawPendingChange > maxTol ? rawPendingChange : 0;
-  };
+  const getOrderPendingChangeUSD = (ord: Order): number =>
+    calcOrderPendingChangeUSD(ord, exchangeRates);
 
-  const isOrderSettled = (o: Order): boolean => {
-    if (getOrderPendingChangeUSD(o) > 0) return false;
-    return (
-      o.paymentStatus === 'pagado' ||
-      o.paymentStatus === 'credito' ||
-      ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)
-    );
-  };
+  const isOrderSettled = (o: Order): boolean =>
+    isOrderFullySettled(o, exchangeRates);
 
   // Comandas activas no finalizadas/pagadas totalmente (excluye canceladas, fusionadas, pagadas y créditos ya entregados)
   const activeComandas = orders.filter(
@@ -1108,21 +1074,19 @@ export const CajaPage: React.FC = () => {
                         </button>
                       )}
 
-                      {/* Botón Entregar / Reactivar (Quita la comanda si se cobró o la reactiva) */}
+                      {/* Botón Entregar / Reactivar (Solo permite entregar cuando la cuenta está 100% cuadrada en cobros y vueltos) */}
                       {!isDelivered ? (
-                        <button
-                          type="button"
-                          onClick={() => updateOrderStatus(ord.id, 'entregada')}
-                          className={`py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer ${
-                            isPaid
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 animate-pulse'
-                              : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300'
-                          }`}
-                          title="Marcar orden como entregada (si está cobrada se retira de la pantalla)"
-                        >
-                          <IoCheckmarkDone className="text-base" />
-                          <span>📦 MARCAR ENTREGADA</span>
-                        </button>
+                        isPaid && (
+                          <button
+                            type="button"
+                            onClick={() => updateOrderStatus(ord.id, 'entregada')}
+                            className="py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 animate-pulse"
+                            title="Cuenta cuadrada: marcar orden como entregada y retirar de la pantalla"
+                          >
+                            <IoCheckmarkDone className="text-base" />
+                            <span>📦 MARCAR ENTREGADA</span>
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
@@ -1515,13 +1479,17 @@ export const CajaPage: React.FC = () => {
                       )}
 
                       {!isDelivered ? (
-                        <button
-                          onClick={() => updateOrderStatus(ord.id, 'entregada')}
-                          className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs flex items-center justify-center gap-1.5 border border-gray-300 transition-all"
-                        >
-                          <IoCheckmarkDone className="text-base text-gray-700" />
-                          <span>📦 ENTREGAR</span>
-                        </button>
+                        isPaid && (
+                          <button
+                            type="button"
+                            onClick={() => updateOrderStatus(ord.id, 'entregada')}
+                            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1.5 border-2 border-emerald-700 shadow-sm transition-all cursor-pointer animate-pulse"
+                            title="Cuenta cuadrada: marcar orden como entregada y retirar de la pantalla"
+                          >
+                            <IoCheckmarkDone className="text-base" />
+                            <span>📦 ENTREGAR</span>
+                          </button>
+                        )
                       ) : (
                         <div className="p-2 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-[11px] font-bold text-center">
                           📦 ENTREGADA

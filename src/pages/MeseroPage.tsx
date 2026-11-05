@@ -795,12 +795,14 @@ export const MeseroPage: React.FC = () => {
                           <div className="flex items-center justify-between text-xs font-black uppercase mb-1">
                             <span
                               className={`px-2.5 py-1 rounded-lg text-xs font-black ${
-                                isReady
+                                ord.status === 'entregada'
+                                  ? 'bg-emerald-700 text-white'
+                                  : isReady
                                   ? 'bg-green-600 text-white animate-pulse'
                                   : 'bg-yellow-400 text-black'
                               }`}
                             >
-                              {isReady ? '¡LISTA!' : 'EN PREP.'}
+                              {ord.status === 'entregada' ? 'ENTREGADA' : isReady ? '¡LISTA!' : 'EN PREP.'}
                             </span>
                             <span className="text-black font-black text-sm sm:text-base">
                               ${ord.totalUSD.toFixed(2)} USD
@@ -879,12 +881,14 @@ export const MeseroPage: React.FC = () => {
                             </div>
                             <span
                               className={`text-xs font-black px-2 py-0.5 rounded-lg uppercase ${
-                                isReady
+                                ord.status === 'entregada'
+                                  ? 'bg-emerald-700 text-white'
+                                  : isReady
                                   ? 'bg-green-500 text-black animate-pulse'
                                   : 'bg-yellow-400 text-black'
                               }`}
                             >
-                              {ord.status === 'preparada' ? '¡LISTA!' : 'EN PREP.'}
+                              {ord.status === 'entregada' ? 'ENTREGADA' : ord.status === 'preparada' ? '¡LISTA!' : 'EN PREP.'}
                             </span>
                           </div>
 

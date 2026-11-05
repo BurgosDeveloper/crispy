@@ -1,6 +1,11 @@
 import React from 'react';
 import { Table, Order } from '../../data/mockData';
 import {
+  isOrderFullySettled,
+  isOrderActiveInBoard,
+  getOrderPendingChangeUSD,
+} from '../../utils/orderSettlement';
+import {
   IoCar,
   IoWalk,
   IoCashOutline,
@@ -59,13 +64,8 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
   onOpenStandby,
   standbyCount = 0,
 }) => {
-  // Comandas activas en curso
-  const activeOrders = orders.filter(
-    (o) =>
-      o.status !== 'cancelado' &&
-      o.status !== 'fusionada' &&
-      !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)))
-  );
+  // Comandas activas en curso (jamás oculta una comanda si aún tiene deuda o vuelto pendiente)
+  const activeOrders = orders.filter((o) => isOrderActiveInBoard(o));
 
   // Separación por tipo de servicio con orden ascendente (más antigua primero, ej: #35 antes de #40)
   const activeDeliveryOrders = activeOrders
@@ -255,10 +255,14 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                       <span className="font-bold text-stone-900 truncate">
                         {activeOrder.items.length} itm
                       </span>
-                      {canPay && onPayOrder && activeOrder.paymentStatus !== 'pagado' ? (
-                        (() => {
+                      {(() => {
+                        const isSettled = isOrderFullySettled(activeOrder);
+                        const pendingChangeUSD = getOrderPendingChangeUSD(activeOrder);
+                        if (!isSettled && canPay && onPayOrder) {
                           const payments = activeOrder.paymentHistory || [];
-                          const hasIndiv = payments.some((p) => (p.itemIds?.length || 0) > 0) || (activeOrder.items && activeOrder.items.some((it) => it.isPaidIndividually));
+                          const hasIndiv =
+                            payments.some((p) => (p.itemIds?.length || 0) > 0) ||
+                            (activeOrder.items && activeOrder.items.some((it) => it.isPaidIndividually));
                           return (
                             <button
                               type="button"
@@ -267,21 +271,48 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                                 onPayOrder(activeOrder);
                               }}
                               className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 ${
-                                hasIndiv
+                                pendingChangeUSD > 0
+                                  ? 'bg-orange-600 hover:bg-orange-700 text-white animate-pulse'
+                                  : hasIndiv
                                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                                   : 'bg-stone-900 hover:bg-black text-white'
                               }`}
-                              title={hasIndiv ? 'Cobro por personas en curso' : 'Cobrar comanda directamente'}
+                              title={
+                                pendingChangeUSD > 0
+                                  ? `Dar vuelto pendiente ($${pendingChangeUSD.toFixed(2)} USD)`
+                                  : hasIndiv
+                                  ? 'Cobro por personas en curso'
+                                  : 'Cobrar comanda directamente'
+                              }
                             >
-                              <span>{hasIndiv ? '👥 Personas' : 'Cobrar'}</span>
+                              <span>
+                                {pendingChangeUSD > 0 ? '💵 Vuelto' : hasIndiv ? '👥 Personas' : 'Cobrar'}
+                              </span>
                             </button>
                           );
-                        })()
-                      ) : (
-                        <span className="font-black text-stone-950 uppercase text-xs">
-                          {activeOrder.paymentStatus === 'pagado' ? 'PAGADO' : 'VER'}
-                        </span>
-                      )}
+                        }
+                        if (isSettled && onMarkDelivered) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkDelivered(activeOrder);
+                              }}
+                              className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 ring-2 ring-emerald-300 animate-pulse"
+                              title="Cuenta cuadrada: marcar como entregada para liberar mesa y enviar a histórico"
+                            >
+                              <IoCheckmarkDone className="text-sm" />
+                              <span>Entregar</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <span className="font-black text-stone-950 uppercase text-xs">
+                            {isSettled ? 'PAGADO' : 'VER'}
+                          </span>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="text-xs sm:text-sm font-black text-emerald-800 text-center pt-1.5 border-t border-green-200 uppercase tracking-wider leading-none">
@@ -321,7 +352,8 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
               ) : (
                 activeDeliveryOrders.map((ord) => {
                   const isReady = ord.status === 'preparada';
-                  const isPaid = ord.paymentStatus === 'pagado';
+                  const isPaid = isOrderFullySettled(ord);
+                  const pendingChangeUSD = getOrderPendingChangeUSD(ord);
 
                   return (
                     <div
@@ -345,6 +377,10 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         ) : isPaid ? (
                           <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-400 text-stone-950">
                             PAGADO
+                          </span>
+                        ) : pendingChangeUSD > 0 ? (
+                          <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-orange-400 text-stone-950 animate-pulse">
+                            VUELTO PEND.
                           </span>
                         ) : (
                           <span className="text-sm sm:text-base font-black text-yellow-300">
@@ -379,26 +415,30 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                                 e.stopPropagation();
                                 onPayOrder(ord);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
-                              title="Cobrar comanda"
+                              className={`px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                pendingChangeUSD > 0
+                                  ? 'bg-orange-400 hover:bg-orange-300 text-black animate-pulse'
+                                  : 'bg-yellow-400 hover:bg-yellow-300 text-black'
+                              }`}
+                              title={
+                                pendingChangeUSD > 0
+                                  ? `Registrar vuelto pendiente ($${pendingChangeUSD.toFixed(2)} USD)`
+                                  : 'Cobrar comanda'
+                              }
                             >
                               <IoCashOutline className="text-sm" />
-                              <span>Cobrar</span>
+                              <span>{pendingChangeUSD > 0 ? 'Dar Vuelto' : 'Cobrar'}</span>
                             </button>
                           )}
-                          {onMarkDelivered && (
+                          {onMarkDelivered && isPaid && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onMarkDelivered(ord);
                               }}
-                              className={`px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
-                                isPaid
-                                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse'
-                                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
-                              }`}
-                              title="Marcar pedido como entregado"
+                              className="px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse"
+                              title="Cuenta cuadrada: marcar pedido como entregado"
                             >
                               <IoCheckmarkDone className="text-sm" />
                               <span>Entregar</span>
@@ -436,7 +476,8 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
               ) : (
                 activePickupOrders.map((ord) => {
                   const isReady = ord.status === 'preparada';
-                  const isPaid = ord.paymentStatus === 'pagado';
+                  const isPaid = isOrderFullySettled(ord);
+                  const pendingChangeUSD = getOrderPendingChangeUSD(ord);
 
                   return (
                     <div
@@ -460,6 +501,10 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                         ) : isPaid ? (
                           <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-400 text-stone-950">
                             PAGADO
+                          </span>
+                        ) : pendingChangeUSD > 0 ? (
+                          <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-orange-400 text-stone-950 animate-pulse">
+                            VUELTO PEND.
                           </span>
                         ) : (
                           <span className="text-sm sm:text-base font-black text-yellow-300">
@@ -494,26 +539,30 @@ export const TableCompactGrid: React.FC<TableCompactGridProps> = ({
                                 e.stopPropagation();
                                 onPayOrder(ord);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
-                              title="Cobrar comanda"
+                              className={`px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                pendingChangeUSD > 0
+                                  ? 'bg-orange-400 hover:bg-orange-300 text-black animate-pulse'
+                                  : 'bg-yellow-400 hover:bg-yellow-300 text-black'
+                              }`}
+                              title={
+                                pendingChangeUSD > 0
+                                  ? `Registrar vuelto pendiente ($${pendingChangeUSD.toFixed(2)} USD)`
+                                  : 'Cobrar comanda'
+                              }
                             >
                               <IoCashOutline className="text-sm" />
-                              <span>Cobrar</span>
+                              <span>{pendingChangeUSD > 0 ? 'Dar Vuelto' : 'Cobrar'}</span>
                             </button>
                           )}
-                          {onMarkDelivered && (
+                          {onMarkDelivered && isPaid && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onMarkDelivered(ord);
                               }}
-                              className={`px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 ${
-                                isPaid
-                                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse'
-                                  : 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
-                              }`}
-                              title="Marcar pedido como entregado"
+                              className="px-2.5 py-1 rounded-lg font-black text-xs sm:text-sm flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-300 animate-pulse"
+                              title="Cuenta cuadrada: marcar pedido como entregado"
                             >
                               <IoCheckmarkDone className="text-sm" />
                               <span>Entregar</span>

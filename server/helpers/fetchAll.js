@@ -55,8 +55,9 @@ async function fetchAllOrders() {
     const copRateOrd = parseFloat(ord.cop_rate_at_payment) || 3950;
     const hasCop = orderRawPayments.some((p) => Number(p.cash_tendered_cop) > 0 || Number(p.change_given_cop) > 0);
     const maxChangeToleranceUSD = Math.max(0.05, hasCop && copRateOrd > 0 ? 1000 / copRateOrd : 0.05);
-    const pendingChangeUSD = Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
-    const hasPendingChange = pendingChangeUSD > maxChangeToleranceUSD;
+    const isAlreadyClosedPaid = Boolean(ord.archived_at) || (ord.status === 'entregada' && ord.payment_status === 'pagado');
+    const pendingChangeUSD = isAlreadyClosedPaid ? 0 : Math.max(0, totals.tenderedUSD - totalUSD - totals.changeGivenUSD);
+    const hasPendingChange = !isAlreadyClosedPaid && pendingChangeUSD > maxChangeToleranceUSD;
     const isCovered = rawPaidUSD > 0 && (rawPaidUSD >= totalUSD - 0.05) && !hasPendingChange;
     const resolvedPaymentStatus = ord.payment_status === 'credito'
       ? 'credito'
@@ -196,7 +197,7 @@ async function fetchAllTables() {
   let activeOccupiedTables = new Set();
   try {
     const { rows: activeOrders } = await query(
-      `SELECT table_number FROM orders WHERE type = 'mesa' AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL`
+      `SELECT table_number FROM orders WHERE type = 'mesa' AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL AND NOT (status = 'entregada' AND payment_status = 'pagado')`
     );
     activeOccupiedTables = new Set(activeOrders.map((o) => o.table_number).filter(Boolean));
   } catch (e) {}

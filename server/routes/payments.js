@@ -298,7 +298,7 @@ module.exports = function(io) {
     try {
       client = await getClient();
       await client.query('BEGIN');
-      const { rows: orderRows } = await client.query('SELECT total_usd, status, shift, type, table_number FROM orders WHERE id = $1 FOR UPDATE', [id]);
+      const { rows: orderRows } = await client.query('SELECT total_usd, status, shift, type, table_number, cop_rate_at_payment FROM orders WHERE id = $1 FOR UPDATE', [id]);
       const order = orderRows[0];
       if (!order) {
         await client.query('ROLLBACK');
@@ -338,7 +338,7 @@ module.exports = function(io) {
       // Si es mesa, liberar la mesa en tables_config si no hay otras comandas activas
       if (isMesa && order.table_number) {
         const { rows: otherOrders } = await client.query(
-          `SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('entregada', 'cancelado', 'fusionada') AND payment_status != 'credito'`,
+          `SELECT id FROM orders WHERE type = 'mesa' AND table_number = $1 AND id != $2 AND status NOT IN ('cancelado', 'fusionada') AND payment_status != 'credito' AND archived_at IS NULL AND NOT (status = 'entregada' AND payment_status = 'pagado')`,
           [order.table_number, id]
         );
         if (otherOrders.length === 0) {

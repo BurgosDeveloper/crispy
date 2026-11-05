@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, Order } from '../data/mockData';
+import { isOrderActiveInBoard } from '../utils/orderSettlement';
 import { IoClose, IoCar, IoWalk, IoRestaurant } from 'react-icons/io5';
 
 interface OrderTargetSelectorModalProps {
@@ -20,12 +21,7 @@ export const OrderTargetSelectorModal: React.FC<OrderTargetSelectorModalProps> =
   if (!isOpen) return null;
 
   // Identificar mesas con órdenes activas
-  const activeOrders = orders.filter(
-    (o) =>
-      o.status !== 'cancelado' &&
-      o.status !== 'fusionada' &&
-      !(o.status === 'entregada' && (o.paymentStatus === 'pagado' || o.paymentStatus === 'credito' || ((o.paidAmountUSD || 0) > 0 && Math.max(0, o.totalUSD - (o.paidAmountUSD || 0)) <= 0.05)))
-  );
+  const activeOrders = orders.filter((o) => isOrderActiveInBoard(o));
 
   const occupiedTableNumbers = new Set(
     activeOrders.filter((o) => o.type === 'mesa' && o.tableNumber).map((o) => o.tableNumber!)

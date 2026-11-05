@@ -884,6 +884,13 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 3. **Guardas Contables contra Montos de Pesos (COP) Ingresados en Dólares (USD)**:
    - Tanto en `PaymentLedgerModal` como en `POST /api/orders/:id/ledger` y en movimientos manuales de Caja Chica (`POST /api/caja-chica/transaction`), el sistema bloquea montos de denominación en Pesos (ej. `5000`) cuando la moneda seleccionada es `DÓLARES (USD)` (exceso de pago en efectivo mayor a `$100 USD`, pagos digitales que excedan la deuda, o vueltos en USD iguales o mayores a `$100 USD`), indicando al usuario cambiar la moneda a `PESOS (COP)`.
 
-4. **Auto-Arranque del Motor PostgreSQL en Windows**:
+4. **Bloqueo Estricto de Entrega hasta Cuadrar Cobros y Vueltos (Cero Comandas en Limbo)**:
+   - Tanto en la interfaz (`TableCompactGrid`, `CajaPage`, `OrderDetailModal`, `OrderTargetSelectorModal`) como en el backend (`PATCH /api/orders/:id/status`), el botón y la acción `Entregar` (`📦 MARCAR ENTREGADA`) **NO aparecen ni se permiten** en comandas de `mesa`, `delivery` ni `pickup` mientras exista saldo pendiente por cobrar (`pendingDebtUSD > 0.05`) o vuelto pendiente por entregar (`pendingChangeUSD > tolerancia`).
+   - El cajero puede minimizar o cerrar libremente con la `X` (`CANCELAR`) la ventana de cobro general o de cobro por personas en cualquier momento para realizar otras tareas; la comanda permanece siempre visible en el tablero activo (`Mesas`, `Delivery`, `PickUp` y `Comandas Activas`) mostrando `Cobrar`, `👥 Personas` o `💵 Vuelto` / `Dar Vuelto` según corresponda, sin desaparecer jamás en un limbo entre activas e histórico.
+   - En **Mesas**, al pulsar `✅ FINALIZAR COMANDA` (desde Cobrar o desde X Personas) la mesa se libera y pasa a Histórico; si posteriormente se reactiva (`↩️ REACTIVAR`), al estar su cuenta 100% cuadrada en cobros y vueltos, el botón `Entregar` aparece tanto en la tarjeta de la mesa como en el detalle para volver a cerrarla y enviarla a Histórico con un solo clic.
+   - En **Delivery** y **PickUp**, el botón `Entregar` se habilita únicamente cuando la cuenta está 100% cuadrada en cobros y vueltos (o registrada a crédito), garantizando que ningún pedido se retire de pantalla sin cuadrar primero su contabilidad.
+   - Adicionalmente, al iniciar el servidor (`server/db.js`), una rutina de auto-reconciliación rescata automáticamente a estado `'preparada'` cualquier comanda no archivada que hubiese quedado marcada como `'entregada'` teniendo `payment_status` en `'no_pagado'` o `'parcial'`.
+
+5. **Auto-Arranque del Motor PostgreSQL en Windows**:
    - Si el servicio `postgresql-x64-*` se encuentra detenido tras reiniciar el PC (modo de inicio `Manual`), tanto `scripts/launch-pos.js` como `server/db.js` ejecutan automáticamente `pg_ctl.exe start -D "<dataDir>" -w` para levantar PostgreSQL antes de iniciar el backend en el puerto `3001`.
 
