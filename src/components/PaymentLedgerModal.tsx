@@ -284,13 +284,7 @@ export const PaymentLedgerModal: React.FC<PaymentLedgerModalProps> = ({
 
     if (entryType === 'payment') {
       if (currency === 'USD') {
-        if (paymentMethod !== 'Efectivo USD' && val > pendingDebtUSD + 0.05) {
-          setError(
-            `Los pagos por ${paymentMethod} no generan vuelto y no pueden exceder el saldo pendiente ($${pendingDebtUSD.toFixed(2)} USD). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`
-          );
-          return;
-        }
-        if (paymentMethod === 'Efectivo USD' && (val > pendingDebtUSD + 100 || (val >= 500 && pendingDebtUSD < 400))) {
+        if (val > pendingDebtUSD + 100 || (val >= 500 && pendingDebtUSD < 400)) {
           setError(
             `El monto ingresado en Dólares ($${val.toLocaleString()} USD) excede el límite permitido para el saldo pendiente de $${pendingDebtUSD.toFixed(2)} USD (máximo $100 USD de vuelto). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`
           );

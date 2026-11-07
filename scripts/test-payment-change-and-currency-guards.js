@@ -36,9 +36,11 @@ async function runTests() {
   const ordersRouter = require('../server/routes/orders')(io);
   const paymentsRouter = require('../server/routes/payments')(io);
   const cajaRouter = require('../server/routes/caja')(io);
+  const authRouter = require('../server/routes/auth')(io);
   app.use('/api/orders', ordersRouter);
   app.use('/api/orders', paymentsRouter);
   app.use('/api/caja-chica', cajaRouter);
+  app.use('/api/auth', authRouter);
 
   const PORT = 3098;
   await new Promise((resolve) => server.listen(PORT, resolve));
@@ -60,6 +62,8 @@ async function runTests() {
   let createdOrderId = null;
   let deliveryOrderId = null;
   let pickupOrderId = null;
+  let binanceOrderId = null;
+  let zelleOrderId = null;
   try {
     await query(`UPDATE tables_config SET status = 'libre' WHERE number = 7`);
 
@@ -395,9 +399,225 @@ async function runTests() {
     const pickFinal = await pickOk.json();
     assert(pickOk.status === 200 && pickFinal.status === 'entregada' && pickFinal.paymentStatus === 'pagado', 'PickUp 100% cuadrado permite Entregar y pasa a Histórico');
 
+    console.log('\n🟡 8. [BINANCE CON EXCEDENTE] Registrando pago de $20 USD vía Binance para comanda de $14 USD...');
+    const createBinanceRes = await fetch(`${baseUrl}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'pickup',
+        customerName: 'Cliente Binance Excess',
+        items: [{ productId: 'prod-bistro', productName: 'BISTRO', price: 7, quantity: 2 }],
+        totalUSD: 14,
+      }),
+    });
+    const binanceOrd = await createBinanceRes.json();
+    binanceOrderId = binanceOrd.id;
+    assert(createBinanceRes.status === 201 && Boolean(binanceOrderId), 'Orden para Binance creada ($14.00 USD)');
+
+    // Pagar $20 USD con Binance (genera $6 USD de vuelto pendiente)
+    const binancePayRes = await fetch(`${baseUrl}/orders/${binanceOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 20,
+        paymentMethod: 'Binance',
+        payerName: 'Cliente Binance Excess',
+      }),
+    });
+    const orderAfterBinance = await binancePayRes.json();
+    assert(binancePayRes.status === 200, 'Pago con excedente en Binance ($20 USD para deuda de $14 USD) aceptado exitosamente (HTTP 200)');
+    assert(orderAfterBinance.paymentStatus === 'parcial', 'Comanda queda en estado "parcial" mientras exista vuelto pendiente de $6 USD');
+    assert(orderAfterBinance.pendingChangeUSD === 6, 'Vuelto pendiente en Binance calculado exactamente en $6.00 USD');
+
+    // Intentar entregar sin registrar el vuelto -> debe bloquear
+    const deliverBinanceBlocked = await fetch(`${baseUrl}/orders/${binanceOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(deliverBinanceBlocked.status === 409, 'Bloqueado (HTTP 409) intento de entregar comanda de Binance con vuelto pendiente');
+
+    // Registrar el vuelto de $6 USD en Efectivo USD
+    const binanceChangeRes = await fetch(`${baseUrl}/orders/${binanceOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'change',
+        currency: 'USD',
+        amountLocal: 6,
+        paymentMethod: 'Efectivo USD',
+        payerName: 'Cliente Binance Excess',
+      }),
+    });
+    const orderAfterBinanceChange = await binanceChangeRes.json();
+    assert(binanceChangeRes.status === 200, 'Vuelto de $6 USD registrado en Efectivo USD exitosamente');
+    assert(orderAfterBinanceChange.paymentStatus === 'pagado', 'Comanda de Binance queda completamente saldada (paymentStatus = "pagado")');
+
+    // Finalizar comanda de Binance
+    const finalizeBinanceRes = await fetch(`${baseUrl}/orders/${binanceOrderId}/finalize`, {
+      method: 'POST',
+    });
+    assert(finalizeBinanceRes.status === 200, 'Comanda de Binance finalizada exitosamente tras devolver vuelto');
+
+    // Entregar comanda de Binance (al estar cuadrada, pasa a entregada y postea contabilidad a caja chica)
+    const deliverBinanceRes = await fetch(`${baseUrl}/orders/${binanceOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(deliverBinanceRes.status === 200, 'Comanda de Binance entregada exitosamente (HTTP 200)');
+
+    // Verificar contabilidad en Caja Chica para Binance + Efectivo USD
+    const { rows: binanceCajaRows } = await query(`SELECT * FROM caja_chica_transactions WHERE order_id = $1`, [binanceOrderId]);
+    const binanceIngreso = binanceCajaRows.find((r) => r.type === 'ingreso' && r.payment_method === 'Binance');
+    const cashEgreso = binanceCajaRows.find((r) => r.type === 'egreso' && r.payment_method === 'Efectivo USD');
+    assert(
+      Boolean(binanceIngreso) && Number(binanceIngreso.amount_usd) === 20,
+      'Caja Chica registró ingreso exacto de +$20 USD en Binance'
+    );
+    assert(
+      Boolean(cashEgreso) && Number(cashEgreso.amount_usd) === 6,
+      'Caja Chica registró egreso exacto de -$6 USD en Efectivo USD (caja física)'
+    );
+
+    console.log('\n🔵 9. [ZELLE CON EXCEDENTE Y VUELTO EN COP] Registrando pago de $50 USD vía Zelle con vuelto en Pesos...');
+    const createZelleRes = await fetch(`${baseUrl}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'delivery',
+        customerName: 'Cliente Zelle Excess',
+        deliveryFeeUSD: 2,
+        items: [{ productId: 'prod-bistro', productName: 'BISTRO', price: 28, quantity: 1 }],
+        totalUSD: 30,
+      }),
+    });
+    const zelleOrd = await createZelleRes.json();
+    zelleOrderId = zelleOrd.id;
+    assert(createZelleRes.status === 201 && Boolean(zelleOrderId), 'Orden para Zelle creada ($30.00 USD)');
+
+    // Pagar $50 USD con Zelle ($20 USD de vuelto pendiente = 79,000 COP a tasa 3950)
+    const zellePayRes = await fetch(`${baseUrl}/orders/${zelleOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'payment',
+        currency: 'USD',
+        amountLocal: 50,
+        paymentMethod: 'Zelle',
+        payerName: 'Cliente Zelle Excess',
+      }),
+    });
+    const orderAfterZelle = await zellePayRes.json();
+    assert(zellePayRes.status === 200, 'Pago con excedente en Zelle ($50 USD para deuda de $30 USD) aceptado exitosamente');
+    assert(orderAfterZelle.pendingChangeUSD === 20, 'Vuelto pendiente en Zelle calculado exactamente en $20.00 USD');
+
+    // Registrar vuelto en PESOS COP (79,000 COP)
+    const zelleCopChangeRes = await fetch(`${baseUrl}/orders/${zelleOrderId}/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entryType: 'change',
+        currency: 'COP',
+        amountLocal: 79000,
+        paymentMethod: 'Efectivo COP',
+        payerName: 'Cliente Zelle Excess',
+      }),
+    });
+    const orderAfterZelleCopChange = await zelleCopChangeRes.json();
+    assert(zelleCopChangeRes.status === 200, 'Vuelto de $20 USD entregado en Efectivo COP (79,000 COP) registrado exitosamente');
+    assert(orderAfterZelleCopChange.paymentStatus === 'pagado', 'Comanda de Zelle queda 100% saldada tras dar vuelto en COP');
+
+    // Finalizar comanda de Zelle
+    const finalizeZelleRes = await fetch(`${baseUrl}/orders/${zelleOrderId}/finalize`, {
+      method: 'POST',
+    });
+    assert(finalizeZelleRes.status === 200, 'Comanda de Zelle finalizada exitosamente');
+
+    // Entregar comanda de Zelle
+    const deliverZelleRes = await fetch(`${baseUrl}/orders/${zelleOrderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'entregada' }),
+    });
+    assert(deliverZelleRes.status === 200, 'Comanda de Zelle entregada exitosamente (HTTP 200)');
+
+    // Verificar contabilidad en Caja Chica para Zelle + Efectivo COP
+    const { rows: zelleCajaRows } = await query(`SELECT * FROM caja_chica_transactions WHERE order_id = $1`, [zelleOrderId]);
+    const zelleIngreso = zelleCajaRows.find((r) => r.type === 'ingreso' && r.payment_method === 'Zelle');
+    const copEgreso = zelleCajaRows.find((r) => r.type === 'egreso' && r.payment_method === 'Efectivo COP');
+    assert(
+      Boolean(zelleIngreso) && Number(zelleIngreso.amount_usd) === 50,
+      'Caja Chica registró ingreso exacto de +$50 USD en Zelle'
+    );
+    assert(
+      Boolean(copEgreso) && Number(copEgreso.amount_cop) === 79000,
+      'Caja Chica registró egreso exacto de -79,000 COP en Efectivo COP'
+    );
+
+    console.log('\n🔐 10. [PIN DE SEGURIDAD 6 CARACTERES / ALFANUMÉRICO] Validando verificación y actualización...');
+    // Verificación con PIN inicial de 6 dígitos ('123456')
+    const verifyInitPinRes = await fetch(`${baseUrl}/auth/verify-admin-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '123456' }),
+    });
+    const verifyInitBody = await verifyInitPinRes.json();
+    assert(verifyInitPinRes.status === 200 && verifyInitBody.valid === true, 'PIN por defecto de 6 caracteres "123456" verificado exitosamente');
+
+    // Rechazo de PIN antiguo de 4 dígitos
+    const verifyOldPinRes = await fetch(`${baseUrl}/auth/verify-admin-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '1234' }),
+    });
+    assert(verifyOldPinRes.status === 401, 'PIN antiguo de 4 dígitos "1234" rechazado correctamente (HTTP 401)');
+
+    // Rechazo de actualización de PIN con longitud distinta de 6
+    const badLengthPinRes = await fetch(`${baseUrl}/auth/admin-pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '9999' }),
+    });
+    assert(badLengthPinRes.status === 400, 'Intento de actualizar PIN a 4 caracteres rechazado (HTTP 400)');
+
+    const badLengthPinRes2 = await fetch(`${baseUrl}/auth/admin-pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '1234567' }),
+    });
+    assert(badLengthPinRes2.status === 400, 'Intento de actualizar PIN a 7 caracteres rechazado (HTTP 400)');
+
+    // Actualización a clave alfanumérica de 6 caracteres
+    const updateAlphanumericPinRes = await fetch(`${baseUrl}/auth/admin-pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: 'CRIS#1' }),
+    });
+    assert(updateAlphanumericPinRes.status === 200, 'Actualización a PIN/clave alfanumérica de 6 caracteres "CRIS#1" aceptada exitosamente');
+
+    // Verificación con nueva clave alfanumérica
+    const verifyAlphanumericRes = await fetch(`${baseUrl}/auth/verify-admin-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: 'CRIS#1' }),
+    });
+    const verifyAlphanumericBody = await verifyAlphanumericRes.json();
+    assert(verifyAlphanumericRes.status === 200 && verifyAlphanumericBody.valid === true, 'Clave alfanumérica "CRIS#1" verificada correctamente');
+
+    // Restaurar PIN por defecto '123456'
+    await fetch(`${baseUrl}/auth/admin-pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '123456' }),
+    });
+    console.log('   PIN restablecido a "123456" para operación estándar');
+
     console.log(`\n🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE (${passed}/${total})`);
   } finally {
-    for (const oid of [createdOrderId, deliveryOrderId, pickupOrderId].filter(Boolean)) {
+    for (const oid of [createdOrderId, deliveryOrderId, pickupOrderId, binanceOrderId, zelleOrderId].filter(Boolean)) {
       await query(`DELETE FROM caja_chica_transactions WHERE order_id = $1`, [oid]);
       await query(`DELETE FROM order_edits WHERE order_id = $1`, [oid]);
       await query(`DELETE FROM order_payments WHERE order_id = $1`, [oid]);

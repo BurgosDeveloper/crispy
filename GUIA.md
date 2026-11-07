@@ -39,7 +39,7 @@ Orden obligatorio de auditoria:
 Reglas de negocio criticas de cobro:
 - La modal de cobro debe mostrar tres tarjetas: monto total de la comanda, total pagado y vuelto pendiente. Cada una debe mostrar USD, COP y Bs con la tasa correspondiente.
 - Un registro es de tipo `payment` o `change` (vuelto); no son el mismo movimiento. Un pago acredita como maximo la deuda de la venta, pero conserva el dinero realmente recibido. El vuelto debe quedar registrado por separado.
-- Metodos validos: USD = Efectivo USD, Binance, Zelle. COP = Efectivo COP, Bancolombia, Nequi. Bs = Pago Movil, Tarjeta de Debito, Tarjeta de Credito. El cliente no puede elegir un metodo de otra moneda.
+- Metodos validos: USD = Efectivo USD, Binance, Zelle. COP = Efectivo COP, Bancolombia, Nequi. Bs = Pago Movil, Tarjeta de Debito, Tarjeta de Credito. El cliente no puede elegir un metodo de otra moneda. Cualquier metodo (incluidos Binance y Zelle en USD o pagos en cualquier divisa) puede recibir montos en exceso generando vuelto pendiente, y dicho vuelto puede devolverse y registrarse en cualquier moneda (USD, COP, Bs) y metodo correspondiente.
 - No se puede cerrar una comanda si existe deuda pendiente o vuelto pendiente. Cerrar la modal debe conservar los registros ya guardados. El cierre final no debe crear un pago ficticio de monto cero.
 - Los pagos divididos deben usar las mismas validaciones. No pueden marcar items como pagados si el pago no cubre los items seleccionados.
 - Anular un registro debe actualizar pago acumulado, estado de pago, movimientos de caja asociados y marcas de items pagados individualmente.
@@ -227,7 +227,7 @@ El usuario con rol `caja` dispone de permisos completos de mesonero:
 3. **Tipografía Térmica Ampliada (+30%)**: Tanto las comandas de cocina como las pre-cuentas de consumo emplean escalado ESC/POS con mayor presencia horizontal y doble altura en encabezados e ítems para lectura rápida a distancia en cocina y salón.
 4. **Ticket de Pre-Cuenta y Consumo desde Caja**: Botón instantáneo `🧾 IMPRIMIR PRE-CUENTA` en cada tarjeta de comanda activa que genera el ticket de consumo con todos los ítems y totales desglosados en **USD ($)**, **COP (Pesos)** y **Bs (Bolívares)** al tipo de cambio del turno.
 
-## Sistema de Autorización con PIN de Seguridad (4 Dígitos)
+## Sistema de Autorización con PIN de Seguridad (6 Caracteres)
 
 El sistema protege las operaciones críticas y administrativas permitiendo al rol `caja` operar con total autonomía en sus funciones directas y exigiendo autorización mediante un PIN de 4 dígitos (por defecto `1234`, configurable por el Administrador):
 
@@ -266,7 +266,7 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 
 ## Arqueo, Cierre de Turno y Purga Automática con Preservación de Créditos
 
-1. **Seguridad en el Cierre**: El rol `caja` requiere autorización mediante PIN de 4 dígitos para realizar el arqueo y cierre del turno; el rol `admin` accede de forma directa.
+1. **Seguridad en el Cierre**: El rol `caja` requiere autorización mediante PIN de 6 caracteres para realizar el arqueo y cierre del turno; el rol `admin` accede de forma directa.
 2. **Impresión Térmica Automática**: Al confirmar el arqueo de efectivo (contado físico USD y COP), el sistema emite de manera automática el ticket térmico de cierre detallando la apertura, los totales desglosados por método de pago, el resumen de créditos y el cuadre de caja chica (esperado vs contado vs diferencia).
 3. **Purga Automática Limpia**: Se eliminan de la base de datos las comandas finalizadas/cobradas al 100% (`payment_status = 'pagado'`), sus pagos e ítems, así como las transacciones y aperturas del turno cerrado, garantizando un inicio de ciclo limpio y sin necesidad de ejecutar scripts SQL manuales.
 4. **Preservación de Cuentas a Crédito**: Las comandas con deuda pendiente (`payment_status = 'credito'`) **NO** se borran del sistema; se conservan y se renumeran consecutivamente a las primeras posiciones (`#1`, `#2`, etc.) para mantener el histórico de cobro pendiente hasta que sean reactivadas y saldadas.
@@ -542,9 +542,9 @@ El usuario con rol `caja` dispone de permisos completos de mesonero:
 3. **Tipografía Térmica Ampliada (+30%)**: Tanto las comandas de cocina como las pre-cuentas de consumo emplean escalado ESC/POS con mayor presencia horizontal y doble altura en encabezados e ítems para lectura rápida a distancia en cocina y salón.
 4. **Ticket de Pre-Cuenta y Consumo desde Caja**: Botón instantáneo `🧾 IMPRIMIR PRE-CUENTA` en cada tarjeta de comanda activa que genera el ticket de consumo con todos los ítems y totales desglosados en **USD ($)**, **COP (Pesos)** y **Bs (Bolívares)** al tipo de cambio del turno.
 
-## Sistema de Autorización con PIN de Seguridad (4 Dígitos)
+## Sistema de Autorización con PIN de Seguridad (6 Caracteres)
 
-El sistema protege las operaciones críticas y administrativas permitiendo al rol `caja` operar con total autonomía en sus funciones directas y exigiendo autorización mediante un PIN de 4 dígitos (por defecto `1234`, configurable por el Administrador):
+El sistema protege las operaciones críticas y administrativas permitiendo al rol `caja` operar con total autonomía en sus funciones directas y exigiendo autorización mediante un PIN o clave de seguridad de 6 caracteres (por defecto `123456`, configurable por el Administrador):
 
 1. **Operaciones Directas SIN Clave**:
    - 💱 **Editar tasas de cambio**: Actualización inmediata de tasas COP y Bs.
@@ -581,7 +581,7 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 
 ## Arqueo, Cierre de Turno y Purga Automática con Preservación de Créditos
 
-1. **Seguridad en el Cierre**: El rol `caja` requiere autorización mediante PIN de 4 dígitos para realizar el arqueo y cierre del turno; el rol `admin` accede de forma directa.
+1. **Seguridad en el Cierre**: El rol `caja` requiere autorización mediante PIN de 6 caracteres para realizar el arqueo y cierre del turno; el rol `admin` accede de forma directa.
 2. **Impresión Térmica Automática**: Al confirmar el arqueo de efectivo (contado físico USD y COP), el sistema emite de manera automática el ticket térmico de cierre detallando la apertura, los totales desglosados por método de pago, el resumen de créditos y el cuadre de caja chica (esperado vs contado vs diferencia).
 3. **Purga Automática Limpia**: Se eliminan de la base de datos las comandas finalizadas/cobradas al 100% (`payment_status = 'pagado'`), sus pagos e ítems, así como las transacciones y aperturas del turno cerrado, garantizando un inicio de ciclo limpio y sin necesidad de ejecutar scripts SQL manuales.
 4. **Preservación de Cuentas a Crédito**: Las comandas con deuda pendiente (`payment_status = 'credito'`) **NO** se borran del sistema; se conservan y se renumeran consecutivamente a las primeras posiciones (`#1`, `#2`, etc.) para mantener el histórico de cobro pendiente hasta que sean reactivadas y saldadas.
@@ -628,7 +628,7 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
 1. **Acceso Rápido Sin Clave**:
    - Tanto el rol **Mesero** como el rol **Caja** pueden presionar el botón `➕ ADICIONAR` en cualquier comanda activa para incorporar nuevos productos sin requerir clave o PIN de autorización.
 2. **Borrado Protegido con PIN**:
-   - Si se requiere eliminar o anular un ítem que ya había sido guardado previamente en la comanda, el rol `caja` debe ingresar el PIN de 4 dígitos de autorización de administrador (`AdminPinModal`).
+   - Si se requiere eliminar o anular un ítem que ya había sido guardado previamente en la comanda, el rol `caja` debe ingresar el PIN o clave de 6 caracteres de autorización de administrador (`AdminPinModal`).
 3. **Impresión Térmica Selectiva en Cocina**:
    - Cuando la adición incluya productos que requieren preparación en cocina (**Pizzas** con sus modificaciones de tamaño/mitades/extras, o **Jugos** con preferencias de azúcar), el sistema genera y emite a la impresora térmica de cocina un ticket exclusivo con los nuevos productos bajo el encabezado:
      ```text
@@ -770,12 +770,12 @@ El sistema protege las operaciones críticas y administrativas permitiendo al ro
     - **Toma de Pedidos Nativa en Pantalla de Caja (`OrderCreateView.tsx`, `OrderTargetSelectorModal.tsx`)**:
       - El cajero conserva el 100% de la funcionalidad para tomar y crear pedidos de mesas, delivery y pick-up directamente dentro de `/caja`.
       - Al pulsar `+ TOMAR PEDIDO` (o seleccionar una mesa libre/delivery/pickup en `TableCompactGrid`), se activa `OrderCreateView`, ofreciendo el catálogo táctil completo de hamburguesas, bebidas, salsas, constructor de hamburguesas con proteínas de BD, tarifa de delivery y confirmación de comanda con botón para volver de inmediato al panel de caja sin perder el Navbar ni el Sidebar.
-    - **Acceso Visual Libre y Protección de Acciones Críticas con PIN de 4 Dígitos para Cajero**:
+    - **Acceso Visual Libre y Protección de Acciones Críticas con PIN de 6 Caracteres para Cajero**:
       - Para el rol `caja`, el cajero tiene **acceso visual libre y directo** para consultar las pantallas de **Histórico** (auditar cobros y entregas del día) y **Reportes & Cierre** (consultar reportes contables por intervalo, métricas de hamburguesas, ingresos, vueltos y exportar a Excel).
-      - **Acciones protegidas obligatoriamente con PIN de seguridad de 4 dígitos**:
+      - **Acciones protegidas obligatoriamente con PIN de seguridad de 6 caracteres**:
         - En **Histórico**: La acción `REACTIVAR COMANDA` exige el PIN de seguridad para evitar reactivaciones indebidas de comandas ya cerradas.
         - En **Reportes & Cierre**: La acción `ARQUEO DIARIO DE EFECTIVO` (cierre de turno y cuadre de caja) exige el PIN de seguridad.
-        - Las operaciones administrativas complementarias (Edición de comanda, Anulación, Fusión de comandas y Modificación de Apertura de Caja Chica) continúan bajo protección estricta del PIN de seguridad de 4 dígitos.
+        - Las operaciones administrativas complementarias (Edición de comanda, Anulación, Fusión de comandas y Modificación de Apertura de Caja Chica) continúan bajo protección estricta del PIN de seguridad de 6 caracteres.
     - **Proteínas Dinámicas de Base de Datos (Fin del Hardcoding)**:
       - Se eliminó el hardcoding de proteínas en las hamburguesas (`BurgerBuilderModal.tsx`, `burgerProteins.ts`). El constructor de hamburguesas lee dinámicamente las proteínas registradas en la tabla `ingredients` (`isProtein === true` o categoría `'Proteínas'`).
       - Al editar o renombrar una proteína en el módulo de ingredientes (`server/routes/ingredients.js`), el cambio se propaga y sincroniza automáticamente en `products.base_ingredients` y `products.default_proteins` mediante `array_replace`.

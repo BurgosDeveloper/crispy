@@ -208,7 +208,7 @@ CREATE INDEX IF NOT EXISTS idx_caja_tx_cierre_id ON caja_chica_transactions(cier
 -- Inserción Inicial de Tasas y PIN
 INSERT INTO exchange_rates (id, cop_rate, bs_rate) VALUES (1, 3950.00, 36.50) ON CONFLICT (id) DO NOTHING;
 INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('ambos', 3950.00, 36.50, 'Inicial') ON CONFLICT (shift) DO NOTHING;
-INSERT INTO system_settings (key, value) VALUES ('admin_pin', '1234') ON CONFLICT (key) DO NOTHING;
+INSERT INTO system_settings (key, value) VALUES ('admin_pin', '123456') ON CONFLICT (key) DO NOTHING;
 
 -- Inserción Inicial de Usuarios Crispy
 INSERT INTO users (id, username, password, role, name, shift) VALUES

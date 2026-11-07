@@ -43,7 +43,7 @@ export const MenuManagementPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'pizzas' | 'bebidas' | 'ingredientes' | 'mesas' | 'seguridad' | 'impresoras'>('pizzas');
   const [isCashierUnlocked, setIsCashierUnlocked] = useState<boolean>(userSession?.role === 'admin');
-  const [currentPin, setCurrentPin] = useState<string>('1234');
+  const [currentPin, setCurrentPin] = useState<string>('123456');
   const [newPinInput, setNewPinInput] = useState<string>('');
   const [confirmPinInput, setConfirmPinInput] = useState<string>('');
   const [pinFeedback, setPinFeedback] = useState<string>('');
@@ -792,7 +792,7 @@ export const MenuManagementPage: React.FC = () => {
               <div>
                 <h2 className="text-lg font-black text-black uppercase">PIN de Seguridad y Autorizaciones</h2>
                 <p className="text-xs text-gray-500 font-medium">
-                  Configura el PIN de 4 dígitos requerido para autorizar acciones sensibles en Caja (Editar comanda, Anular, Unificar, Historial, Reportes y Cierre).
+                  Configura el PIN o clave de seguridad de 6 caracteres requerido para autorizar acciones sensibles en Caja (Editar comanda, Anular, Unificar, Historial, Reportes y Cierre).
                 </p>
               </div>
             </div>
@@ -802,7 +802,7 @@ export const MenuManagementPage: React.FC = () => {
               <div>
                 <span className="text-xs font-black uppercase text-amber-900 block">PIN de Administrador Configurado:</span>
                 <span className="text-2xl font-black text-black tracking-widest">
-                  {currentPin ? currentPin.split('').map(() => '•').join(' ') + ` (${currentPin})` : '1234'}
+                  {currentPin ? currentPin.split('').map(() => '•').join(' ') + ` (${currentPin})` : '123456'}
                 </span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-yellow-400 text-black font-black text-xs border border-yellow-500">
@@ -816,8 +816,8 @@ export const MenuManagementPage: React.FC = () => {
                 e.preventDefault();
                 setPinFeedback('');
                 setPinError('');
-                if (!/^\d{4}$/.test(newPinInput)) {
-                  setPinError('El nuevo PIN debe contener exactamente 4 dígitos numéricos.');
+                if (newPinInput.length !== 6) {
+                  setPinError('El nuevo PIN o clave debe contener exactamente 6 caracteres.');
                   return;
                 }
                 if (newPinInput !== confirmPinInput) {
@@ -843,39 +843,35 @@ export const MenuManagementPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Nuevo PIN (4 dígitos):</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Nuevo PIN / Clave (6 caracteres):</label>
                   <input
                     type="password"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
+                    maxLength={6}
                     required
                     value={newPinInput}
                     onChange={(e) => {
-                      setNewPinInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                      setNewPinInput(e.target.value.slice(0, 6));
                       setPinFeedback('');
                       setPinError('');
                     }}
-                    placeholder="••••"
+                    placeholder="••••••"
                     className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-gray-300 text-base font-black text-center tracking-widest text-black outline-none focus:border-yellow-400 shadow-inner"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Confirmar Nuevo PIN:</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Confirmar Nuevo PIN / Clave (6 caracteres):</label>
                   <input
                     type="password"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
+                    maxLength={6}
                     required
                     value={confirmPinInput}
                     onChange={(e) => {
-                      setConfirmPinInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                      setConfirmPinInput(e.target.value.slice(0, 6));
                       setPinFeedback('');
                       setPinError('');
                     }}
-                    placeholder="••••"
+                    placeholder="••••••"
                     className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-gray-300 text-base font-black text-center tracking-widest text-black outline-none focus:border-yellow-400 shadow-inner"
                   />
                 </div>
@@ -896,7 +892,7 @@ export const MenuManagementPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={newPinInput.length !== 4 || confirmPinInput.length !== 4 || isSavingPin}
+                disabled={newPinInput.length !== 6 || confirmPinInput.length !== 6 || isSavingPin}
                 className="w-full py-3.5 rounded-2xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-black text-xs border border-yellow-500 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <IoKeypad />
@@ -1367,7 +1363,7 @@ export const MenuManagementPage: React.FC = () => {
         <AdminPinModal
           isOpen={true}
           title="🔐 ACCESO ADMINISTRATIVO"
-          description="Para ingresar a la gestión del menú y configuración ingrese el PIN de 4 dígitos:"
+          description="Para ingresar a la gestión del menú y configuración ingrese el PIN de 6 dígitos:"
           actionName="Panel de Administración"
           onSuccess={() => setIsCashierUnlocked(true)}
           onClose={() => window.history.back()}

@@ -162,7 +162,7 @@ export const CajaPage: React.FC = () => {
       setPinModalState({
         isOpen: true,
         title: title || '🔐 AUTORIZACIÓN DE ADMINISTRADOR',
-        description: description || 'Ingrese el PIN de seguridad de 4 dígitos para autorizar:',
+        description: description || 'Ingrese el PIN de seguridad de 6 dígitos para autorizar:',
         actionName,
         onSuccess: callback,
       });

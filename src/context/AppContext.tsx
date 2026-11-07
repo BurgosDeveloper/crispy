@@ -932,7 +932,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const getAdminPin = async (): Promise<string> => {
     const res = await apiFetch(`${backendUrl}/api/auth/admin-pin`);
     const data = await requireApiSuccess(res, 'No se pudo consultar el PIN de administrador.');
-    return data.pin || '1234';
+    return data.pin || '123456';
   };
 
   const updateAdminPin = async (newPin: string): Promise<void> => {

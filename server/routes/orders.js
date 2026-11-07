@@ -263,6 +263,7 @@ module.exports = function(io) {
           paymentMethod: ord.payment_method,
           totalUSD,
           paidAmountUSD,
+          pendingChangeUSD: Number(pendingChangeUSD.toFixed(2)),
           copRateAtPayment: parseFloat(ord.cop_rate_at_payment) || 3950,
           bsRateAtPayment: parseFloat(ord.bs_rate_at_payment) || 36.5,
           waiterName: ord.waiter_name || 'Mesero',

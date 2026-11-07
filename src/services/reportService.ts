@@ -424,21 +424,28 @@ export class ReportService {
     let bs = 0;
 
     if (curr === 'USD') {
-      usd = tenderUSD > 0 ? (tenderUSD - changeUSD) : paidUSD;
+      usd = tenderUSD > 0 ? (tenderUSD - changeUSD) : (changeUSD > 0 ? -changeUSD : paidUSD);
     } else if (curr === 'COP') {
-      cop = tenderCOP > 0 ? (tenderCOP - changeCOP) : (paidUSD * (payment.copRate || 3950));
+      cop = tenderCOP > 0 ? (tenderCOP - changeCOP) : (changeCOP > 0 ? -changeCOP : (paidUSD * (payment.copRate || 3950)));
     } else if (curr === 'Bs') {
-      bs = tenderBs > 0 ? (tenderBs - changeBs) : (paidUSD * (payment.bsRate || 36.5));
+      bs = tenderBs > 0 ? (tenderBs - changeBs) : (changeBs > 0 ? -changeBs : (paidUSD * (payment.bsRate || 36.5)));
     }
 
     const nativeAmount = curr === 'USD' ? usd : curr === 'COP' ? cop : bs;
+    const equivalentUSD = paidUSD > 0
+      ? paidUSD
+      : (curr === 'USD'
+        ? -changeUSD
+        : curr === 'COP'
+          ? -changeCOP / (payment.copRate || 3950)
+          : -changeBs / (payment.bsRate || 36.5));
     return {
       currency: curr,
       nativeAmount,
       usd,
       cop,
       bs,
-      equivalentUSD: paidUSD,
+      equivalentUSD,
     };
   }
 
@@ -621,11 +628,11 @@ export class ReportService {
           const pUSD = Number(p.amountPaidUSD) || 0;
 
           if (pCurr === 'USD') {
-            byCurrency.USD += tenderUSD > 0 ? (tenderUSD - changeUSD) : pUSD;
+            byCurrency.USD += tenderUSD > 0 ? (tenderUSD - changeUSD) : (changeUSD > 0 ? -changeUSD : pUSD);
           } else if (pCurr === 'COP') {
-            byCurrency.COP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (pUSD * (p.copRate || rates.COP));
+            byCurrency.COP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (changeCOP > 0 ? -changeCOP : (pUSD * (p.copRate || rates.COP)));
           } else if (pCurr === 'Bs') {
-            byCurrency.Bs += tenderBs > 0 ? (tenderBs - changeBs) : (pUSD * (p.bsRate || rates.Bs));
+            byCurrency.Bs += tenderBs > 0 ? (tenderBs - changeBs) : (changeBs > 0 ? -changeBs : (pUSD * (p.bsRate || rates.Bs)));
           }
         });
       } else {
@@ -655,11 +662,11 @@ export class ReportService {
             const pUSD = Number(p.amountPaidUSD) || 0;
 
             if (pCurr === 'USD') {
-              orderUSD += tenderUSD > 0 ? (tenderUSD - changeUSD) : pUSD;
+              orderUSD += tenderUSD > 0 ? (tenderUSD - changeUSD) : (changeUSD > 0 ? -changeUSD : pUSD);
             } else if (pCurr === 'COP') {
-              orderCOP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (pUSD * (p.copRate || rates.COP));
+              orderCOP += tenderCOP > 0 ? (tenderCOP - changeCOP) : (changeCOP > 0 ? -changeCOP : (pUSD * (p.copRate || rates.COP)));
             } else if (pCurr === 'Bs') {
-              orderBs += tenderBs > 0 ? (tenderBs - changeBs) : (pUSD * (p.bsRate || rates.Bs));
+              orderBs += tenderBs > 0 ? (tenderBs - changeBs) : (changeBs > 0 ? -changeBs : (pUSD * (p.bsRate || rates.Bs)));
             }
             if (p.paymentMethod && !methodsUsed.includes(p.paymentMethod)) {
               methodsUsed.push(p.paymentMethod);
@@ -675,12 +682,12 @@ export class ReportService {
 
         const methodStr = methodsUsed.join(' + ') || o.paymentMethod || 'Efectivo USD';
         const displayParts: string[] = [];
-        if (orderUSD > 0) displayParts.push(`$${orderUSD.toFixed(2)} USD`);
-        if (orderCOP > 0) displayParts.push(`$${Math.round(orderCOP).toLocaleString()} COP`);
-        if (orderBs > 0) displayParts.push(`Bs ${orderBs.toFixed(2)}`);
+        if (Math.abs(orderUSD) > 0.001) displayParts.push(`$${orderUSD.toFixed(2)} USD`);
+        if (Math.abs(orderCOP) > 0.001) displayParts.push(`$${Math.round(orderCOP).toLocaleString()} COP`);
+        if (Math.abs(orderBs) > 0.001) displayParts.push(`Bs ${orderBs.toFixed(2)}`);
         const formattedAmount = displayParts.length > 0 ? displayParts.join(' / ') : `$${o.totalUSD.toFixed(2)}`;
 
-        const mainCurr = orderCOP > 0 && orderUSD === 0 && orderBs === 0 ? 'COP' : orderBs > 0 && orderUSD === 0 && orderCOP === 0 ? 'Bs' : orderUSD > 0 && orderCOP === 0 && orderBs === 0 ? 'USD' : 'MIXTO';
+        const mainCurr = orderCOP > 0 && orderUSD <= 0 && orderBs <= 0 ? 'COP' : orderBs > 0 && orderUSD <= 0 && orderCOP <= 0 ? 'Bs' : orderUSD > 0 && orderCOP <= 0 && orderBs <= 0 ? 'USD' : 'MIXTO';
 
         return `
         <tr>

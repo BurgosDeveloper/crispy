@@ -135,15 +135,7 @@ module.exports = function(io) {
         }
 
         if (currency === 'USD') {
-          if (paymentMethod !== 'Efectivo USD' && localAmount > scopePendingDebtUSD + 0.05) {
-            await client.query('ROLLBACK');
-            client.release();
-            client = null;
-            return res.status(400).json({
-              error: `Los pagos por ${paymentMethod} no generan vuelto y no pueden exceder el saldo pendiente ($${scopePendingDebtUSD.toFixed(2)} USD). Si el monto es en Pesos Colombianos, selecciona la moneda PESOS (COP).`,
-            });
-          }
-          if (paymentMethod === 'Efectivo USD' && (localAmount > scopePendingDebtUSD + 100 || (localAmount >= 500 && scopePendingDebtUSD < 400))) {
+          if (localAmount > scopePendingDebtUSD + 100 || (localAmount >= 500 && scopePendingDebtUSD < 400)) {
             await client.query('ROLLBACK');
             client.release();
             client = null;

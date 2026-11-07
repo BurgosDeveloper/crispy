@@ -14,7 +14,7 @@ interface AdminPinModalProps {
 export const AdminPinModal: React.FC<AdminPinModalProps> = ({
   isOpen,
   title = '🔐 AUTORIZACIÓN DE ADMINISTRADOR',
-  description = 'Ingrese el PIN de seguridad de 4 dígitos para autorizar:',
+  description = 'Ingrese el PIN de seguridad de 6 dígitos para autorizar:',
   actionName = 'Acción administrativa',
   onSuccess,
   onClose,
@@ -39,11 +39,11 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
   if (!isOpen) return null;
 
   const handleDigit = (digit: string) => {
-    if (pin.length < 4) {
+    if (pin.length < 6) {
       const nextPin = pin + digit;
       setPin(nextPin);
       setError('');
-      if (nextPin.length === 4) {
+      if (nextPin.length === 6) {
         void executeVerification(nextPin);
       }
     }
@@ -60,7 +60,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
   };
 
   const executeVerification = async (pinToVerify: string) => {
-    if (pinToVerify.length !== 4 || isVerifying) return;
+    if (pinToVerify.length !== 6 || isVerifying) return;
     setIsVerifying(true);
     setError('');
     try {
@@ -69,7 +69,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
         onSuccess();
         onClose();
       } else {
-        setError('PIN incorrecto. Intente de nuevo.');
+        setError('PIN o clave incorrecta. Intente de nuevo.');
         setPin('');
         inputRef.current?.focus();
       }
@@ -117,13 +117,13 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
 
         {/* Form / PIN Display */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex justify-center gap-3">
-            {[0, 1, 2, 3].map((index) => {
+          <div className="flex justify-center gap-2">
+            {[0, 1, 2, 3, 4, 5].map((index) => {
               const hasDigit = pin.length > index;
               return (
                 <div
                   key={index}
-                  className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-black transition-all ${
+                  className={`w-10 h-13 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all ${
                     hasDigit
                       ? 'border-yellow-500 bg-yellow-100 text-black scale-105 shadow-xs'
                       : 'border-gray-300 bg-gray-50 text-gray-400'
@@ -138,15 +138,13 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
           <input
             ref={inputRef}
             type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={4}
+            maxLength={6}
             value={pin}
             onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+              const val = e.target.value.slice(0, 6);
               setPin(val);
               setError('');
-              if (val.length === 4) void executeVerification(val);
+              if (val.length === 6) void executeVerification(val);
             }}
             className="sr-only"
             autoFocus
@@ -203,7 +201,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={pin.length !== 4 || isVerifying}
+              disabled={pin.length !== 6 || isVerifying}
               className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-40 text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all border border-yellow-500"
             >
               {isVerifying ? (

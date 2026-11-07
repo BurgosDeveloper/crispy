@@ -45,14 +45,14 @@ module.exports = function(io) {
     }
   });
 
-  // Verificar PIN de seguridad de 4 dígitos para autorizar acciones de caja
+  // Verificar PIN o clave de seguridad de 6 caracteres para autorizar acciones de caja
   router.post('/verify-admin-pin', async (req, res) => {
     try {
       const { pin } = req.body;
       const cleanPin = String(pin || '').trim();
 
       const { rows } = await query(`SELECT value FROM system_settings WHERE key = 'admin_pin'`);
-      const currentPin = rows[0]?.value || '1234';
+      const currentPin = rows[0]?.value || '123456';
 
       if (cleanPin === currentPin) {
         return res.json({ success: true, valid: true });
@@ -69,7 +69,7 @@ module.exports = function(io) {
   router.get('/admin-pin', async (req, res) => {
     try {
       const { rows } = await query(`SELECT value FROM system_settings WHERE key = 'admin_pin'`);
-      const pin = rows[0]?.value || '1234';
+      const pin = rows[0]?.value || '123456';
       res.json({ success: true, pin });
     } catch (err) {
       console.error('Error al consultar PIN de admin:', err);
@@ -77,14 +77,14 @@ module.exports = function(io) {
     }
   });
 
-  // Actualizar PIN de seguridad de 4 dígitos (solo admin)
+  // Actualizar PIN o clave de seguridad de 6 caracteres (solo admin)
   router.put('/admin-pin', async (req, res) => {
     try {
       const { pin } = req.body;
       const cleanPin = String(pin || '').trim();
 
-      if (!/^\d{4}$/.test(cleanPin)) {
-        return res.status(400).json({ error: 'El PIN debe contener exactamente 4 dígitos numéricos.' });
+      if (cleanPin.length !== 6) {
+        return res.status(400).json({ error: 'El PIN o clave de seguridad debe contener exactamente 6 caracteres.' });
       }
 
       await query(

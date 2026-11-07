@@ -247,7 +247,8 @@ async function initDb() {
       `INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('ambos', 3950.00, 36.50, 'Inicial Crispy') ON CONFLICT (shift) DO NOTHING;`,
       `INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('manana', 3950.00, 36.50, 'Compatibilidad') ON CONFLICT (shift) DO NOTHING;`,
       `INSERT INTO shift_exchange_rates (shift, cop_rate, bs_rate, updated_by) VALUES ('noche', 3950.00, 36.50, 'Compatibilidad') ON CONFLICT (shift) DO NOTHING;`,
-      `INSERT INTO system_settings (key, value) VALUES ('admin_pin', '1234') ON CONFLICT (key) DO NOTHING;`,
+      `INSERT INTO system_settings (key, value) VALUES ('admin_pin', '123456') ON CONFLICT (key) DO NOTHING;`,
+      `UPDATE system_settings SET value = '123456' WHERE key = 'admin_pin' AND value = '1234';`,
 
       `INSERT INTO users (id, username, password, role, name, shift) VALUES
         ('u-admin', 'carlos', 'carloscrispys', 'admin', 'Carlos', 'ambos'),
