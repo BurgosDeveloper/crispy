@@ -117,7 +117,11 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
 
         {/* Form / PIN Display */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex justify-center gap-2">
+          <div
+            className="flex justify-center gap-2 cursor-pointer"
+            onClick={() => inputRef.current?.focus()}
+            title="Haga clic para escribir con el teclado"
+          >
             {[0, 1, 2, 3, 4, 5].map((index) => {
               const hasDigit = pin.length > index;
               return (
